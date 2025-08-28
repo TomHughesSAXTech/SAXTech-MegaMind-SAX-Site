@@ -1113,18 +1113,18 @@
                 
                 // Add role and department info if available
                 if (userProfile.jobTitle && userProfile.department) {
-                    welcomeMsg += ` I see you're the ${userProfile.jobTitle} of ${userProfile.department}`;
+                    welcomeMsg += ` I see that you're the ${userProfile.jobTitle} in the ${userProfile.department} department`;
                 } else if (userProfile.jobTitle) {
-                    welcomeMsg += ` I see you're the ${userProfile.jobTitle}`;
+                    welcomeMsg += ` I see that you're the ${userProfile.jobTitle}`;
                 } else if (userProfile.department) {
-                    welcomeMsg += ` I see you're in ${userProfile.department}`;
+                    welcomeMsg += ` I see that you're in the ${userProfile.department} department`;
                 }
                 
                 // Add location
                 if (userProfile.officeLocation) {
-                    welcomeMsg += ` based in ${userProfile.officeLocation}`;
+                    welcomeMsg += ` based out of ${userProfile.officeLocation}`;
                 } else if (userProfile.city && userProfile.state) {
-                    welcomeMsg += ` based in ${userProfile.city}, ${userProfile.state}`;
+                    welcomeMsg += ` based out of ${userProfile.city}, ${userProfile.state}`;
                 }
                 
                 welcomeMsg += '. How can I assist you today?';
