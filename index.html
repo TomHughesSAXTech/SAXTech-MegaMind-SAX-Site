@@ -993,37 +993,53 @@
         async function initialize() {
             console.log('Initializing MegaMind SAX...');
             
-            // Wait for MSAL library to load with better error handling
-            let attempts = 0;
-            const maxAttempts = 50; // 5 seconds
+            // Don't show anything until we check authentication state
+            // This prevents the login screen flash
             
-            while (!initializeMSAL() && attempts < maxAttempts) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-                attempts++;
+            // Try immediate initialization first if msal is already available
+            if (typeof msal !== 'undefined' && msal.PublicClientApplication) {
+                try {
+                    msalInstance = new msal.PublicClientApplication(msalConfig);
+                    console.log('MSAL initialized immediately');
+                } catch (err) {
+                    console.error('Immediate MSAL initialization failed:', err);
+                }
             }
             
+            // If immediate initialization failed, wait for library
             if (!msalInstance) {
-                console.error('Failed to load MSAL library after', attempts * 100, 'ms');
-                console.error('msalLoaded:', window.msalLoaded);
-                console.error('typeof msal:', typeof msal);
-                // Try to initialize without waiting
-                if (typeof msal !== 'undefined' && msal.PublicClientApplication) {
-                    try {
-                        msalInstance = new msal.PublicClientApplication(msalConfig);
-                        console.log('MSAL initialized directly without waiting');
-                    } catch (err) {
-                        console.error('Direct MSAL initialization failed:', err);
+                let attempts = 0;
+                const maxAttempts = 50; // 5 seconds
+                
+                while (!initializeMSAL() && attempts < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+                
+                if (!msalInstance) {
+                    console.error('Failed to load MSAL library after', attempts * 100, 'ms');
+                    console.error('msalLoaded:', window.msalLoaded);
+                    console.error('typeof msal:', typeof msal);
+                    
+                    // Last attempt to initialize
+                    if (typeof msal !== 'undefined' && msal.PublicClientApplication) {
+                        try {
+                            msalInstance = new msal.PublicClientApplication(msalConfig);
+                            console.log('MSAL initialized on final attempt');
+                        } catch (err) {
+                            console.error('Final MSAL initialization failed:', err);
+                        }
+                    }
+                    
+                    if (!msalInstance) {
+                        console.error('MSAL completely failed to load');
+                        showAuthOverlay();
+                        return;
                     }
                 }
-                if (!msalInstance) {
-                    console.error('MSAL completely failed to load');
-                    showAuthOverlay();
-                    // Add click handler anyway in case MSAL loads later
-                    return;
-                }
             }
             
-            console.log('MSAL library loaded successfully');
+            console.log('MSAL library ready');
             
             try {
                 await msalInstance.initialize();
