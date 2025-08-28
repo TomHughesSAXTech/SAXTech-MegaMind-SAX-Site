@@ -489,22 +489,13 @@
             position: relative;
         }
         
-        /* Floating robot on chat page */
-        .floating-robot {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            width: 60px;
-            height: auto;
-            animation: float 3s ease-in-out infinite;
-            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
-            z-index: 10;
-            opacity: 0.8;
-            transition: opacity 0.3s ease;
-        }
-        
-        .floating-robot:hover {
-            opacity: 1;
+        /* Header robot icon */
+        .header-robot {
+            width: 35px;
+            height: 35px;
+            object-fit: contain;
+            margin-right: 10px;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
         }
 
         .chat-header {
@@ -512,15 +503,21 @@
             backdrop-filter: blur(10px);
             color: #FFD700;
             padding: 25px;
-            text-align: center;
             border-bottom: 1px solid rgba(255,215,0,0.2);
+        }
+        
+        .chat-header-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
         }
 
         .chat-header h2 {
             font-size: 28px;
             font-weight: 300;
             letter-spacing: 2px;
-            margin-bottom: 5px;
+            margin: 0;
         }
 
         .chat-header p {
@@ -628,14 +625,10 @@
         .message.bot .robot-avatar {
             width: 40px;
             height: 40px;
+            object-fit: contain;
             animation: float 3s ease-in-out infinite;
             filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
             border-radius: 8px;
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-5px); }
         }
 
         .chat-input-container {
@@ -666,7 +659,7 @@
             box-shadow: 0 0 20px rgba(255,215,0,0.3);
         }
 
-        .send-btn, .voice-btn {
+        .send-btn, .voice-btn, .file-btn {
             width: 50px;
             height: 50px;
             border: none;
@@ -681,7 +674,7 @@
             font-size: 18px;
         }
 
-        .send-btn:hover, .voice-btn:hover {
+        .send-btn:hover, .voice-btn:hover, .file-btn:hover {
             transform: scale(1.1);
             box-shadow: 0 5px 15px rgba(255,215,0,0.4);
         }
@@ -689,6 +682,11 @@
         .voice-btn.recording {
             background: linear-gradient(135deg, #FF4500, #FF6B47);
             animation: pulse 1s infinite;
+        }
+        
+        /* File input hidden */
+        #fileInput {
+            display: none;
         }
 
         .hidden {
@@ -776,12 +774,17 @@
                     <div class="voice-selector">
                         <label for="voiceSelect">AI Voice</label>
                         <select id="voiceSelect">
-                            <option value="alloy">Alloy (Natural)</option>
-                            <option value="echo">Echo (Clear)</option>
-                            <option value="fable">Fable (Warm)</option>
-                            <option value="onyx">Onyx (Deep)</option>
-                            <option value="nova">Nova (Friendly)</option>
-                            <option value="shimmer">Shimmer (Bright)</option>
+                            <!-- ElevenLabs Voices -->
+                            <option value="rachel">Rachel (Professional Female)</option>
+                            <option value="clyde">Clyde (Professional Male)</option>
+                            <option value="domi">Domi (Young Female)</option>
+                            <option value="nicole">Nicole (Whispery Female)</option>
+                            <option value="fin">Fin (Irish Male)</option>
+                            <option value="sarah">Sarah (Soft American Female)</option>
+                            <option value="antoni">Antoni (Well-Rounded Male)</option>
+                            <option value="thomas">Thomas (Calm Male)</option>
+                            <option value="charlie">Charlie (Casual Male)</option>
+                            <option value="george">George (British Male)</option>
                         </select>
                     </div>
                     
@@ -808,12 +811,14 @@
 
         <!-- Chat interface -->
         <div class="chat-container">
-            <!-- Floating robot decoration -->
-            <img src="robot.png" alt="MegaMind" class="floating-robot">
-            
             <div class="chat-header">
-                <h2>MegaMind SAX</h2>
-                <p>Your intelligent business assistant</p>
+                <div class="chat-header-content">
+                    <img src="robot.png" alt="MegaMind" class="header-robot">
+                    <div>
+                        <h2>MegaMind SAX</h2>
+                        <p style="font-size: 14px; opacity: 0.8; margin-top: 5px;">Your intelligent business assistant</p>
+                    </div>
+                </div>
             </div>
             
             <div class="chat-messages" id="chatMessages">
@@ -823,8 +828,10 @@
             <div class="chat-input-container">
                 <div class="chat-input">
                     <input type="text" id="messageInput" placeholder="Type your message or click voice to speak...">
-                    <button class="voice-btn" id="voiceBtn">🎤</button>
-                    <button class="send-btn" id="sendBtn">➤</button>
+                    <button class="file-btn" id="fileBtn" title="Attach file">📎</button>
+                    <input type="file" id="fileInput" accept="*/*" multiple>
+                    <button class="voice-btn" id="voiceBtn" title="Voice input">🎤</button>
+                    <button class="send-btn" id="sendBtn" title="Send message">➤</button>
                 </div>
             </div>
         </div>
@@ -884,6 +891,7 @@
         let isRecording = false;
         let mediaRecorder = null;
         let audioChunks = [];
+        let attachedFiles = [];
 
         // DOM elements
         const authOverlay = document.getElementById('authOverlay');
@@ -902,6 +910,8 @@
         const speakerIcon = document.getElementById('speakerIcon');
         const statusText = document.getElementById('statusText');
         const voiceSelect = document.getElementById('voiceSelect');
+        const fileBtn = document.getElementById('fileBtn');
+        const fileInput = document.getElementById('fileInput');
 
         // Initialize application
         async function initialize() {
@@ -1161,8 +1171,14 @@
                     sessionId: sessionId,
                     selectedVoice: voiceSelect.value,
                     userContext: window.userContext || {},
-                    userProfile: userProfile || {}
+                    userProfile: userProfile || {},
+                    attachedFiles: attachedFiles,
+                    ttsProvider: 'elevenlabs',  // Use ElevenLabs for TTS
+                    ttsVoice: voiceSelect.value  // Will map to ElevenLabs voice ID in n8n
                 };
+                
+                // Clear attached files after sending
+                attachedFiles = [];
                 
                 // Log the payload being sent for debugging
                 console.log('Sending payload to n8n:', payload);
@@ -1429,6 +1445,36 @@
                 stopRecording();
             } else {
                 startRecording();
+            }
+        });
+        
+        // File upload handlers
+        fileBtn.addEventListener('click', () => {
+            fileInput.click();
+        });
+        
+        fileInput.addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length > 0) {
+                // Convert files to base64
+                for (const file of files) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        attachedFiles.push({
+                            name: file.name,
+                            type: file.type,
+                            size: file.size,
+                            data: event.target.result.split(',')[1] // Remove data:type;base64, prefix
+                        });
+                        
+                        // Show confirmation
+                        addMessage('bot', `File "${file.name}" attached. Send a message to process it.`);
+                    };
+                    reader.readAsDataURL(file);
+                }
+                
+                // Clear the input for future uploads
+                fileInput.value = '';
             }
         });
 
