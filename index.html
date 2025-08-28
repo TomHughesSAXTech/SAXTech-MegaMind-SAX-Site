@@ -294,6 +294,110 @@
             border-radius: 15px;
             padding: 15px;
         }
+        
+        /* Conversation mode toggle */
+        .conversation-mode-toggle {
+            position: absolute;
+            top: 160px;
+            width: 80%;
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .conversation-mode-toggle label {
+            color: #FFD700;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 13px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .toggle-switch.active {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .toggle-switch.active .toggle-slider {
+            transform: translateX(24px);
+        }
+        
+        /* Conversation state indicator */
+        .conversation-indicator {
+            position: absolute;
+            bottom: 30px;
+            width: 100%;
+            text-align: center;
+            padding: 10px;
+        }
+        
+        .conversation-indicator.active {
+            animation: pulse-glow 2s infinite;
+        }
+        
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+        
+        .conversation-state {
+            display: inline-block;
+            padding: 8px 16px;
+            background: rgba(255,215,0,0.2);
+            border: 1px solid #FFD700;
+            border-radius: 20px;
+            color: #FFD700;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        
+        .conversation-state.listening {
+            background: rgba(0,191,255,0.2);
+            border-color: #00BFFF;
+            color: #00BFFF;
+            animation: listening-pulse 1.5s infinite;
+        }
+        
+        .conversation-state.speaking {
+            background: rgba(255,69,0,0.2);
+            border-color: #FF4500;
+            color: #FF4500;
+        }
+        
+        @keyframes listening-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
 
         .voice-selector label {
             color: #888;
@@ -789,6 +893,16 @@
                         </select>
                     </div>
                     
+                    <!-- Conversation mode toggle -->
+                    <div class="conversation-mode-toggle">
+                        <label>
+                            <span>🎙️ Conversation Mode</span>
+                        </label>
+                        <div class="toggle-switch" id="conversationToggle">
+                            <div class="toggle-slider"></div>
+                        </div>
+                    </div>
+                    
                     <!-- Speaker icon and status -->
                     <div class="speaker-icon" id="speakerIcon">
                         <svg viewBox="0 0 24 24">
@@ -805,6 +919,11 @@
                         <div class="volume-bar"></div>
                         <div class="volume-bar"></div>
                         <div class="volume-bar"></div>
+                    </div>
+                    
+                    <!-- Conversation state indicator -->
+                    <div class="conversation-indicator hidden" id="conversationIndicator">
+                        <span class="conversation-state" id="conversationState">Ready</span>
                     </div>
                 </div>
             </div>
@@ -893,6 +1012,14 @@
         let mediaRecorder = null;
         let audioChunks = [];
         let attachedFiles = [];
+        let conversationMode = false;
+        let isInConversation = false;
+        let silenceTimer = null;
+        let audioContext = null;
+        let analyser = null;
+        let microphone = null;
+        let currentAudio = null;
+        let isAISpeaking = false;
 
         // DOM elements
         const authOverlay = document.getElementById('authOverlay');
@@ -913,6 +1040,9 @@
         const voiceSelect = document.getElementById('voiceSelect');
         const fileBtn = document.getElementById('fileBtn');
         const fileInput = document.getElementById('fileInput');
+        const conversationToggle = document.getElementById('conversationToggle');
+        const conversationIndicator = document.getElementById('conversationIndicator');
+        const conversationState = document.getElementById('conversationState');
 
         // Initialize application
         async function initialize() {
@@ -1240,21 +1370,41 @@
         // Play audio response
         function playAudio(audioData) {
             try {
-                const audio = new Audio('data:audio/mp3;base64,' + audioData);
-                audio.play();
+                isAISpeaking = true;
+                currentAudio = new Audio('data:audio/mp3;base64,' + audioData);
+                currentAudio.play();
                 
                 // Visual feedback
                 speakerIcon.classList.add('active');
                 statusText.textContent = 'Speaking...';
                 statusText.classList.add('active');
                 
-                audio.onended = () => {
+                if (conversationMode) {
+                    conversationState.textContent = 'AI Speaking';
+                    conversationState.className = 'conversation-state speaking';
+                }
+                
+                currentAudio.onended = () => {
+                    isAISpeaking = false;
                     speakerIcon.classList.remove('active');
-                    statusText.textContent = 'Tap to talk';
                     statusText.classList.remove('active');
+                    
+                    if (conversationMode && isInConversation) {
+                        // Automatically start listening again in conversation mode
+                        setTimeout(() => {
+                            startConversationListening();
+                        }, 500); // Small delay before listening again
+                    } else {
+                        statusText.textContent = conversationMode ? 'Say "Hey MegaMind" to start' : 'Tap to talk';
+                        if (conversationMode) {
+                            conversationState.textContent = 'Ready';
+                            conversationState.className = 'conversation-state';
+                        }
+                    }
                 };
             } catch (error) {
                 console.error('Error playing audio:', error);
+                isAISpeaking = false;
             }
         }
 
@@ -1264,6 +1414,20 @@
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 mediaRecorder = new MediaRecorder(stream);
                 audioChunks = [];
+                
+                // Set up audio analysis for voice activity detection
+                if (conversationMode && !audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    analyser = audioContext.createAnalyser();
+                    microphone = audioContext.createMediaStreamSource(stream);
+                    microphone.connect(analyser);
+                    analyser.fftSize = 256;
+                    
+                    // Start monitoring for silence in conversation mode
+                    if (conversationMode) {
+                        monitorSilence();
+                    }
+                }
                 
                 mediaRecorder.ondataavailable = (event) => {
                     audioChunks.push(event.data);
@@ -1278,14 +1442,75 @@
                 isRecording = true;
                 
                 // Update UI
-                voiceBtn.classList.add('recording');
+                if (!conversationMode) {
+                    voiceBtn.classList.add('recording');
+                }
                 speakerIcon.classList.add('listening');
                 statusText.textContent = 'Listening...';
                 statusText.classList.add('listening');
+                
+                if (conversationMode) {
+                    conversationState.textContent = 'Listening';
+                    conversationState.className = 'conversation-state listening';
+                }
             } catch (error) {
                 console.error('Error starting recording:', error);
                 alert('Could not access microphone. Please check permissions.');
             }
+        }
+        
+        // Monitor silence for conversation mode
+        function monitorSilence() {
+            if (!isRecording || !conversationMode) return;
+            
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
+            
+            // Calculate average volume
+            const average = dataArray.reduce((a, b) => a + b) / bufferLength;
+            
+            // Update volume bars visualization
+            updateVolumeBars(average);
+            
+            // Check for silence (threshold can be adjusted)
+            if (average < 5 && isInConversation && !isAISpeaking) {
+                // Start silence timer if not already started
+                if (!silenceTimer) {
+                    silenceTimer = setTimeout(() => {
+                        // Stop recording after 2 seconds of silence
+                        if (isRecording && conversationMode && isInConversation) {
+                            stopRecording();
+                        }
+                    }, 2000);
+                }
+            } else {
+                // Reset silence timer if sound detected
+                if (silenceTimer) {
+                    clearTimeout(silenceTimer);
+                    silenceTimer = null;
+                }
+            }
+            
+            // Continue monitoring
+            if (isRecording && conversationMode) {
+                requestAnimationFrame(monitorSilence);
+            }
+        }
+        
+        // Update volume bars based on audio level
+        function updateVolumeBars(level) {
+            const bars = document.querySelectorAll('.volume-bar');
+            const normalizedLevel = Math.min(level / 50, 1); // Normalize to 0-1
+            const activeBars = Math.floor(normalizedLevel * bars.length);
+            
+            bars.forEach((bar, index) => {
+                if (index < activeBars) {
+                    bar.classList.add('active');
+                } else {
+                    bar.classList.remove('active');
+                }
+            });
         }
 
         function stopRecording() {
@@ -1294,11 +1519,78 @@
                 mediaRecorder.stream.getTracks().forEach(track => track.stop());
                 isRecording = false;
                 
+                // Clear silence timer
+                if (silenceTimer) {
+                    clearTimeout(silenceTimer);
+                    silenceTimer = null;
+                }
+                
                 // Update UI
-                voiceBtn.classList.remove('recording');
+                if (!conversationMode) {
+                    voiceBtn.classList.remove('recording');
+                }
                 speakerIcon.classList.remove('listening');
                 statusText.textContent = 'Processing...';
                 statusText.classList.remove('listening');
+                
+                if (conversationMode) {
+                    conversationState.textContent = 'Processing';
+                    conversationState.className = 'conversation-state';
+                }
+                
+                // Clear volume bars
+                document.querySelectorAll('.volume-bar').forEach(bar => {
+                    bar.classList.remove('active');
+                });
+            }
+        }
+        
+        // Start conversation listening (for conversation mode)
+        function startConversationListening() {
+            if (!conversationMode || isAISpeaking) return;
+            
+            isInConversation = true;
+            conversationState.textContent = 'Listening';
+            conversationState.className = 'conversation-state listening';
+            statusText.textContent = 'Listening...';
+            
+            // Start recording automatically
+            startRecording();
+        }
+        
+        // Toggle conversation mode
+        function toggleConversationMode() {
+            conversationMode = !conversationMode;
+            conversationToggle.classList.toggle('active');
+            
+            if (conversationMode) {
+                // Enable conversation mode
+                conversationIndicator.classList.remove('hidden');
+                statusText.textContent = 'Say "Hey MegaMind" to start';
+                conversationState.textContent = 'Ready';
+                
+                // Start wake word detection (simplified - just start listening)
+                setTimeout(() => {
+                    if (conversationMode && !isRecording) {
+                        startConversationListening();
+                    }
+                }, 1000);
+            } else {
+                // Disable conversation mode
+                conversationIndicator.classList.add('hidden');
+                statusText.textContent = 'Tap to talk';
+                isInConversation = false;
+                
+                // Stop any ongoing recording
+                if (isRecording) {
+                    stopRecording();
+                }
+                
+                // Stop any playing audio
+                if (currentAudio) {
+                    currentAudio.pause();
+                    currentAudio = null;
+                }
             }
         }
 
@@ -1442,12 +1734,31 @@
         });
 
         speakerIcon.addEventListener('click', () => {
-            if (isRecording) {
-                stopRecording();
+            if (conversationMode) {
+                // In conversation mode, toggle the conversation state
+                if (isInConversation) {
+                    isInConversation = false;
+                    if (isRecording) {
+                        stopRecording();
+                    }
+                    statusText.textContent = 'Say "Hey MegaMind" to start';
+                    conversationState.textContent = 'Ready';
+                    conversationState.className = 'conversation-state';
+                } else {
+                    startConversationListening();
+                }
             } else {
-                startRecording();
+                // Regular push-to-talk mode
+                if (isRecording) {
+                    stopRecording();
+                } else {
+                    startRecording();
+                }
             }
         });
+        
+        // Conversation mode toggle handler
+        conversationToggle.addEventListener('click', toggleConversationMode);
         
         // File upload handlers
         fileBtn.addEventListener('click', () => {
