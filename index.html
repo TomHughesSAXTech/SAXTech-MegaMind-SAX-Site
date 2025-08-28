@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MegaMind Talk</title>
+    <title>MegaMind SAX</title>
     <script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js" integrity="sha384-CmkqNKdSGpmbopWq7p5SePC6rnYhzSvPPLiW2ocJ4iyPWJU5lBnt9ss3cR6kGzjb" crossorigin="anonymous" onload="window.msalLoaded = true" onerror="window.msalLoaded = false"></script>
     <script>
         window.msalLoaded = false;
@@ -705,8 +705,8 @@
                 <img src="robot.png" alt="MegaMind Robot" class="robot-image">
                 <div class="robot-shadow"></div>
             </div>
-            <h1>MegaMind</h1>
-            <p>Your AI-powered assistant for SAX Technology Advisors</p>
+            <h1>MegaMind SAX</h1>
+            <p>Your AI-powered assistant for SAX Advisory Group</p>
             <button id="signInBtn" class="sign-in-btn">Sign in with Microsoft</button>
         </div>
     </div>
@@ -775,8 +775,8 @@
         <!-- Chat interface -->
         <div class="chat-container">
             <div class="chat-header">
-                <h2>MegaMind AI</h2>
-                <p>Your intelligent assistant</p>
+                <h2>MegaMind SAX</h2>
+                <p>Your intelligent business assistant</p>
             </div>
             
             <div class="chat-messages" id="chatMessages">
@@ -797,8 +797,8 @@
         // Microsoft Authentication configuration
         const msalConfig = {
             auth: {
-                clientId: "22bf09b4-93d2-4194-a601-4f57ce58c777",
-                authority: "https://login.microsoftonline.com/3d659328-eef0-44f7-8481-5833e1051aec",
+                clientId: "c2dae13f-d673-4937-84d5-79fa7f9e67df", // MegaMind SAX for saxadvisorygroup.com
+                authority: "https://login.microsoftonline.com/a33e9b66-a6ef-43bf-9702-7cb4301d0a16", // saxadvisorygroup.com tenant
                 redirectUri: window.location.origin,
                 postLogoutRedirectUri: window.location.origin
             },
@@ -868,7 +868,7 @@
 
         // Initialize application
         async function initialize() {
-            console.log('Initializing MegaMind...');
+            console.log('Initializing MegaMind SAX...');
             
             // Wait for MSAL library to load with better error handling
             let attempts = 0;
@@ -941,7 +941,7 @@
             sessionId = 'session_' + Date.now();
             
             // Add welcome message
-            addMessage('bot', `Welcome back, ${userProfile.displayName}! I'm MegaMind, your AI assistant. How can I help you today?`);
+            addMessage('bot', `Welcome back, ${userProfile.displayName}! I'm MegaMind SAX, your AI-powered business assistant. How can I help you with your SAX Advisory Group needs today?`);
         }
 
         // Sign in function
@@ -1002,7 +1002,7 @@
                     
                     // Update UI with user information
                     userName.textContent = userProfile.displayName || 'User';
-                    userRole.textContent = `${userProfile.jobTitle || 'Employee'} • ${userProfile.department || 'SAX Technology'}`;
+                    userRole.textContent = `${userProfile.jobTitle || 'Employee'} • ${userProfile.department || 'SAX Advisory Group'}`;
                     
                     // Set user avatar (first letter of name)
                     const initials = userProfile.displayName ? 
