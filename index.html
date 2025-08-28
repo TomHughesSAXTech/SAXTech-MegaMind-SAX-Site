@@ -1149,8 +1149,8 @@
                 // Log the payload being sent for debugging
                 console.log('Sending payload to n8n:', payload);
                 
-                // Send request to n8n workflow (using megamind-sax-chat endpoint)
-                const response = await fetch('https://workflows.saxtechnology.com/webhook/megamind-sax-chat', {
+                // Send request to n8n workflow (using megamind-chat endpoint)
+                const response = await fetch('https://workflows.saxtechnology.com/webhook/megamind-chat', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1311,8 +1311,8 @@
                     userProfile: userProfile || {}
                 };
                 
-                // Send request to n8n workflow (using megamind-sax-chat endpoint)
-                const response = await fetch('https://workflows.saxtechnology.com/webhook/megamind-sax-chat', {
+                // Send request to n8n workflow (using megamind-chat endpoint)
+                const response = await fetch('https://workflows.saxtechnology.com/webhook/megamind-chat', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
