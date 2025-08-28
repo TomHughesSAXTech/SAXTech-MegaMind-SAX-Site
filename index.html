@@ -928,7 +928,9 @@
 
         const loginRequest = {
             scopes: ["openid", "profile", "User.Read"],
-            prompt: "select_account"
+            prompt: "select_account",
+            domainHint: "saxadvisorygroup.com",  // Hint to use saxadvisorygroup.com
+            loginHint: "@saxadvisorygroup.com"    // Suggest saxadvisorygroup.com domain
         };
 
         // Initialize MSAL instance (wait for library to load)
@@ -1062,20 +1064,24 @@
             const existingSessionId = sessionStorage.getItem('megamind_sax_session_id');
             const existingMessages = sessionStorage.getItem('megamind_sax_messages');
             
-            if (existingSessionId && existingMessages) {
+            if (existingSessionId) {
                 // Restore existing session
                 sessionId = existingSessionId;
                 
-                // Restore chat messages
-                try {
-                    const messages = JSON.parse(existingMessages);
-                    messages.forEach(msg => {
-                        addMessage(msg.sender, msg.text, null, false); // false = don't save to storage
-                    });
-                } catch (e) {
-                    console.error('Error restoring messages:', e);
+                // Restore chat messages if they exist
+                if (existingMessages) {
+                    try {
+                        const messages = JSON.parse(existingMessages);
+                        messages.forEach(msg => {
+                            addMessage(msg.sender, msg.text, null, false); // false = don't save to storage
+                        });
+                    } catch (e) {
+                        console.error('Error restoring messages:', e);
+                        // If messages are corrupted, start fresh but keep session
+                        sessionStorage.removeItem('megamind_sax_messages');
+                    }
                 }
-            } else if (!sessionId) {
+            } else {
                 // New session - generate ID and show welcome
                 sessionId = 'session_' + Date.now();
                 sessionStorage.setItem('megamind_sax_session_id', sessionId);
@@ -1162,6 +1168,14 @@
                     userProfile = await profileResponse.json();
                     
                     console.log('User Profile Data:', userProfile); // Debug log
+                    
+                    // Verify user is from saxadvisorygroup.com domain
+                    const userDomain = userProfile.userPrincipalName ? userProfile.userPrincipalName.split('@')[1] : '';
+                    if (userDomain && userDomain.toLowerCase() !== 'saxadvisorygroup.com') {
+                        alert('Access denied. This application is only available for saxadvisorygroup.com users.');
+                        await signOut();
+                        return;
+                    }
                     
                     // Update UI with user information
                     userName.textContent = userProfile.displayName || 'User';
