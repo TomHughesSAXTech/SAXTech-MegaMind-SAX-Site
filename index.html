@@ -619,8 +619,23 @@
         }
 
         .message.bot .message-avatar {
-            background: linear-gradient(135deg, #FFD700, #FFA500);
-            color: #1a1a1a;
+            background: transparent;
+            overflow: visible;
+            box-shadow: none;
+        }
+
+        /* Robot avatar with floating animation */
+        .message.bot .robot-avatar {
+            width: 40px;
+            height: 40px;
+            animation: float 3s ease-in-out infinite;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+            border-radius: 8px;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
         }
 
         .chat-input-container {
@@ -1099,9 +1114,12 @@
             
             const avatar = document.createElement('div');
             avatar.className = 'message-avatar';
-            avatar.innerHTML = sender === 'user' ? 
-                (userProfile ? userProfile.displayName.charAt(0) : 'U') : 
-                '<svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="8" r="3" fill="currentColor"/><path d="M12 14c-4 0-6 2-6 4v2h12v-2c0-2-2-4-6-4z" fill="currentColor" opacity="0.7"/><circle cx="12" cy="4" r="1" fill="#FFD700"/></svg>';
+            if (sender === 'user') {
+                avatar.innerHTML = userProfile ? userProfile.displayName.charAt(0) : 'U';
+            } else {
+                // Use the robot.png image for bot messages
+                avatar.innerHTML = '<img src="robot.png" alt="MegaMind" class="robot-avatar">';
+            }
             
             const bubble = document.createElement('div');
             bubble.className = 'message-bubble';
@@ -1132,7 +1150,7 @@
             // Show typing indicator
             const typingDiv = document.createElement('div');
             typingDiv.className = 'message bot typing';
-            typingDiv.innerHTML = '<div class="message-avatar">🧠</div><div class="message-bubble">Thinking...</div>';
+            typingDiv.innerHTML = '<div class="message-avatar"><img src="robot.png" alt="MegaMind" class="robot-avatar"></div><div class="message-bubble">Thinking...</div>';
             chatMessages.appendChild(typingDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
             
@@ -1296,7 +1314,7 @@
             // Show processing indicator
             const typingDiv = document.createElement('div');
             typingDiv.className = 'message bot typing';
-            typingDiv.innerHTML = '<div class="message-avatar">🧠</div><div class="message-bubble">Processing voice input...</div>';
+            typingDiv.innerHTML = '<div class="message-avatar"><img src="robot.png" alt="MegaMind" class="robot-avatar"></div><div class="message-bubble">Processing voice input...</div>';
             chatMessages.appendChild(typingDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
             
