@@ -872,21 +872,32 @@
             
             // Wait for MSAL library to load with better error handling
             let attempts = 0;
-            const maxAttempts = 100; // 10 seconds
+            const maxAttempts = 50; // 5 seconds
             
             while (!initializeMSAL() && attempts < maxAttempts) {
-                console.log(`Waiting for MSAL library... Attempt ${attempts + 1}/${maxAttempts}`);
                 await new Promise(resolve => setTimeout(resolve, 100));
                 attempts++;
             }
             
             if (!msalInstance) {
-                console.error('Failed to load MSAL library after', maxAttempts * 100, 'ms');
+                console.error('Failed to load MSAL library after', attempts * 100, 'ms');
                 console.error('msalLoaded:', window.msalLoaded);
                 console.error('typeof msal:', typeof msal);
-                alert('Authentication library failed to load. Please refresh the page and try again.');
-                showAuthOverlay();
-                return;
+                // Try to initialize without waiting
+                if (typeof msal !== 'undefined' && msal.PublicClientApplication) {
+                    try {
+                        msalInstance = new msal.PublicClientApplication(msalConfig);
+                        console.log('MSAL initialized directly without waiting');
+                    } catch (err) {
+                        console.error('Direct MSAL initialization failed:', err);
+                    }
+                }
+                if (!msalInstance) {
+                    console.error('MSAL completely failed to load');
+                    showAuthOverlay();
+                    // Add click handler anyway in case MSAL loads later
+                    return;
+                }
             }
             
             console.log('MSAL library loaded successfully');
@@ -1283,7 +1294,27 @@
         }
 
         // Event listeners
-        signInBtn.addEventListener('click', signIn);
+        signInBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            console.log('Sign in button clicked');
+            console.log('msalInstance exists:', !!msalInstance);
+            console.log('MSAL loaded:', window.msalLoaded);
+            
+            // Try to initialize MSAL if it's not ready
+            if (!msalInstance && typeof msal !== 'undefined' && msal.PublicClientApplication) {
+                try {
+                    msalInstance = new msal.PublicClientApplication(msalConfig);
+                    await msalInstance.initialize();
+                    console.log('MSAL initialized on button click');
+                } catch (err) {
+                    console.error('Failed to initialize MSAL on click:', err);
+                    alert('Authentication system is not ready. Error: ' + err.message);
+                    return;
+                }
+            }
+            
+            await signIn();
+        });
         signOutBtn.addEventListener('click', signOut);
 
         sendBtn.addEventListener('click', () => {
