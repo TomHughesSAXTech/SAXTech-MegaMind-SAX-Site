@@ -1128,6 +1128,7 @@
                     
                     if (!responseText || responseText.trim() === '') {
                         // Empty response - webhook might not be configured
+                        console.log('Webhook returned empty response - n8n workflow may not be configured');
                         addMessage('bot', 'I apologize, but the MegaMind SAX service is currently being configured. The webhook at workflows.saxtechnology.com is not returning data. Please contact your administrator to activate the n8n workflow.');
                     } else {
                         try {
@@ -1135,7 +1136,8 @@
                             // Add bot response
                             addMessage('bot', result.response || 'I received your message but couldn\'t generate a response.', result.audioData);
                         } catch (jsonError) {
-                            console.error('Invalid JSON response:', responseText);
+                            console.error('Invalid JSON response:', jsonError.message);
+                            console.log('Response was:', responseText);
                             addMessage('bot', 'I received an invalid response from the server. Please try again later.');
                         }
                     }
