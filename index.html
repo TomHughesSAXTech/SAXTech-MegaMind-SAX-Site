@@ -911,8 +911,8 @@
                 postLogoutRedirectUri: window.location.origin
             },
             cache: {
-                cacheLocation: "sessionStorage",  // Use session storage for current browser session
-                storeAuthStateInCookie: false     // Disable for session-only persistence
+                cacheLocation: "localStorage",  // Use localStorage to persist across refreshes
+                storeAuthStateInCookie: true     // Enable cookies for better persistence
             },
             system: {
                 loggerOptions: {
@@ -1060,6 +1060,9 @@
             userProfileDiv.classList.remove('hidden');
             mainApp.classList.remove('hidden');
             
+            // Clear chat messages display first to prevent duplicates
+            chatMessages.innerHTML = '';
+            
             // Check if we have an existing session in sessionStorage
             const existingSessionId = sessionStorage.getItem('megamind_sax_session_id');
             const existingMessages = sessionStorage.getItem('megamind_sax_messages');
@@ -1067,11 +1070,13 @@
             if (existingSessionId) {
                 // Restore existing session
                 sessionId = existingSessionId;
+                console.log('Restoring session:', sessionId);
                 
                 // Restore chat messages if they exist
                 if (existingMessages) {
                     try {
                         const messages = JSON.parse(existingMessages);
+                        console.log('Restoring', messages.length, 'messages');
                         messages.forEach(msg => {
                             addMessage(msg.sender, msg.text, null, false); // false = don't save to storage
                         });
@@ -1085,11 +1090,12 @@
                 // New session - generate ID and show welcome
                 sessionId = 'session_' + Date.now();
                 sessionStorage.setItem('megamind_sax_session_id', sessionId);
+                console.log('Creating new session:', sessionId);
                 
                 // Add personalized welcome message with context
                 const locationInfo = userProfile.officeLocation || userProfile.city || 'your location';
                 const deptInfo = userProfile.department || 'SAX Advisory Group';
-                addMessage('bot', `Welcome back, ${userProfile.displayName}! I'm MegaMind SAX, your AI-powered business assistant. I see you're ${userProfile.jobTitle || 'working'} in ${deptInfo}${locationInfo !== 'your location' ? ` at ${locationInfo}` : ''}. How can I help you with your SAX Advisory Group needs today?`);
+                addMessage('bot', `Welcome back, ${userProfile.displayName}! I'm MegaMind SAX, your AI-powered executive assistant. I see you're ${userProfile.jobTitle || 'working'} in ${deptInfo}${locationInfo !== 'your location' ? ` at ${locationInfo}` : ''}. How can I assist you today?`);
             }
         }
 
