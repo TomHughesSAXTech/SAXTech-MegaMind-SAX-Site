@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MegaMind Talk</title>
-    <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/dist/msal-browser.min.js" crossorigin="anonymous" onload="msalLoaded = true" onerror="msalLoaded = false"></script>
+    <script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js" integrity="sha384-CmkqNKdSGpmbopWq7p5SePC6rnYhzSvPPLiW2ocJ4iyPWJU5lBnt9ss3cR6kGzjb" crossorigin="anonymous" onload="window.msalLoaded = true" onerror="window.msalLoaded = false"></script>
     <script>
         window.msalLoaded = false;
     </script>
@@ -813,7 +813,7 @@
                         console.log(message);
                     },
                     piiLoggingEnabled: false,
-                    logLevel: msal.LogLevel.Warning
+                    logLevel: window.msal ? msal.LogLevel.Warning : 2
                 }
             }
         };
