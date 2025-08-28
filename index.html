@@ -1093,9 +1093,26 @@
                 console.log('Creating new session:', sessionId);
                 
                 // Add personalized welcome message with context
-                const locationInfo = userProfile.officeLocation || userProfile.city || 'your location';
-                const deptInfo = userProfile.department || 'SAX Advisory Group';
-                addMessage('bot', `Welcome back, ${userProfile.displayName}! I'm MegaMind SAX, your AI-powered executive assistant. I see you're ${userProfile.jobTitle || 'working'} in ${deptInfo}${locationInfo !== 'your location' ? ` at ${locationInfo}` : ''}. How can I assist you today?`);
+                let welcomeMsg = `Welcome back, ${userProfile.displayName}! I'm MegaMind SAX, your AI-powered executive assistant.`;
+                
+                // Add role and department info if available
+                if (userProfile.jobTitle && userProfile.department) {
+                    welcomeMsg += ` I see you're the ${userProfile.jobTitle} in the ${userProfile.department} department.`;
+                } else if (userProfile.jobTitle) {
+                    welcomeMsg += ` I see you're the ${userProfile.jobTitle} at SAX Advisory Group.`;
+                } else if (userProfile.department) {
+                    welcomeMsg += ` I see you're in the ${userProfile.department} department.`;
+                }
+                
+                // Add location if it's a specific office
+                if (userProfile.officeLocation && !userProfile.officeLocation.includes('Carolina')) {
+                    welcomeMsg += ` You're based in ${userProfile.officeLocation}.`;
+                } else if (userProfile.city && userProfile.state) {
+                    welcomeMsg += ` You're based in ${userProfile.city}, ${userProfile.state}.`;
+                }
+                
+                welcomeMsg += ' How can I assist you today?';
+                addMessage('bot', welcomeMsg);
             }
         }
 
