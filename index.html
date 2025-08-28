@@ -1097,21 +1097,21 @@
                 
                 // Add role and department info if available
                 if (userProfile.jobTitle && userProfile.department) {
-                    welcomeMsg += ` I see you're the ${userProfile.jobTitle} in the ${userProfile.department} department.`;
+                    welcomeMsg += ` I see you're the ${userProfile.jobTitle} of ${userProfile.department}`;
                 } else if (userProfile.jobTitle) {
-                    welcomeMsg += ` I see you're the ${userProfile.jobTitle} at SAX Advisory Group.`;
+                    welcomeMsg += ` I see you're the ${userProfile.jobTitle}`;
                 } else if (userProfile.department) {
-                    welcomeMsg += ` I see you're in the ${userProfile.department} department.`;
+                    welcomeMsg += ` I see you're in ${userProfile.department}`;
                 }
                 
-                // Add location if it's a specific office
-                if (userProfile.officeLocation && !userProfile.officeLocation.includes('Carolina')) {
-                    welcomeMsg += ` You're based in ${userProfile.officeLocation}.`;
+                // Add location
+                if (userProfile.officeLocation) {
+                    welcomeMsg += ` based in ${userProfile.officeLocation}`;
                 } else if (userProfile.city && userProfile.state) {
-                    welcomeMsg += ` You're based in ${userProfile.city}, ${userProfile.state}.`;
+                    welcomeMsg += ` based in ${userProfile.city}, ${userProfile.state}`;
                 }
                 
-                welcomeMsg += ' How can I assist you today?';
+                welcomeMsg += '. How can I assist you today?';
                 addMessage('bot', welcomeMsg);
             }
         }
