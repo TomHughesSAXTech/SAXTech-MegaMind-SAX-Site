@@ -1058,13 +1058,16 @@
             userProfileDiv.classList.remove('hidden');
             mainApp.classList.remove('hidden');
             
-            // Generate session ID
-            sessionId = 'session_' + Date.now();
-            
-            // Add personalized welcome message with context
-            const locationInfo = userProfile.officeLocation || userProfile.city || 'your location';
-            const deptInfo = userProfile.department || 'SAX Advisory Group';
-            addMessage('bot', `Welcome back, ${userProfile.displayName}! I'm MegaMind SAX, your AI-powered business assistant. I see you're ${userProfile.jobTitle || 'working'} in ${deptInfo}${locationInfo !== 'your location' ? ` at ${locationInfo}` : ''}. How can I help you with your SAX Advisory Group needs today?`);
+            // Only generate session ID and show welcome if not already done
+            if (!sessionId) {
+                // Generate session ID
+                sessionId = 'session_' + Date.now();
+                
+                // Add personalized welcome message with context
+                const locationInfo = userProfile.officeLocation || userProfile.city || 'your location';
+                const deptInfo = userProfile.department || 'SAX Advisory Group';
+                addMessage('bot', `Welcome back, ${userProfile.displayName}! I'm MegaMind SAX, your AI-powered business assistant. I see you're ${userProfile.jobTitle || 'working'} in ${deptInfo}${locationInfo !== 'your location' ? ` at ${locationInfo}` : ''}. How can I help you with your SAX Advisory Group needs today?`);
+            }
         }
 
         // Sign in function
