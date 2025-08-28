@@ -1058,10 +1058,27 @@
             userProfileDiv.classList.remove('hidden');
             mainApp.classList.remove('hidden');
             
-            // Only generate session ID and show welcome if not already done
-            if (!sessionId) {
-                // Generate session ID
+            // Check if we have an existing session in sessionStorage
+            const existingSessionId = sessionStorage.getItem('megamind_sax_session_id');
+            const existingMessages = sessionStorage.getItem('megamind_sax_messages');
+            
+            if (existingSessionId && existingMessages) {
+                // Restore existing session
+                sessionId = existingSessionId;
+                
+                // Restore chat messages
+                try {
+                    const messages = JSON.parse(existingMessages);
+                    messages.forEach(msg => {
+                        addMessage(msg.sender, msg.text, null, false); // false = don't save to storage
+                    });
+                } catch (e) {
+                    console.error('Error restoring messages:', e);
+                }
+            } else if (!sessionId) {
+                // New session - generate ID and show welcome
                 sessionId = 'session_' + Date.now();
+                sessionStorage.setItem('megamind_sax_session_id', sessionId);
                 
                 // Add personalized welcome message with context
                 const locationInfo = userProfile.officeLocation || userProfile.city || 'your location';
@@ -1096,6 +1113,10 @@
                 // Show sign-out confirmation message
                 const authMessage = document.getElementById('authMessage');
                 const oldName = userProfile ? userProfile.displayName : 'User';
+                
+                // Clear session storage
+                sessionStorage.removeItem('megamind_sax_session_id');
+                sessionStorage.removeItem('megamind_sax_messages');
                 
                 await msalInstance.logoutPopup();
                 currentAccount = null;
@@ -1219,7 +1240,7 @@
         }
 
         // Add message to chat
-        function addMessage(sender, message, audioData = null) {
+        function addMessage(sender, message, audioData = null, saveToStorage = true) {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${sender}`;
             
@@ -1241,6 +1262,27 @@
             
             chatMessages.appendChild(messageDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            // Save message to sessionStorage for persistence across refreshes
+            if (saveToStorage) {
+                let messages = [];
+                try {
+                    const stored = sessionStorage.getItem('megamind_sax_messages');
+                    if (stored) {
+                        messages = JSON.parse(stored);
+                    }
+                } catch (e) {
+                    console.error('Error reading stored messages:', e);
+                }
+                messages.push({ sender, text: message });
+                
+                // Keep only last 50 messages to avoid storage limits
+                if (messages.length > 50) {
+                    messages = messages.slice(-50);
+                }
+                
+                sessionStorage.setItem('megamind_sax_messages', JSON.stringify(messages));
+            }
             
             // Play audio if provided
             if (audioData && sender === 'bot') {
