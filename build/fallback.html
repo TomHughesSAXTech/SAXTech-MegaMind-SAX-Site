@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MegaMind Talk</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #000000 0%, #1a1a1a 25%, #FFD700 50%, #FFA500 75%, #000000 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .auth-card {
+            background: linear-gradient(135deg, #2C2C2C 0%, #1F1F1F 50%, #333333 100%);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,215,0,0.3);
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .robot-logo {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .robot-image {
+            width: 120px;
+            height: auto;
+            max-height: 150px;
+            animation: float 3s ease-in-out infinite;
+            filter: drop-shadow(0 8px 16px rgba(0,0,0,0.3));
+            border-radius: 10px;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .auth-card h1 {
+            color: #FFD700;
+            font-size: 32px;
+            margin-bottom: 20px;
+            letter-spacing: 2px;
+        }
+
+        .auth-card p {
+            color: #999;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+
+        .sign-in-btn {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: #1a1a1a;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .sign-in-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(255,215,0,0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-card">
+        <div class="robot-logo">
+            <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgPGNpcmNsZSBjeD0iMTAwIiBjeT0iMTAwIiByPSI5MCIgZmlsbD0iI0ZGRDcwMCIvPgogIDxjaXJjbGUgY3g9IjcwIiBjeT0iODAiIHI9IjEwIiBmaWxsPSIjMDAwIi8+CiAgPGNpcmNsZSBjeD0iMTMwIiBjeT0iODAiIHI9IjEwIiBmaWxsPSIjMDAwIi8+CiAgPHBhdGggZD0iTTcwIDEzMEMxMDAgMTYwIDEzMCAxMzAgMTMwIDEzMCIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjUiLz4KPC9zdmc+Cg==" alt="MegaMind Robot" class="robot-image">
+        </div>
+        <h1>MegaMind</h1>
+        <p>Your AI-powered assistant for SAX Technology Advisors</p>
+        <button id="signInBtn" class="sign-in-btn">Sign in with Microsoft</button>
+    </div>
+
+    <script>
+        document.getElementById('signInBtn').addEventListener('click', function() {
+            alert('Authentication feature is currently in maintenance mode.\nPlease check back soon!');
+        });
+    </script>
+</body>
+</html>

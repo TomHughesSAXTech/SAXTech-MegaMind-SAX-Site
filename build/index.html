@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MegaMind Talk</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #000000 0%, #1a1a1a 25%, #FFD700 50%, #FFA500 75%, #000000 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        /* Authentication overlay */
+        .auth-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .auth-card {
+            background: linear-gradient(135deg, #2C2C2C 0%, #1F1F1F 50%, #333333 100%);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,215,0,0.3);
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .robot-logo {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        /* Robot SVG with floating animation */
+        .robot-image {
+            width: 120px;
+            height: 120px;
+            animation: float 3s ease-in-out infinite;
+            filter: drop-shadow(0 8px 16px rgba(0,0,0,0.3));
+        }
+        
+        .robot-shadow {
+            position: absolute;
+            bottom: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 15px;
+            background: radial-gradient(ellipse, rgba(0,0,0,0.2) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .auth-card h1 {
+            color: #FFD700;
+            font-size: 32px;
+            margin-bottom: 20px;
+            letter-spacing: 2px;
+        }
+
+        .auth-card p {
+            color: #999;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+
+        .sign-in-btn {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: #1a1a1a;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .sign-in-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(255,215,0,0.3);
+        }
+
+        /* User profile bar */
+        .user-profile {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 15px 20px;
+            color: white;
+            z-index: 100;
+            border: 1px solid rgba(255,215,0,0.3);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #1a1a1a;
+        }
+
+        .user-details h3 {
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+
+        .user-details p {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .sign-out-btn {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 15px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-left: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .sign-out-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .container {
+            display: flex;
+            gap: 60px;
+            max-width: 1400px;
+            width: 100%;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* iPhone 16 Style Device */
+        .iphone-container {
+            position: relative;
+            width: 320px;
+            flex-shrink: 0;
+        }
+
+        .iphone {
+            width: 320px;
+            height: 680px;
+            background: linear-gradient(145deg, #3a3a3a, #2a2a2a);
+            border-radius: 55px;
+            padding: 8px;
+            box-shadow: 
+                0 30px 60px rgba(0,0,0,0.5),
+                0 15px 30px rgba(0,0,0,0.3),
+                inset 0 -2px 0 rgba(255,255,255,0.1),
+                inset 0 2px 0 rgba(0,0,0,0.8);
+            position: relative;
+        }
+
+        .screen {
+            width: 100%;
+            height: calc(100% - 16px);
+            background: linear-gradient(180deg, #000000 0%, #0a0a0a 100%);
+            border-radius: 47px;
+            margin-top: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1);
+        }
+
+        .speaker-icon {
+            width: 100px;
+            height: 100px;
+            border: 3px solid #FFD700;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            background: rgba(255,215,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .speaker-icon.listening {
+            border-color: #00BFFF;
+            box-shadow: 0 0 30px rgba(0, 191, 255, 0.6);
+            animation: listening 2s infinite;
+            background: rgba(0,191,255,0.1);
+        }
+
+        @keyframes listening {
+            0%, 100% { 
+                transform: scale(1);
+                box-shadow: 0 0 30px rgba(0, 191, 255, 0.6);
+            }
+            50% { 
+                transform: scale(1.05);
+                box-shadow: 0 0 50px rgba(0, 191, 255, 0.8);
+            }
+        }
+
+        .speaker-icon svg {
+            width: 50px;
+            height: 50px;
+            fill: currentColor;
+            color: #FFD700;
+        }
+
+        .speaker-icon.listening svg {
+            color: #00BFFF;
+        }
+
+        .status-text {
+            color: #999;
+            font-size: 16px;
+            text-align: center;
+            margin-bottom: 20px;
+            font-weight: 500;
+            letter-spacing: 1px;
+        }
+
+        .status-text.listening {
+            color: #00BFFF;
+            text-shadow: 0 0 10px rgba(0,191,255,0.5);
+        }
+
+        /* Professional Chat Interface */
+        .chat-container {
+            flex: 1;
+            background: linear-gradient(135deg, #2C2C2C 0%, #1F1F1F 50%, #333333 100%);
+            border-radius: 25px;
+            box-shadow: 
+                0 25px 50px rgba(0,0,0,0.3),
+                0 10px 20px rgba(0,0,0,0.2),
+                inset 0 1px 0 rgba(255,255,255,0.1);
+            overflow: hidden;
+            max-height: 680px;
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,215,0,0.2);
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, rgba(255,215,0,0.15), rgba(0,0,0,0.3));
+            backdrop-filter: blur(10px);
+            color: #FFD700;
+            padding: 25px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,215,0,0.2);
+        }
+
+        .chat-header h2 {
+            font-size: 28px;
+            font-weight: 300;
+            letter-spacing: 2px;
+            margin-bottom: 5px;
+        }
+
+        .chat-header p {
+            font-size: 14px;
+            opacity: 0.8;
+            letter-spacing: 1px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 25px;
+            max-height: 450px;
+            background: rgba(255,255,255,0.05);
+        }
+
+        .message {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            animation: messageSlide 0.3s ease;
+        }
+
+        @keyframes messageSlide {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-bubble {
+            max-width: 75%;
+            padding: 15px 20px;
+            border-radius: 20px;
+            word-wrap: break-word;
+            line-height: 1.5;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+
+        .message.user .message-bubble {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: #1a1a1a;
+            border-bottom-right-radius: 5px;
+        }
+
+        .message.bot .message-bubble {
+            background: rgba(255,255,255,0.9);
+            color: #1a1a1a;
+            border-bottom-left-radius: 5px;
+            border: 1px solid rgba(255,215,0,0.2);
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: bold;
+            flex-shrink: 0;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: #1a1a1a;
+        }
+
+        .chat-input-container {
+            padding: 25px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.2);
+        }
+
+        .chat-input {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .chat-input input {
+            flex: 1;
+            background: rgba(255,255,255,0.9);
+            border: 1px solid rgba(255,215,0,0.3);
+            padding: 15px 20px;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .chat-input input:focus {
+            border-color: #FFD700;
+            box-shadow: 0 0 20px rgba(255,215,0,0.3);
+        }
+
+        .send-btn, .voice-btn {
+            width: 50px;
+            height: 50px;
+            border: none;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: #1a1a1a;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .send-btn:hover, .voice-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 5px 15px rgba(255,215,0,0.4);
+        }
+
+        .voice-btn.recording {
+            background: linear-gradient(135deg, #FF4500, #FF6B47);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Responsive design */
+        @media (max-width: 1200px) {
+            .container {
+                flex-direction: column;
+                gap: 40px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            .iphone {
+                width: 280px;
+                height: 600px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Authentication overlay -->
+    <div id="authOverlay" class="auth-overlay">
+        <div class="auth-card">
+            <div class="robot-logo">
+                <svg class="robot-image" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="robotGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#FFA500;stop-opacity:1" />
+                        </linearGradient>
+                        <filter id="glow">
+                            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                            <feMerge>
+                                <feMergeNode in="coloredBlur"/>
+                                <feMergeNode in="SourceGraphic"/>
+                            </feMerge>
+                        </filter>
+                    </defs>
+                    <!-- Robot Head -->
+                    <circle cx="100" cy="80" r="35" fill="url(#robotGradient)" filter="url(#glow)"/>
+                    <!-- Eyes -->
+                    <circle cx="90" cy="75" r="6" fill="#000"/>
+                    <circle cx="110" cy="75" r="6" fill="#000"/>
+                    <circle cx="92" cy="73" r="2" fill="#FFF"/>
+                    <circle cx="112" cy="73" r="2" fill="#FFF"/>
+                    <!-- Mouth -->
+                    <rect x="95" y="88" width="10" height="3" rx="1" fill="#000"/>
+                    <!-- Body -->
+                    <rect x="75" y="115" width="50" height="60" rx="10" fill="url(#robotGradient)" filter="url(#glow)"/>
+                    <!-- Chest Panel -->
+                    <rect x="85" y="125" width="30" height="25" rx="5" fill="#333"/>
+                    <circle cx="100" cy="135" r="3" fill="#FFD700"/>
+                    <rect x="90" y="142" width="20" height="2" fill="#FFD700"/>
+                    <!-- Arms -->
+                    <rect x="55" y="125" width="15" height="35" rx="7" fill="url(#robotGradient)" filter="url(#glow)"/>
+                    <rect x="130" y="125" width="15" height="35" rx="7" fill="url(#robotGradient)" filter="url(#glow)"/>
+                    <!-- Hands -->
+                    <circle cx="62" cy="167" r="8" fill="url(#robotGradient)"/>
+                    <circle cx="137" cy="167" r="8" fill="url(#robotGradient)"/>
+                </svg>
+                <div class="robot-shadow"></div>
+            </div>
+            <h1>MegaMind</h1>
+            <p>Your AI-powered assistant for SAX Technology Advisors</p>
+            <button id="signInBtn" class="sign-in-btn">Sign in with Microsoft</button>
+        </div>
+    </div>
+
+    <!-- User profile bar -->
+    <div id="userProfile" class="user-profile hidden">
+        <div class="user-info">
+            <div id="userAvatar" class="user-avatar"></div>
+            <div class="user-details">
+                <h3 id="userName"></h3>
+                <p id="userRole"></p>
+            </div>
+            <button id="signOutBtn" class="sign-out-btn">Sign Out</button>
+        </div>
+    </div>
+
+    <!-- Main application -->
+    <div id="mainApp" class="container hidden">
+        <!-- Voice interaction device -->
+        <div class="iphone-container">
+            <div class="iphone">
+                <div class="screen">
+                    <!-- Speaker icon and status -->
+                    <div class="speaker-icon" id="speakerIcon">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                        </svg>
+                    </div>
+                    
+                    <div class="status-text" id="statusText">Tap to talk</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat interface -->
+        <div class="chat-container">
+            <div class="chat-header">
+                <h2>MegaMind AI</h2>
+                <p>Your intelligent assistant</p>
+            </div>
+            
+            <div class="chat-messages" id="chatMessages">
+                <!-- Messages will be added here dynamically -->
+            </div>
+            
+            <div class="chat-input-container">
+                <div class="chat-input">
+                    <input type="text" id="messageInput" placeholder="Type your message or click voice to speak...">
+                    <button class="voice-btn" id="voiceBtn">🎤</button>
+                    <button class="send-btn" id="sendBtn">➤</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Authentication functions
+        function signIn() {
+            document.getElementById('authOverlay').classList.add('hidden');
+            document.getElementById('userProfile').classList.remove('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            
+            document.getElementById('userName').textContent = 'Demo User';
+            document.getElementById('userRole').textContent = 'Employee • SAX Technology';
+            document.getElementById('userAvatar').textContent = 'DU';
+            
+            addMessage('bot', 'Welcome to MegaMind! I\'m your AI assistant. How can I help you today?');
+        }
+
+        function signOut() {
+            document.getElementById('authOverlay').classList.remove('hidden');
+            document.getElementById('userProfile').classList.add('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('chatMessages').innerHTML = '';
+        }
+
+        // Chat functions
+        function addMessage(sender, message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            
+            if (sender === 'user') {
+                avatar.innerHTML = 'DU';
+            } else {
+                // Add robot SVG for bot messages
+                avatar.innerHTML = `<svg viewBox="0 0 200 200" style="width: 24px; height: 24px;">
+                    <defs>
+                        <linearGradient id="botGradient${Date.now()}" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#FFA500;stop-opacity:1" />
+                        </linearGradient>
+                    </defs>
+                    <circle cx="100" cy="80" r="35" fill="url(#botGradient${Date.now()})"/>
+                    <circle cx="90" cy="75" r="6" fill="#000"/>
+                    <circle cx="110" cy="75" r="6" fill="#000"/>
+                    <circle cx="92" cy="73" r="2" fill="#FFF"/>
+                    <circle cx="112" cy="73" r="2" fill="#FFF"/>
+                    <rect x="95" y="88" width="10" height="3" rx="1" fill="#000"/>
+                    <rect x="75" y="115" width="50" height="60" rx="10" fill="url(#botGradient${Date.now()})"/>
+                    <rect x="85" y="125" width="30" height="25" rx="5" fill="#333"/>
+                    <circle cx="100" cy="135" r="3" fill="#FFD700"/>
+                    <rect x="90" y="142" width="20" height="2" fill="#FFD700"/>
+                    <rect x="55" y="125" width="15" height="35" rx="7" fill="url(#botGradient${Date.now()})"/>
+                    <rect x="130" y="125" width="15" height="35" rx="7" fill="url(#botGradient${Date.now()})"/>
+                    <circle cx="62" cy="167" r="8" fill="url(#botGradient${Date.now()})"/>
+                    <circle cx="137" cy="167" r="8" fill="url(#botGradient${Date.now()})"/>
+                </svg>`;
+            }
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+            bubble.textContent = message;
+            
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(bubble);
+            
+            document.getElementById('chatMessages').appendChild(messageDiv);
+            document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
+        }
+
+        // Enhanced sendMessage function with better error handling
+        async function sendMessage(message) {
+            if (!message.trim()) return;
+            
+            addMessage('user', message);
+            document.getElementById('messageInput').value = '';
+            
+            // Show typing indicator
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message bot typing';
+            typingDiv.innerHTML = `<div class="message-avatar">
+                <svg viewBox="0 0 200 200" style="width: 24px; height: 24px;">
+                    <circle cx="100" cy="100" r="35" fill="#FFD700"/>
+                    <circle cx="90" cy="95" r="6" fill="#000"/>
+                    <circle cx="110" cy="95" r="6" fill="#000"/>
+                    <rect x="95" y="108" width="10" height="3" rx="1" fill="#000"/>
+                </svg>
+            </div><div class="message-bubble">Thinking...</div>`;
+            document.getElementById('chatMessages').appendChild(typingDiv);
+            document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
+            
+            try {
+                console.log('Sending message to webhook:', message);
+                
+                // Send to n8n workflow with improved headers and error handling
+                const response = await fetch('https://workflows.saxtechnology.com/webhook/megamind-chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'User-Agent': 'MegaMind-WebApp/1.0'
+                    },
+                    body: JSON.stringify({
+                        chatInput: message,
+                        message: message,
+                        input: message,
+                        prompt: message,
+                        text: message,
+                        query: message,
+                        sessionId: 'session_' + Date.now(),
+                        selectedVoice: 'alloy',
+                        timestamp: new Date().toISOString(),
+                        userContext: {
+                            userProfile: {
+                                name: 'Demo User',
+                                email: 'demo@saxtechnology.com',
+                                jobTitle: 'Employee',
+                                department: 'SAX Technology'
+                            },
+                            source: 'megamind-webapp',
+                            version: '1.0'
+                        }
+                    })
+                });
+                
+                console.log('Response status:', response.status);
+                console.log('Response headers:', [...response.headers.entries()]);
+                
+                // Remove typing indicator
+                document.getElementById('chatMessages').removeChild(typingDiv);
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('Response data:', result);
+                    
+                    // Handle different response formats
+                    const botResponse = result.response || result.message || result.text || result.answer || 'I received your message!';
+                    addMessage('bot', botResponse);
+                    
+                    // Handle audio if provided
+                    if (result.audioData) {
+                        try {
+                            const audio = new Audio('data:audio/mp3;base64,' + result.audioData);
+                            audio.play().catch(e => console.log('Audio playback failed:', e));
+                        } catch (e) {
+                            console.log('Audio processing failed:', e);
+                        }
+                    }
+                } else {
+                    console.error('Response not OK:', response.status, response.statusText);
+                    const errorText = await response.text();
+                    console.error('Error response body:', errorText);
+                    
+                    let errorMessage = `I'm having trouble connecting to the server (HTTP ${response.status}: ${response.statusText}).`;
+                    
+                    if (response.status === 404) {
+                        errorMessage += ' The webhook endpoint might not be active yet. Please check the n8n workflow.';
+                    } else if (response.status === 500) {
+                        errorMessage += ' There\'s a server error. The workflow might need debugging.';
+                    } else if (response.status === 0 || response.status >= 400) {
+                        errorMessage += ' Please verify the webhook URL and try again.';
+                    }
+                    
+                    addMessage('bot', errorMessage);
+                }
+            } catch (error) {
+                console.error('Fetch error:', error);
+                document.getElementById('chatMessages').removeChild(typingDiv);
+                
+                let errorMessage = 'I\'m having trouble connecting to the server. ';
+                
+                if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                    errorMessage += 'This might be a network issue or CORS problem. Please check if the webhook URL is accessible: https://workflows.saxtechnology.com/webhook/megamind-chat';
+                } else {
+                    errorMessage += `Error: ${error.message}`;
+                }
+                
+                addMessage('bot', errorMessage);
+            }
+        }
+
+        // Voice recording functionality
+        let isRecording = false;
+        let mediaRecorder = null;
+        let audioChunks = [];
+
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+                
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    processVoiceInput(audioBlob);
+                };
+                
+                mediaRecorder.start();
+                isRecording = true;
+                
+                // Update UI
+                document.getElementById('voiceBtn').classList.add('recording');
+                document.getElementById('speakerIcon').classList.add('listening');
+                document.getElementById('statusText').textContent = 'Listening...';
+                document.getElementById('statusText').classList.add('listening');
+            } catch (error) {
+                console.error('Error starting recording:', error);
+                alert('Could not access microphone. Please check permissions.');
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                isRecording = false;
+                
+                // Update UI
+                document.getElementById('voiceBtn').classList.remove('recording');
+                document.getElementById('speakerIcon').classList.remove('listening');
+                document.getElementById('statusText').textContent = 'Processing...';
+                document.getElementById('statusText').classList.remove('listening');
+            }
+        }
+
+        async function processVoiceInput(audioBlob) {
+            try {
+                document.getElementById('statusText').textContent = 'Processing voice...';
+                
+                // Convert audio blob to base64
+                const reader = new FileReader();
+                reader.onload = async function() {
+                    const arrayBuffer = reader.result;
+                    const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+                    
+                    // For now, just show a message that voice input was received
+                    addMessage('user', '[Voice message received]');
+                    addMessage('bot', 'I received your voice message! Voice processing will be implemented when the webhook is fully configured.');
+                    
+                    // Reset status
+                    document.getElementById('statusText').textContent = 'Tap to talk';
+                };
+                reader.readAsArrayBuffer(audioBlob);
+            } catch (error) {
+                console.error('Error processing voice input:', error);
+                document.getElementById('statusText').textContent = 'Voice processing error';
+                setTimeout(() => {
+                    document.getElementById('statusText').textContent = 'Tap to talk';
+                }, 2000);
+            }
+        }
+
+        // Event listeners
+        document.getElementById('signInBtn').addEventListener('click', signIn);
+        document.getElementById('signOutBtn').addEventListener('click', signOut);
+        document.getElementById('sendBtn').addEventListener('click', () => sendMessage(document.getElementById('messageInput').value));
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage(document.getElementById('messageInput').value);
+        });
+
+        document.getElementById('voiceBtn').addEventListener('click', () => {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        });
+
+        document.getElementById('speakerIcon').addEventListener('click', () => {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        });
+
+        // Test webhook connection on load (optional)
+        window.addEventListener('load', () => {
+            console.log('MegaMind app loaded successfully!');
+            console.log('Robot SVG should be visible in the login screen');
+            console.log('Webhook endpoint: https://workflows.saxtechnology.com/webhook/megamind-chat');
+        });
+    </script>
+</body>
+</html>

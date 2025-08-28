@@ -1,0 +1,13 @@
+# Sensitive files with secrets
+*.sh
+*.py
+*.json
+.env
+
+# Keep only essential web app files
+!staticwebapp.config.json
+
+# Logs and temp files
+*.log
+node_modules/
+.DS_Store
