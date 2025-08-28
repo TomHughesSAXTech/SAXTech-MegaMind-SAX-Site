@@ -1103,7 +1103,8 @@
             try {
                 // Prepare request payload
                 const payload = {
-                    message: message,
+                    chatInput: message,  // n8n expects the prompt in 'chatInput' field
+                    message: message,    // Keep for backward compatibility
                     sessionId: sessionId,
                     selectedVoice: voiceSelect.value,
                     userContext: window.userContext || {},
@@ -1259,6 +1260,7 @@
                 // Prepare request payload with audio data
                 const payload = {
                     audioData: audioData,
+                    chatInput: '',  // n8n expects this field even for audio
                     sessionId: sessionId,
                     selectedVoice: voiceSelect.value,
                     userContext: window.userContext || {},
