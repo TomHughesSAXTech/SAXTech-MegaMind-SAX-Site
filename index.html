@@ -1389,11 +1389,8 @@
                 // Log the payload being sent for debugging
                 console.log('Sending payload to n8n:', payload);
                 
-                // Use CORS proxy temporarily until n8n webhook is configured for CORS
-                // TODO: Configure n8n webhook to handle OPTIONS requests properly
-                const corsProxy = 'https://corsproxy.io/?';
-                const webhookUrl = 'https://workflows.saxtechnology.com/webhook/megamind-chat';
-                const response = await fetch(corsProxy + encodeURIComponent(webhookUrl), {
+                // Direct webhook call - CORS is now properly configured on n8n
+                const response = await fetch('https://workflows.saxtechnology.com/webhook/megamind-chat', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
