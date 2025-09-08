@@ -1363,36 +1363,34 @@
             try {
                 // Prepare request payload
                 const payload = {
-                    chatInput: message,  // n8n expects the prompt in 'chatInput' field
+                    message: message,  // n8n webhook expects 'message' field
                     sessionId: sessionId,
                     selectedVoice: voiceSelect.value,
-                    userContext: window.userContext || {},
-                    userProfile: {
-                        displayName: userProfile?.displayName || 'Unknown User',
-                        email: userProfile?.userPrincipalName || userProfile?.mail || '',
-                        jobTitle: userProfile?.jobTitle || '',
-                        department: userProfile?.department || '',
-                        location: {
-                            office: userProfile?.officeLocation || '',
-                            city: userProfile?.city || '',
-                            state: userProfile?.state || '',
-                            country: userProfile?.country || ''
-                        },
-                        phone: userProfile?.mobilePhone || userProfile?.businessPhones?.[0] || ''
+                    userContext: {
+                        userProfile: {
+                            name: userProfile?.displayName || 'Unknown User',
+                            email: userProfile?.userPrincipalName || userProfile?.mail || '',
+                            jobTitle: userProfile?.jobTitle || '',
+                            department: userProfile?.department || '',
+                            contextualRole: checkAdminPermissions(userProfile || {}) ? 'IT Leadership' : 'User',
+                            permissions: {
+                                canCreateUsers: checkAdminPermissions(userProfile || {}),
+                                canResetPasswords: checkAdminPermissions(userProfile || {}),
+                                canAccessFinancials: false,
+                                canModifyPolicies: checkAdminPermissions(userProfile || {}),
+                                canViewAuditLogs: checkAdminPermissions(userProfile || {}),
+                                canManageTeams: checkAdminPermissions(userProfile || {})
+                            }
+                        }
                     },
-                    attachedFiles: attachedFiles,
-                    ttsProvider: 'elevenlabs',  // Use ElevenLabs for TTS
-                    ttsVoice: voiceSelect.value  // Will map to ElevenLabs voice ID in n8n
+                    userProfile: userProfile || {}  // Send full profile as separate field too
                 };
-                
-                // Clear attached files after sending
-                attachedFiles = [];
                 
                 // Log the payload being sent for debugging
                 console.log('Sending payload to n8n:', payload);
                 
-                // Send request to n8n workflow (using megamind-chat endpoint)
-                const response = await fetch('https://workflows.saxtechnology.com/webhook/megamind-chat', {
+                // Send request to n8n webhook via proxy route to avoid CORS
+                const response = await fetch('/api/webhook/megamind-chat', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
