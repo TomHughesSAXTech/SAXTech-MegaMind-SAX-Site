@@ -1389,8 +1389,8 @@
                 // Log the payload being sent for debugging
                 console.log('Sending payload to n8n:', payload);
                 
-                // Send request directly to n8n webhook (CORS is configured on n8n)
-                const response = await fetch('https://workflows.saxtechnology.com/webhook/megamind-chat', {
+                // Send request to n8n webhook via proxy route to avoid CORS
+                const response = await fetch('/api/webhook/megamind-chat', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
