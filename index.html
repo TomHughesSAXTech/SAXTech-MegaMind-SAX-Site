@@ -192,6 +192,31 @@
             margin-left: 5px;
         }
 
+        /* Document Portal Button */
+        .document-portal-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: #1a1a1a;
+            padding: 10px 20px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            z-index: 100;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .document-portal-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
         .container {
             display: flex;
             gap: 60px;
@@ -787,6 +812,12 @@
     </style>
 </head>
 <body>
+    <!-- Document Portal Button -->
+    <a href="/document-upload.html" id="documentPortalBtn" class="document-portal-btn hidden">
+        <span>📄</span>
+        <span>Document Portal</span>
+    </a>
+
     <!-- Authentication overlay - Start hidden to prevent flash -->
     <div id="authOverlay" class="auth-overlay hidden">
         <div class="auth-card">
@@ -1075,6 +1106,7 @@
             authOverlay.classList.add('hidden');
             userProfileDiv.classList.remove('hidden');
             mainApp.classList.remove('hidden');
+            document.getElementById('documentPortalBtn').classList.remove('hidden');
             
             // Clear chat messages display first to prevent duplicates
             chatMessages.innerHTML = '';

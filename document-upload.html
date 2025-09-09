@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAX Technology Advisors - Document Management Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: white;
+            padding: 24px 40px;
+            border-bottom: 3px solid #3b82f6;
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .company-logo {
+            width: 48px;
+            height: 48px;
+            background: #3b82f6;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 20px;
+            color: white;
+        }
+
+        .company-name {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .portal-title {
+            font-size: 14px;
+            color: #94a3b8;
+            font-weight: 400;
+            margin-top: 2px;
+        }
+
+        .header-meta {
+            text-align: right;
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 32px 40px;
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 32px;
+            min-height: calc(100vh - 120px);
+        }
+
+        .sidebar {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            height: fit-content;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        .sidebar-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid #e2e8f0;
+            background: #f8fafc;
+            border-radius: 12px 12px 0 0;
+        }
+
+        .sidebar-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+
+        .sidebar-subtitle {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .form-section {
+            padding: 24px;
+        }
+
+        .notice-banner {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+
+        .notice-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .notice-icon {
+            color: #d97706;
+            font-size: 16px;
+            margin-top: 1px;
+        }
+
+        .notice-title {
+            font-weight: 600;
+            color: #92400e;
+            font-size: 13px;
+        }
+
+        .notice-text {
+            color: #92400e;
+            font-size: 12px;
+            line-height: 1.5;
+            margin-left: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: #374151;
+            font-size: 13px;
+        }
+
+        .required {
+            color: #dc2626;
+        }
+
+        .form-select, .form-input, .form-textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 13px;
+            transition: all 0.2s ease;
+            background: white;
+            color: #374151;
+        }
+
+        .form-select:focus, .form-input:focus, .form-textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .file-upload-section {
+            border: 2px dashed #d1d5db;
+            border-radius: 8px;
+            padding: 24px;
+            text-align: center;
+            background: #fafafa;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .file-upload-section:hover {
+            border-color: #3b82f6;
+            background: #f8fafc;
+        }
+
+        .file-upload-section.dragover {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+
+        .upload-icon {
+            width: 48px;
+            height: 48px;
+            background: #f1f5f9;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 12px;
+            color: #64748b;
+            font-size: 20px;
+        }
+
+        .upload-text {
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 4px;
+        }
+
+        .upload-subtext {
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .selected-file {
+            margin-top: 12px;
+            padding: 12px;
+            background: #f0fdf4;
+            border: 1px solid #16a34a;
+            border-radius: 6px;
+            display: none;
+            text-align: left;
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #15803d;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            width: 100%;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-primary:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .main-content {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        .content-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid #e2e8f0;
+            background: #f8fafc;
+            border-radius: 12px 12px 0 0;
+        }
+
+        .content-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+
+        .content-subtitle {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .explorer-container {
+            padding: 24px;
+            display: none;
+        }
+
+        .explorer-controls {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            gap: 16px;
+        }
+
+        .search-container {
+            flex: 1;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 8px 12px 8px 36px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af;
+            font-size: 14px;
+        }
+
+        .stats-panel {
+            display: flex;
+            gap: 24px;
+            align-items: center;
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .folder-grid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .folder-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+            background: white;
+        }
+
+        .folder-header {
+            background: #f8fafc;
+            padding: 12px 16px;
+            border-bottom: 1px solid #e2e8f0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: background-color 0.2s ease;
+        }
+
+        .folder-header:hover {
+            background: #f1f5f9;
+        }
+
+        .folder-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .folder-icon {
+            color: #64748b;
+            font-size: 16px;
+            transition: transform 0.2s ease;
+        }
+
+        .folder-card.expanded .folder-icon {
+            transform: rotate(90deg);
+        }
+
+        .folder-name {
+            font-weight: 500;
+            color: #374151;
+            font-size: 14px;
+        }
+
+        .folder-count {
+            font-size: 12px;
+            color: #64748b;
+            background: #f1f5f9;
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+
+        .folder-content {
+            display: none;
+            padding: 16px;
+        }
+
+        .folder-card.expanded .folder-content {
+            display: block;
+        }
+
+        .document-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .document-item {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 12px;
+            padding: 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            align-items: center;
+            transition: all 0.2s ease;
+            background: #fafafa;
+        }
+
+        .document-item:hover {
+            border-color: #3b82f6;
+            background: #f8fafc;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .doc-type-icon {
+            width: 32px;
+            height: 32px;
+            background: #3b82f6;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .pdf { background: #dc2626; }
+        .docx { background: #2563eb; }
+        .xlsx { background: #059669; }
+        .txt { background: #7c3aed; }
+
+        .document-info {
+            min-width: 0;
+        }
+
+        .document-title {
+            font-weight: 500;
+            color: #1e293b;
+            font-size: 13px;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .document-meta {
+            display: flex;
+            gap: 16px;
+            font-size: 11px;
+            color: #64748b;
+        }
+
+        .document-description {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 4px;
+            line-height: 1.4;
+        }
+
+        .document-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            padding: 6px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: white;
+            color: #374151;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .action-btn:hover {
+            border-color: #3b82f6;
+            color: #3b82f6;
+        }
+
+        .btn-preview:hover {
+            background: #eff6ff;
+        }
+
+        .btn-download:hover {
+            background: #f0fdf4;
+            border-color: #059669;
+            color: #059669;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .existing-sops {
+            margin-top: 16px;
+        }
+
+        .sop-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            background: #fafafa;
+        }
+
+        .sop-item {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e5e7eb;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 12px;
+        }
+
+        .sop-item:hover {
+            background: #f8fafc;
+        }
+
+        .sop-item.selected {
+            background: #eff6ff;
+            border-color: #3b82f6;
+            color: #1d4ed8;
+        }
+
+        .sop-item:last-child {
+            border-bottom: none;
+        }
+
+        .additional-info {
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #e5e7eb;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 12px;
+            display: none;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #3b82f6;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .success-message {
+            background: #f0fdf4;
+            border: 1px solid #16a34a;
+            color: #15803d;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 12px;
+            display: none;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
+            color: #64748b;
+        }
+
+        .empty-icon {
+            width: 64px;
+            height: 64px;
+            background: #f1f5f9;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-size: 24px;
+            color: #94a3b8;
+        }
+
+        .empty-title {
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: #374151;
+        }
+
+        .empty-text {
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 1200px) {
+            .container {
+                grid-template-columns: 1fr;
+                gap: 24px;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                gap: 12px;
+                text-align: center;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            
+            .header {
+                padding: 16px 20px;
+            }
+            
+            .explorer-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-to-chat" style="position: fixed; top: 20px; left: 20px; background: linear-gradient(135deg, #FFD700, #FFA500); color: #1a1a1a; padding: 10px 20px; border-radius: 25px; text-decoration: none; font-weight: 600; font-size: 14px; transition: all 0.3s ease; z-index: 1000; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">← Back to MegaMind</a>
+    
+    <header class="header">
+        <div class="header-content">
+            <div class="logo-section">
+                <div class="company-logo">SAX</div>
+                <div>
+                    <div class="company-name">SAX Technology Advisors</div>
+                    <div class="portal-title">Document Management Portal</div>
+                </div>
+            </div>
+            <div class="header-meta">
+                <div>Internal Use Only</div>
+                <div>Authorized Personnel</div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-title">Document Upload</div>
+                <div class="sidebar-subtitle">Standard Operating Procedures</div>
+            </div>
+            
+            <div class="form-section">
+                <div class="notice-banner">
+                    <div class="notice-header">
+                        <span class="notice-icon">⚠</span>
+                        <span class="notice-title">COMPLIANCE NOTICE</span>
+                    </div>
+                    <div class="notice-text">
+                        This portal is restricted to internal SAX documentation. Third-party materials require IT department approval prior to upload. Ensure compliance with data retention policies.
+                    </div>
+                </div>
+
+                <form id="sopUploadForm">
+                    <div class="form-group">
+                        <label class="form-label" for="department">
+                            Department <span class="required">*</span>
+                        </label>
+                        <select class="form-select" id="department" required>
+                            <option value="">Select Department</option>
+                            <option value="A&A">Audit & Advisory</option>
+                            <option value="Finance">Finance</option>
+                            <option value="HR">Human Resources</option>
+                            <option value="Leadership">Leadership</option>
+                            <option value="Marketing/Business Development">Marketing & Business Development</option>
+                            <option value="Operations">Operations</option>
+                            <option value="Shared Services">Shared Services</option>
+                            <option value="Tax">Tax Services</option>
+                            <option value="Transaction Advisory">Transaction Advisory</option>
+                            <option value="Wealth Management">Wealth Management</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="sopType">
+                            Document Type <span class="required">*</span>
+                        </label>
+                        <select class="form-select" id="sopType" required>
+                            <option value="">Select Type</option>
+                            <option value="Process Documentation">Process Documentation</option>
+                            <option value="Policy Guidelines">Policy Guidelines</option>
+                            <option value="Technical Procedures">Technical Procedures</option>
+                            <option value="Compliance Procedures">Compliance Procedures</option>
+                            <option value="Training Materials">Training Materials</option>
+                            <option value="Quality Standards">Quality Standards</option>
+                            <option value="Emergency Procedures">Emergency Procedures</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="updateType">
+                            Action Type <span class="required">*</span>
+                        </label>
+                        <select class="form-select" id="updateType" required>
+                            <option value="">Select Action</option>
+                            <option value="new">New Document</option>
+                            <option value="update">Update Existing</option>
+                        </select>
+                    </div>
+
+                    <div id="existingSOPs" class="form-group existing-sops hidden">
+                        <label class="form-label">Select Document to Update <span class="required">*</span></label>
+                        <div class="sop-list" id="sopList">
+                            <!-- Existing SOPs will be populated here -->
+                        </div>
+                        <input type="hidden" id="selectedSOPId" name="selectedSOPId">
+                    </div>
+
+                    <div id="additionalInfo" class="additional-info">
+                        <div class="form-group">
+                            <label class="form-label" for="sopTitle">
+                                Document Title <span class="required">*</span>
+                            </label>
+                            <input type="text" class="form-input" id="sopTitle" placeholder="Enter document title">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="sopDescription">Description</label>
+                            <textarea class="form-textarea" id="sopDescription" placeholder="Brief description of document purpose and scope"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="keywords">Keywords</label>
+                            <input type="text" class="form-input" id="keywords" placeholder="Comma-separated keywords for search">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="version">Version</label>
+                            <input type="text" class="form-input" id="version" placeholder="1.0" value="1.0">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            Document File <span class="required">*</span>
+                        </label>
+                        <div class="file-upload-section" id="fileUploadArea">
+                            <div class="upload-icon">📄</div>
+                            <div class="upload-text">Select or drop file here</div>
+                            <div class="upload-subtext">PDF, DOC, DOCX, TXT, XLS, XLSX formats supported</div>
+                            <input type="file" class="file-input" id="fileInput" accept=".pdf,.doc,.docx,.txt,.xls,.xlsx" required>
+                        </div>
+                        <div class="selected-file" id="selectedFile">
+                            <div class="file-info">
+                                <span>📄</span>
+                                <span id="fileName"></span>
+                                <span style="margin-left: auto; color: #16a34a;">✓</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-primary" id="submitBtn">
+                        Upload Document
+                    </button>
+                    
+                    <div class="progress-bar" id="progressBar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+
+                    <div class="success-message" id="successMessage">
+                        Document uploaded successfully and indexed for AI retrieval.
+                    </div>
+                </form>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="content-header">
+                <div class="content-title">Document Repository</div>
+                <div class="content-subtitle">Browse and manage departmental documentation</div>
+            </div>
+            
+            <div id="emptyState" class="empty-state">
+                <div class="empty-icon">📁</div>
+                <div class="empty-title">Select a Department</div>
+                <div class="empty-text">Choose a department from the sidebar to view and manage documents in the repository.</div>
+            </div>
+
+            <div id="explorerContainer" class="explorer-container">
+                <div class="explorer-controls">
+                    <div class="search-container">
+                        <input type="text" class="search-input" id="searchInput" placeholder="Search documents...">
+                        <span class="search-icon">🔍</span>
+                    </div>
+                    <div class="stats-panel">
+                        <span id="documentCount">0 documents</span>
+                        <span>•</span>
+                        <span id="lastUpdated">Last updated: --</span>
+                    </div>
+                </div>
+                
+                <div id="folderGrid" class="folder-grid">
+                    <!-- Dynamic content will be loaded here -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // API Configuration - Azure Function endpoints
+        const API_CONFIG = {
+            baseUrl: 'https://saxmegamind-documents.azurewebsites.net/api',
+            endpoints: {
+                listDocuments: '/documents/list',
+                uploadDocument: '/documents/upload',
+                deleteDocument: '/documents/delete',
+                downloadDocument: '/documents/download',
+                previewDocument: '/documents/preview',
+                searchDocuments: '/documents/search'
+            },
+            blobStorage: {
+                containerName: 'saxdocuments',
+                baseUrl: 'https://saxmegamind.blob.core.windows.net'
+            }
+        };
+
+        // DOM elements
+        const departmentSelect = document.getElementById('department');
+        const sopTypeSelect = document.getElementById('sopType');
+        const updateTypeSelect = document.getElementById('updateType');
+        const existingSOPsDiv = document.getElementById('existingSOPs');
+        const sopList = document.getElementById('sopList');
+        const selectedSOPIdInput = document.getElementById('selectedSOPId');
+        const additionalInfoDiv = document.getElementById('additionalInfo');
+        const fileUploadArea = document.getElementById('fileUploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const selectedFileDiv = document.getElementById('selectedFile');
+        const fileName = document.getElementById('fileName');
+        const form = document.getElementById('sopUploadForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const successMessage = document.getElementById('successMessage');
+        
+        // Document explorer elements
+        const emptyState = document.getElementById('emptyState');
+        const explorerContainer = document.getElementById('explorerContainer');
+        const searchInput = document.getElementById('searchInput');
+        const documentCount = document.getElementById('documentCount');
+        const lastUpdated = document.getElementById('lastUpdated');
+        const folderGrid = document.getElementById('folderGrid');
+
+        // Event listeners
+        updateTypeSelect.addEventListener('change', handleUpdateTypeChange);
+        departmentSelect.addEventListener('change', function() {
+            loadDepartmentDocuments();
+            loadExistingSOPs();
+        });
+        sopTypeSelect.addEventListener('change', loadExistingSOPs);
+        fileUploadArea.addEventListener('click', () => fileInput.click());
+        fileUploadArea.addEventListener('dragover', handleDragOver);
+        fileUploadArea.addEventListener('dragleave', handleDragLeave);
+        fileUploadArea.addEventListener('drop', handleDrop);
+        fileInput.addEventListener('change', handleFileSelect);
+        form.addEventListener('submit', handleFormSubmit);
+        searchInput.addEventListener('input', handleSearch);
+
+        function loadDepartmentDocuments() {
+            const department = departmentSelect.value;
+            
+            if (!department) {
+                emptyState.style.display = 'block';
+                explorerContainer.style.display = 'none';
+                return;
+            }
+
+            // Show loading state
+            emptyState.style.display = 'none';
+            explorerContainer.style.display = 'block';
+            documentCount.textContent = '0 documents';
+            lastUpdated.textContent = 'Last updated: --';
+            folderGrid.innerHTML = '<div style="text-align: center; padding: 40px; color: #64748b;">Loading documents...</div>';
+
+            // Call your Azure Function to get documents for the department
+            fetchDepartmentDocuments(department)
+                .then(deptData => {
+                    if (!deptData || !deptData.folders || Object.keys(deptData.folders).length === 0) {
+                        showEmptyDepartment(department);
+                        return;
+                    }
+
+                    // Update stats
+                    documentCount.textContent = `${deptData.stats.totalDocuments || 0} documents`;
+                    lastUpdated.textContent = `Last updated: ${deptData.stats.lastUpdated || '--'}`;
+                    
+                    // Build folder structure
+                    buildFolderStructure(deptData.folders);
+                })
+                .catch(error => {
+                    console.error('Error loading department documents:', error);
+                    showEmptyDepartment(department);
+                });
+        }
+
+        async function fetchDepartmentDocuments(department) {
+            try {
+                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.listDocuments}?department=${encodeURIComponent(department)}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // Add your authentication headers here
+                        // 'Authorization': 'Bearer ' + await getAccessToken()
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                return await response.json();
+            } catch (error) {
+                console.error('API call failed:', error);
+                // Return empty structure until API is connected
+                return {
+                    folders: {},
+                    stats: {
+                        totalDocuments: 0,
+                        lastUpdated: '--'
+                    }
+                };
+            }
+        }
+
+        function showEmptyDepartment(department) {
+            folderGrid.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #64748b;">
+                    <div style="font-size: 24px; margin-bottom: 12px;">📁</div>
+                    <div style="font-weight: 500; margin-bottom: 8px;">No Documents Found</div>
+                    <div style="font-size: 13px;">No documents have been uploaded to the ${department} department yet.</div>
+                </div>
+            `;
+            documentCount.textContent = '0 documents';
+            lastUpdated.textContent = 'Last updated: --';
+        }
+
+        function buildFolderStructure(folders) {
+            folderGrid.innerHTML = '';
+            
+            if (!folders || Object.keys(folders).length === 0) {
+                folderGrid.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #64748b;">
+                        <div style="font-size: 24px; margin-bottom: 12px;">📁</div>
+                        <div style="font-weight: 500; margin-bottom: 8px;">No Document Categories</div>
+                        <div style="font-size: 13px;">No document categories have been created for this department yet.</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            Object.keys(folders).forEach(folderName => {
+                const documents = folders[folderName] || [];
+                
+                const folderCard = document.createElement('div');
+                folderCard.className = 'folder-card';
+                
+                const folderHeader = document.createElement('div');
+                folderHeader.className = 'folder-header';
+                folderHeader.innerHTML = `
+                    <div class="folder-info">
+                        <span class="folder-icon">▶</span>
+                        <span class="folder-name">${folderName}</span>
+                    </div>
+                    <span class="folder-count">${documents.length}</span>
+                `;
+                
+                const folderContent = document.createElement('div');
+                folderContent.className = 'folder-content';
+                
+                const documentList = document.createElement('div');
+                documentList.className = 'document-list';
+                
+                if (documents.length === 0) {
+                    documentList.innerHTML = `
+                        <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 13px;">
+                            No documents in this category yet.
+                        </div>
+                    `;
+                } else {
+                    // Add documents to folder
+                    documents.forEach(doc => {
+                        const docItem = createDocumentItem(doc);
+                        documentList.appendChild(docItem);
+                    });
+                }
+                
+                folderContent.appendChild(documentList);
+                
+                // Toggle folder expand/collapse
+                folderHeader.addEventListener('click', () => {
+                    folderCard.classList.toggle('expanded');
+                });
+                
+                folderCard.appendChild(folderHeader);
+                folderCard.appendChild(folderContent);
+                folderGrid.appendChild(folderCard);
+            });
+        }
+
+        function createDocumentItem(doc) {
+            const docDiv = document.createElement('div');
+            docDiv.className = 'document-item';
+            docDiv.setAttribute('data-search', `${doc.title} ${doc.description || ''} ${doc.author || ''}`.toLowerCase());
+            
+            const typeClass = getFileTypeClass(doc.title);
+            
+            docDiv.innerHTML = `
+                <div class="doc-type-icon ${typeClass}">${doc.type || 'DOC'}</div>
+                <div class="document-info">
+                    <div class="document-title">${doc.title}</div>
+                    <div class="document-meta">
+                        <span>${doc.lastModified || 'Unknown'}</span>
+                        <span>${doc.author || 'Unknown'}</span>
+                        <span>${doc.size || 'Unknown'}</span>
+                        <span>v${doc.version || '1.0'}</span>
+                    </div>
+                    <div class="document-description">${doc.description || 'No description available'}</div>
+                </div>
+                <div class="document-actions">
+                    <button class="action-btn btn-preview" onclick="previewDocument('${doc.id}', '${doc.title}')">
+                        Preview
+                    </button>
+                    <button class="action-btn btn-download" onclick="downloadDocument('${doc.id}', '${doc.title}')">
+                        Download
+                    </button>
+                </div>
+            `;
+            
+            return docDiv;
+        }
+
+        function handleSearch() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const documentItems = document.querySelectorAll('.document-item');
+            
+            documentItems.forEach(item => {
+                const searchText = item.getAttribute('data-search');
+                if (searchText.includes(searchTerm)) {
+                    item.style.display = 'grid';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+            
+            // Auto-expand folders that contain visible documents
+            if (searchTerm) {
+                const folders = document.querySelectorAll('.folder-card');
+                folders.forEach(folder => {
+                    const visibleDocs = folder.querySelectorAll('.document-item[style="display: grid;"], .document-item:not([style])');
+                    if (visibleDocs.length > 0) {
+                        folder.classList.add('expanded');
+                    }
+                });
+            }
+        }
+
+        function previewDocument(docId, title) {
+            // Integrate with your Azure Document Intelligence or PDF.js viewer
+            window.open(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.previewDocument}?id=${docId}`, '_blank');
+        }
+
+        function downloadDocument(docId, title) {
+            // Generate secure download link from Azure Blob Storage
+            const downloadUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.downloadDocument}?id=${docId}`;
+            
+            // Create temporary link for download
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = title;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function handleUpdateTypeChange() {
+            const updateType = updateTypeSelect.value;
+            
+            if (updateType === 'update') {
+                existingSOPsDiv.classList.remove('hidden');
+                additionalInfoDiv.classList.add('additional-info');
+                loadExistingSOPs();
+            } else if (updateType === 'new') {
+                existingSOPsDiv.classList.add('hidden');
+                additionalInfoDiv.classList.remove('additional-info');
+                additionalInfoDiv.style.display = 'block';
+                document.getElementById('sopTitle').required = true;
+            } else {
+                existingSOPsDiv.classList.add('hidden');
+                additionalInfoDiv.style.display = 'none';
+                document.getElementById('sopTitle').required = false;
+            }
+        }
+
+        function loadExistingSOPs() {
+            const department = departmentSelect.value;
+            const sopType = sopTypeSelect.value;
+            const updateType = updateTypeSelect.value;
+
+            if (updateType === 'update' && department && sopType) {
+                // Call Azure Function to get existing SOPs for this department/type
+                fetchExistingSOPs(department, sopType)
+                    .then(sops => {
+                        displaySOPs(sops);
+                    })
+                    .catch(error => {
+                        console.error('Error loading existing SOPs:', error);
+                        displaySOPs([]);
+                    });
+            }
+        }
+
+        async function fetchExistingSOPs(department, sopType) {
+            try {
+                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.listDocuments}?department=${encodeURIComponent(department)}&type=${encodeURIComponent(sopType)}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // Add your authentication headers here
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                return data.documents || [];
+            } catch (error) {
+                console.error('API call failed:', error);
+                return [];
+            }
+        }
+
+        function displaySOPs(sops) {
+            sopList.innerHTML = '';
+            
+            if (!sops || sops.length === 0) {
+                sopList.innerHTML = '<div class="sop-item" style="color: #64748b;">No existing documents found</div>';
+                return;
+            }
+
+            sops.forEach(sop => {
+                const sopItem = document.createElement('div');
+                sopItem.className = 'sop-item';
+                sopItem.innerHTML = `
+                    <div style="font-weight: 500;">${sop.title}</div>
+                    <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Modified: ${sop.lastModified || 'Unknown'}</div>
+                `;
+                sopItem.addEventListener('click', () => selectSOP(sop, sopItem));
+                sopList.appendChild(sopItem);
+            });
+        }
+
+        function selectSOP(sop, element) {
+            document.querySelectorAll('.sop-item').forEach(item => item.classList.remove('selected'));
+            element.classList.add('selected');
+            selectedSOPIdInput.value = sop.id;
+            additionalInfoDiv.style.display = 'block';
+            additionalInfoDiv.classList.remove('additional-info');
+            document.getElementById('sopTitle').value = sop.title;
+            document.getElementById('sopTitle').required = false;
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            fileUploadArea.classList.add('dragover');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            fileUploadArea.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            fileUploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                displaySelectedFile(files[0]);
+            }
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                displaySelectedFile(file);
+            }
+        }
+
+        function displaySelectedFile(file) {
+            const fileSize = formatFileSize(file.size);
+            fileName.textContent = `${file.name} (${fileSize})`;
+            selectedFileDiv.style.display = 'block';
+            fileUploadArea.style.display = 'none';
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            
+            if (!validateForm()) {
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Processing...';
+            progressBar.style.display = 'block';
+
+            // Prepare form data for Azure Function
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('department', departmentSelect.value);
+            formData.append('sopType', sopTypeSelect.value);
+            formData.append('updateType', updateTypeSelect.value);
+            formData.append('title', document.getElementById('sopTitle').value || '');
+            formData.append('description', document.getElementById('sopDescription').value || '');
+            formData.append('keywords', document.getElementById('keywords').value || '');
+            formData.append('version', document.getElementById('version').value || '1.0');
+            
+            if (updateTypeSelect.value === 'update') {
+                formData.append('existingDocId', selectedSOPIdInput.value);
+            }
+
+            // Upload to Azure Function
+            uploadDocument(formData)
+                .then(response => {
+                    completeUpload();
+                    // Refresh the document explorer if a department is selected
+                    if (departmentSelect.value) {
+                        loadDepartmentDocuments();
+                    }
+                })
+                .catch(error => {
+                    console.error('Upload failed:', error);
+                    handleUploadError(error);
+                });
+        }
+
+        async function uploadDocument(formData) {
+            try {
+                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.uploadDocument}`, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        // Don't set Content-Type header - browser will set it with boundary for FormData
+                        // Add your authentication headers here
+                        // 'Authorization': 'Bearer ' + await getAccessToken()
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                return await response.json();
+            } catch (error) {
+                console.error('Upload API call failed:', error);
+                throw error;
+            }
+        }
+
+        function handleUploadError(error) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Upload Document';
+            progressBar.style.display = 'none';
+            progressFill.style.width = '0%';
+            
+            alert(`Upload failed: ${error.message}\n\nPlease try again or contact IT support if the problem persists.`);
+        }
+
+        function validateForm() {
+            const department = departmentSelect.value;
+            const sopType = sopTypeSelect.value;
+            const updateType = updateTypeSelect.value;
+            const file = fileInput.files[0];
+
+            if (!department || !sopType || !updateType || !file) {
+                alert('Please complete all required fields and select a file.');
+                return false;
+            }
+
+            if (updateType === 'update' && !selectedSOPIdInput.value) {
+                alert('Please select an existing document to update.');
+                return false;
+            }
+
+            if (updateType === 'new' && !document.getElementById('sopTitle').value.trim()) {
+                alert('Please provide a title for the new document.');
+                return false;
+            }
+
+            return true;
+        }
+
+        // Authentication helper functions - implement based on your Azure AD setup
+        async function getAccessToken() {
+            // Implement your Azure AD authentication logic here
+            // This could use MSAL.js or your existing authentication system
+            // return await msalInstance.acquireTokenSilent({...});
+            throw new Error('Authentication not implemented - configure Azure AD integration');
+        }
+
+        // Utility function to get file extension icon
+        function getFileTypeClass(filename) {
+            const extension = filename.split('.').pop().toLowerCase();
+            switch (extension) {
+                case 'pdf': return 'pdf';
+                case 'docx': 
+                case 'doc': return 'docx';
+                case 'xlsx':
+                case 'xls': return 'xlsx';
+                case 'txt': return 'txt';
+                default: return 'pdf';
+            }
+        }
+
+        function completeUpload() {
+            submitBtn.style.display = 'none';
+            progressBar.style.display = 'none';
+            progressFill.style.width = '100%';
+            successMessage.style.display = 'block';
+            
+            setTimeout(() => {
+                form.reset();
+                selectedFileDiv.style.display = 'none';
+                fileUploadArea.style.display = 'block';
+                existingSOPsDiv.classList.add('hidden');
+                additionalInfoDiv.style.display = 'none';
+                successMessage.style.display = 'none';
+                submitBtn.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Upload Document';
+                progressFill.style.width = '0%';
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
