@@ -1091,26 +1091,71 @@
             docDiv.className = 'document-item';
             docDiv.setAttribute('data-search', `${doc.title} ${doc.description || ''} ${doc.author || ''}`.toLowerCase());
             
-            const typeClass = getFileTypeClass(doc.title);
+            // Determine file type and icon
+            const fileExt = doc.title ? doc.title.split('.').pop().toLowerCase() : '';
+            const typeInfo = getFileTypeInfo(fileExt);
+            
+            // Format file size
+            const fileSize = doc.size ? formatFileSize(doc.size) : 'Unknown size';
+            
+            // Format dates
+            const uploadDate = doc.uploadDate ? new Date(doc.uploadDate).toLocaleDateString() : null;
+            const modifiedDate = doc.lastModified ? new Date(doc.lastModified).toLocaleDateString() : uploadDate || 'Unknown';
+            
+            // Build metadata items
+            const metaItems = [];
+            metaItems.push(`<span class="meta-item"><span style="font-size: 10px;">📅</span> ${modifiedDate}</span>`);
+            metaItems.push(`<span class="meta-item"><span style="font-size: 10px;">📦</span> ${fileSize}</span>`);
+            
+            // Add indexing status
+            if (doc.indexed !== false) {
+                metaItems.push(`<span class="meta-item indexed"><span style="font-size: 10px;">✓</span> Indexed</span>`);
+            } else {
+                metaItems.push(`<span class="meta-item processing"><span style="font-size: 10px;">⟳</span> Processing</span>`);
+            }
+            
+            // Add vectorization status
+            if (doc.vectorized) {
+                metaItems.push(`<span class="meta-item indexed"><span style="font-size: 10px;">🧮</span> Vectorized</span>`);
+            }
+            
+            // Add chunk count if available
+            if (doc.chunkCount) {
+                metaItems.push(`<span class="meta-item chunks"><span style="font-size: 10px;">📑</span> ${doc.chunkCount} chunks</span>`);
+            }
+            
+            // Add conversion method if available
+            if (doc.conversionMethod) {
+                const methodIcon = doc.conversionMethod === 'OCR' ? '👁️' : doc.conversionMethod === 'Excel' ? '📊' : '📄';
+                metaItems.push(`<span class="meta-item"><span style="font-size: 10px;">${methodIcon}</span> ${doc.conversionMethod}</span>`);
+            }
+            
+            // Add department if available
+            if (doc.department) {
+                metaItems.push(`<span class="meta-item"><span style="font-size: 10px;">🏢</span> ${doc.department}</span>`);
+            }
             
             docDiv.innerHTML = `
-                <div class="doc-type-icon ${typeClass}">${doc.type || 'DOC'}</div>
-                <div class="document-info">
-                    <div class="document-title">${doc.title}</div>
-                    <div class="document-meta">
-                        <span>${doc.lastModified || 'Unknown'}</span>
-                        <span>${doc.author || 'Unknown'}</span>
-                        <span>${doc.size || 'Unknown'}</span>
-                        <span>v${doc.version || '1.0'}</span>
-                    </div>
-                    <div class="document-description">${doc.description || 'No description available'}</div>
+                <div class="doc-type-icon ${typeInfo.class}" style="background: ${typeInfo.gradient};">
+                    <span style="color: white; font-size: 24px;">${typeInfo.icon}</span>
+                    ${doc.vectorized ? '<div class="vectorized-badge" style="position: absolute; top: -4px; right: -4px; width: 16px; height: 16px; background: #10b981; border: 2px solid white; border-radius: 50%;">✓</div>' : ''}
                 </div>
-                <div class="document-actions">
-                    <button class="action-btn btn-preview" onclick="previewDocument('${doc.id}', '${doc.title}')">
-                        Preview
+                <div class="document-info" style="flex: 1;">
+                    <div class="document-title" style="font-weight: 600; color: #1e293b; margin-bottom: 4px;">${doc.title}</div>
+                    <div class="document-meta" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px;">
+                        ${metaItems.join('')}
+                    </div>
+                    <div class="document-description" style="font-size: 12px; color: #64748b; line-height: 1.4;">${doc.description || 'No description available'}</div>
+                </div>
+                <div class="document-actions" style="display: flex; gap: 8px; align-items: center;">
+                    <button class="action-btn btn-preview" onclick="previewDocument('${doc.id}', '${doc.title}', '${fileExt}')" style="padding: 6px 12px; background: white; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 12px; color: #374151;">
+                        <span style="margin-right: 4px;">👁️</span> Preview
                     </button>
-                    <button class="action-btn btn-download" onclick="downloadDocument('${doc.id}', '${doc.title}')">
-                        Download
+                    <button class="action-btn btn-download" onclick="downloadDocument('${doc.id}', '${doc.title}')" style="padding: 6px 12px; background: white; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 12px; color: #374151;">
+                        <span style="margin-right: 4px;">⬇️</span> Download
+                    </button>
+                    <button class="btn-delete" onclick="deleteDocument('${doc.id}', '${doc.title}')" style="width: 32px; height: 32px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; color: #dc2626; display: flex; align-items: center; justify-content: center;" title="Delete document">
+                        <span style="font-size: 16px;">🗑️</span>
                     </button>
                 </div>
             `;
@@ -1264,6 +1309,78 @@
             // Future implementation for embedded PDF viewer
             // This could open a modal with an iframe or use PDF.js
             window.open(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.previewDocument}?id=${docId}`, '_blank');
+        }
+        
+        // Helper function to get file type info
+        function getFileTypeInfo(ext) {
+            const types = {
+                'pdf': { icon: '📄', class: 'pdf', gradient: 'linear-gradient(135deg, #ff6b6b 0%, #ff4444 100%)' },
+                'doc': { icon: '📘', class: 'word', gradient: 'linear-gradient(135deg, #2185d0 0%, #1e5bb8 100%)' },
+                'docx': { icon: '📘', class: 'word', gradient: 'linear-gradient(135deg, #2185d0 0%, #1e5bb8 100%)' },
+                'xls': { icon: '📊', class: 'excel', gradient: 'linear-gradient(135deg, #21ba45 0%, #16ab39 100%)' },
+                'xlsx': { icon: '📊', class: 'excel', gradient: 'linear-gradient(135deg, #21ba45 0%, #16ab39 100%)' },
+                'txt': { icon: '📓', class: 'text', gradient: 'linear-gradient(135deg, #fbbd08 0%, #f2711c 100%)' },
+                'csv': { icon: '📋', class: 'text', gradient: 'linear-gradient(135deg, #fbbd08 0%, #f2711c 100%)' },
+                'json': { icon: '🕹️', class: 'text', gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
+                'xml': { icon: '🎯', class: 'text', gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
+                'jpg': { icon: '🎨', class: 'image', gradient: 'linear-gradient(135deg, #a333c8 0%, #9627ba 100%)' },
+                'jpeg': { icon: '🎨', class: 'image', gradient: 'linear-gradient(135deg, #a333c8 0%, #9627ba 100%)' },
+                'png': { icon: '🎨', class: 'image', gradient: 'linear-gradient(135deg, #a333c8 0%, #9627ba 100%)' },
+                'gif': { icon: '🎨', class: 'image', gradient: 'linear-gradient(135deg, #a333c8 0%, #9627ba 100%)' },
+                'bmp': { icon: '🎨', class: 'image', gradient: 'linear-gradient(135deg, #a333c8 0%, #9627ba 100%)' }
+            };
+            
+            return types[ext] || { icon: '📁', class: 'unknown', gradient: 'linear-gradient(135deg, #767676 0%, #616161 100%)' };
+        }
+        
+        // Helper function to format file size
+        function formatFileSize(bytes) {
+            if (!bytes || bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        // Delete document function
+        async function deleteDocument(docId, title) {
+            // Prevent default action
+            event.preventDefault();
+            event.stopPropagation();
+            
+            // Confirm deletion
+            if (!confirm(`Are you sure you want to delete "${title}"?\n\nThis action cannot be undone.`)) {
+                return;
+            }
+            
+            try {
+                // Call Azure Function to delete document
+                const deleteUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.deleteDocument}`;
+                const response = await fetch(deleteUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-functions-key': API_CONFIG.functionKey
+                    },
+                    body: JSON.stringify({
+                        id: docId,
+                        fileName: title
+                    })
+                });
+                
+                if (response.ok) {
+                    // Show success message
+                    alert(`Document "${title}" has been deleted successfully.`);
+                    
+                    // Refresh the document list
+                    loadDepartmentDocuments();
+                } else {
+                    throw new Error('Failed to delete document');
+                }
+            } catch (error) {
+                console.error('Delete error:', error);
+                alert(`Failed to delete document "${title}".\n\nError: ${error.message}`);
+            }
         }
 
         // Removed duplicate downloadDocument function
