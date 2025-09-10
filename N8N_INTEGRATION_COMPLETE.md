@@ -85,9 +85,10 @@ private async Task<bool> CheckForDuplicate(string fileHash)
 
 ### 4. Azure Resources
 
-**Blob Storage Containers**:
-- `original-documents`: Stores original uploaded files
-- `converted-documents`: Stores processed/extracted text files
+**Blob Storage Structure**:
+- Container: `saxdocuments`
+  - Folder: `original-documents/{department}/` (stores original uploaded files)
+  - Folder: `converted-documents/{department}/` (stores processed/extracted text files)
 
 **Azure AI Search**:
 - Index: `sop-documents`
