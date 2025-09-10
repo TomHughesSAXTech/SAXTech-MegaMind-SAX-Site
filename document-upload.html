@@ -917,66 +917,82 @@
         // Load index statistics on page load
         loadIndexStatistics();
         
-        // Auto-load first department if none selected
+        // Auto-load all documents on page load
         setTimeout(() => {
-            if (!departmentSelect.value && departmentSelect.options.length > 1) {
-                // Highlight the department selector to draw attention
-                departmentSelect.style.border = '2px solid #3b82f6';
-                departmentSelect.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
-                
-                // Optional: Auto-select first department after a delay
-                setTimeout(() => {
-                    if (!departmentSelect.value && departmentSelect.options.length > 1) {
-                        departmentSelect.value = departmentSelect.options[1].value;
-                        loadDepartmentDocuments();
-                        // Remove highlight
-                        departmentSelect.style.border = '';
-                        departmentSelect.style.boxShadow = '';
-                    }
-                }, 2000);
-            }
+            loadAllDocuments();
         }, 500);
 
         function loadDepartmentDocuments() {
             const department = departmentSelect.value;
             
             if (!department) {
-                emptyState.style.display = 'block';
-                explorerContainer.style.display = 'none';
+                // Load all documents if no department selected
+                loadAllDocuments();
                 return;
             }
 
+            // Filter already loaded documents by department
+            filterDocumentsByDepartment(department);
+        }
+        
+        function loadAllDocuments() {
             // Show loading state
             emptyState.style.display = 'none';
             explorerContainer.style.display = 'block';
             documentCount.textContent = '0 documents';
             lastUpdated.textContent = 'Last updated: --';
-            folderGrid.innerHTML = '<div style="text-align: center; padding: 40px; color: #64748b;">Loading documents...</div>';
+            folderGrid.innerHTML = '<div style="text-align: center; padding: 40px; color: #64748b;">Loading all documents...</div>';
 
-            // Call your Azure Function to get documents for the department
-            fetchDepartmentDocuments(department)
-                .then(deptData => {
-                    if (!deptData || !deptData.folders || Object.keys(deptData.folders).length === 0) {
-                        showEmptyDepartment(department);
+            // Fetch all documents
+            fetchAllDocuments()
+                .then(data => {
+                    if (!data || !data.departments || Object.keys(data.departments).length === 0) {
+                        showEmptyRepository();
                         return;
                     }
 
                     // Update stats
-                    documentCount.textContent = `${deptData.stats.totalDocuments || 0} documents`;
-                    lastUpdated.textContent = `Last updated: ${deptData.stats.lastUpdated || '--'}`;
+                    documentCount.textContent = `${data.stats.totalDocuments || 0} documents across ${Object.keys(data.departments).length} departments`;
+                    lastUpdated.textContent = `Last updated: ${data.stats.lastUpdated || '--'}`;
                     
-                    // Build folder structure
-                    buildFolderStructure(deptData.folders);
+                    // Store all documents for filtering
+                    window.allDocumentsData = data;
+                    
+                    // Build department structure
+                    buildDepartmentStructure(data.departments);
                 })
                 .catch(error => {
-                    console.error('Error loading department documents:', error);
-                    showEmptyDepartment(department);
+                    console.error('Error loading documents:', error);
+                    showEmptyRepository();
                 });
         }
+        
+        function filterDocumentsByDepartment(department) {
+            if (!window.allDocumentsData) {
+                loadAllDocuments();
+                return;
+            }
+            
+            const filteredDepartments = {};
+            if (window.allDocumentsData.departments[department]) {
+                filteredDepartments[department] = window.allDocumentsData.departments[department];
+            }
+            
+            if (Object.keys(filteredDepartments).length > 0) {
+                const totalDocs = Object.values(filteredDepartments).reduce((sum, folders) => {
+                    return sum + Object.values(folders).reduce((s, docs) => s + docs.length, 0);
+                }, 0);
+                
+                documentCount.textContent = `${totalDocs} documents in ${department}`;
+                buildDepartmentStructure(filteredDepartments);
+            } else {
+                showEmptyDepartment(department);
+            }
+        }
 
-        async function fetchDepartmentDocuments(department) {
+        async function fetchAllDocuments() {
             try {
-                // Query Azure AI Search directly
+                // Query Azure AI Search for all documents
                 const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
                 const response = await fetch(searchUrl, {
                     method: 'POST',
@@ -986,10 +1002,9 @@
                     },
                     body: JSON.stringify({
                         search: '*',
-                        filter: department ? `department eq '${department.replace(/'/g, "''")}' or department eq null` : null,
                         select: 'id,title,fileName,documentType,description,createdDate,lastModified,department,fileSize,version,sha256Hash,chunkCount,vectorized,indexed',
-                        top: 100,
-                        orderby: 'createdDate desc'
+                        top: 1000,
+                        orderby: 'department asc, documentType asc, title asc'
                     })
                 });
 
@@ -999,8 +1014,8 @@
 
                 const searchResults = await response.json();
                 
-                // Transform search results into folder structure
-                const folders = {};
+                // Transform search results into department > folder structure
+                const departments = {};
                 let totalDocuments = 0;
                 let lastUpdated = '--';
                 
@@ -1008,13 +1023,19 @@
                 const documents = searchResults.value || [];
                 
                 if (documents && documents.length > 0) {
-                    // Group documents by documentType
+                    // Group documents by department, then by documentType
                     documents.forEach(doc => {
+                        const deptName = doc.department || 'General';
                         const folderName = doc.documentType || 'General';
-                        if (!folders[folderName]) {
-                            folders[folderName] = [];
+                        
+                        if (!departments[deptName]) {
+                            departments[deptName] = {};
                         }
-                        folders[folderName].push({
+                        if (!departments[deptName][folderName]) {
+                            departments[deptName][folderName] = [];
+                        }
+                        
+                        departments[deptName][folderName].push({
                             id: doc.id,
                             title: doc.title || doc.fileName,
                             description: doc.description || '',
@@ -1034,13 +1055,16 @@
                     });
                     
                     // Get the most recent update date
-                    const dates = documents.map(d => new Date(d.lastModified || d.createdDate));
-                    const mostRecent = new Date(Math.max(...dates));
-                    lastUpdated = mostRecent.toLocaleDateString();
+                    const dates = documents.filter(d => d.lastModified || d.createdDate)
+                                          .map(d => new Date(d.lastModified || d.createdDate));
+                    if (dates.length > 0) {
+                        const mostRecent = new Date(Math.max(...dates));
+                        lastUpdated = mostRecent.toLocaleDateString();
+                    }
                 }
                 
                 return {
-                    folders: folders,
+                    departments: departments,
                     stats: {
                         totalDocuments: totalDocuments,
                         lastUpdated: lastUpdated
@@ -1050,7 +1074,7 @@
                 console.error('Azure Search query failed:', error);
                 // Return empty structure if search fails
                 return {
-                    folders: {},
+                    departments: {},
                     stats: {
                         totalDocuments: 0,
                         lastUpdated: '--'
@@ -1069,6 +1093,97 @@
             `;
             documentCount.textContent = '0 documents';
             lastUpdated.textContent = 'Last updated: --';
+        }
+        
+        function showEmptyRepository() {
+            folderGrid.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #64748b;">
+                    <div style="font-size: 24px; margin-bottom: 12px;">📁</div>
+                    <div style="font-weight: 500; margin-bottom: 8px;">No Documents in Repository</div>
+                    <div style="font-size: 13px;">Start by uploading documents using the form on the left.</div>
+                </div>
+            `;
+            documentCount.textContent = '0 documents';
+            lastUpdated.textContent = 'Last updated: --';
+        }
+        
+        function buildDepartmentStructure(departments) {
+            folderGrid.innerHTML = '';
+            
+            if (!departments || Object.keys(departments).length === 0) {
+                showEmptyRepository();
+                return;
+            }
+            
+            // Create a section for each department
+            Object.keys(departments).sort().forEach(deptName => {
+                const deptSection = document.createElement('div');
+                deptSection.className = 'department-section';
+                deptSection.style.cssText = 'margin-bottom: 32px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px;';
+                
+                // Department header
+                const deptHeader = document.createElement('h3');
+                deptHeader.style.cssText = 'margin: 0 0 16px 0; color: #1f2937; font-size: 16px; font-weight: 600; padding-bottom: 12px; border-bottom: 1px solid #e5e7eb;';
+                deptHeader.innerHTML = `🏫 ${deptName} Department`;
+                deptSection.appendChild(deptHeader);
+                
+                // Create folder structure for this department
+                const folders = departments[deptName];
+                const folderContainer = document.createElement('div');
+                folderContainer.className = 'folder-grid';
+                
+                Object.keys(folders).sort().forEach(folderName => {
+                    const documents = folders[folderName] || [];
+                    
+                    const folderCard = document.createElement('div');
+                    folderCard.className = 'folder-card expanded'; // Start expanded
+                    
+                    const folderHeader = document.createElement('div');
+                    folderHeader.className = 'folder-header';
+                    folderHeader.innerHTML = `
+                        <div class="folder-info">
+                            <span class="folder-icon">▼</span>
+                            <span class="folder-name">${folderName}</span>
+                        </div>
+                        <span class="folder-count">${documents.length}</span>
+                    `;
+                    
+                    const folderContent = document.createElement('div');
+                    folderContent.className = 'folder-content';
+                    
+                    const documentList = document.createElement('div');
+                    documentList.className = 'document-list';
+                    
+                    if (documents.length === 0) {
+                        documentList.innerHTML = `
+                            <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 13px;">
+                                No documents in this category yet.
+                            </div>
+                        `;
+                    } else {
+                        documents.forEach(doc => {
+                            const docItem = createDocumentItem(doc);
+                            documentList.appendChild(docItem);
+                        });
+                    }
+                    
+                    folderContent.appendChild(documentList);
+                    
+                    // Toggle folder expand/collapse
+                    folderHeader.addEventListener('click', () => {
+                        folderCard.classList.toggle('expanded');
+                        const icon = folderHeader.querySelector('.folder-icon');
+                        icon.textContent = folderCard.classList.contains('expanded') ? '▼' : '▶';
+                    });
+                    
+                    folderCard.appendChild(folderHeader);
+                    folderCard.appendChild(folderContent);
+                    folderContainer.appendChild(folderCard);
+                });
+                
+                deptSection.appendChild(folderContainer);
+                folderGrid.appendChild(deptSection);
+            });
         }
 
         function buildFolderStructure(folders) {
