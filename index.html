@@ -238,11 +238,12 @@
         .container {
             display: flex;
             gap: 40px;
-            max-width: 1600px;
+            max-width: 1800px;
             width: 100%;
             align-items: center;
             justify-content: flex-start;
-            padding-left: 50px;
+            padding-left: 30px;
+            padding-right: 30px;
         }
 
         .container.hidden {
@@ -713,9 +714,9 @@
                 0 10px 20px rgba(0,0,0,0.2),
                 inset 0 1px 0 rgba(255,255,255,0.1);
             overflow: hidden;
-            height: 750px;
+            height: 850px;
             width: 100%;
-            max-width: 1200px;
+            max-width: 1400px;
             display: flex;
             flex-direction: column;
             backdrop-filter: blur(10px);
@@ -733,10 +734,7 @@
             overflow: visible;
             background: transparent;
             animation: float 3s ease-in-out infinite;
-            position: absolute;
-            left: 30px;
-            top: 50%;
-            transform: translateY(-50%);
+            position: relative;
             flex-shrink: 0;
         }
 
@@ -767,7 +765,6 @@
             justify-content: center;
             gap: 25px;
             width: 100%;
-            padding-left: 240px;
         }
 
         .header-text h2 {
