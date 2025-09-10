@@ -946,9 +946,9 @@
                         search: '*',
                         // Azure Search OData filter syntax - escape single quotes
                         filter: department ? `department eq '${department.replace(/'/g, "''")}' or department eq null` : null,
-                        select: 'id,title,fileName,documentType,description,uploadDate,department',
+                        select: 'id,title,fileName,documentType,description,createdDate,lastModified,department',
                         top: 100,
-                        orderby: 'uploadDate desc'
+                        orderby: 'createdDate desc'
                     })
                 });
 
@@ -977,7 +977,7 @@
                             id: doc.id,
                             title: doc.title || doc.fileName,
                             description: doc.description || '',
-                            lastModified: new Date(doc.uploadDate).toLocaleDateString(),
+                            lastModified: new Date(doc.lastModified || doc.createdDate).toLocaleDateString(),
                             type: folderName.substring(0, 3).toUpperCase(),
                             author: 'SAX User',
                             size: 'N/A',
@@ -987,7 +987,7 @@
                     });
                     
                     // Get the most recent update date
-                    const dates = documents.map(d => new Date(d.uploadDate));
+                    const dates = documents.map(d => new Date(d.lastModified || d.createdDate));
                     const mostRecent = new Date(Math.max(...dates));
                     lastUpdated = mostRecent.toLocaleDateString();
                 }
