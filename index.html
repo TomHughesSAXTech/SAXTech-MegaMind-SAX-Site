@@ -1533,20 +1533,18 @@
                 card.classList.remove('active', 'side-visible', 'back-hidden');
             });
             
-            // Calculate which card is in front (0°), sides (90°, 270°), and back (180°)
-            const normalizedRotation = ((currentCarouselRotation % 360) + 360) % 360;
-            const activeIndex = Math.round(normalizedRotation / 90) % 4;
+            // Determine which card index should be in front based on rotation
+            // Negative rotation means rotating right (next), positive means left (prev)
+            let frontIndex = Math.round(-currentCarouselRotation / 90) % 4;
+            if (frontIndex < 0) frontIndex += 4;
             
             cards.forEach((card, index) => {
-                // Calculate the relative position of each card
-                const cardRotation = (index * 90 - normalizedRotation + 360) % 360;
-                
-                if (cardRotation === 0 || cardRotation === 360) {
-                    card.classList.add('active'); // Front
-                } else if (cardRotation === 90 || cardRotation === 270) {
-                    card.classList.add('side-visible'); // Sides
-                } else if (cardRotation === 180) {
-                    card.classList.add('back-hidden'); // Back
+                if (index === frontIndex) {
+                    card.classList.add('active'); // Front - fully visible
+                } else if (index === (frontIndex + 1) % 4 || index === (frontIndex + 3) % 4) {
+                    card.classList.add('side-visible'); // Sides - semi-visible
+                } else {
+                    card.classList.add('back-hidden'); // Back - hidden
                 }
             });
         }
