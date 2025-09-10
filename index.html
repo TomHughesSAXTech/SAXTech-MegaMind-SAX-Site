@@ -526,10 +526,39 @@
             align-items: center;
         }
 
-        .big-personality-card:nth-child(1) { transform: rotateY(0deg) translateZ(450px); }
-        .big-personality-card:nth-child(2) { transform: rotateY(90deg) translateZ(450px); }
-        .big-personality-card:nth-child(3) { transform: rotateY(180deg) translateZ(450px); }
-        .big-personality-card:nth-child(4) { transform: rotateY(270deg) translateZ(450px); }
+        .big-personality-card:nth-child(1) { 
+            transform: rotateY(0deg) translateZ(450px); 
+        }
+        .big-personality-card:nth-child(2) { 
+            transform: rotateY(90deg) translateZ(450px); 
+        }
+        .big-personality-card:nth-child(3) { 
+            transform: rotateY(180deg) translateZ(450px); 
+        }
+        .big-personality-card:nth-child(4) { 
+            transform: rotateY(270deg) translateZ(450px); 
+        }
+        
+        /* Hide cards when they're in the back */
+        .big-personality-card {
+            opacity: 0.3;
+            transition: opacity 0.8s ease, transform 0.3s ease;
+        }
+        
+        .big-personality-card.active {
+            opacity: 1;
+        }
+        
+        /* Cards on the sides are semi-visible */
+        .big-personality-card.side-visible {
+            opacity: 0.6;
+        }
+        
+        /* Cards in the back are hidden */
+        .big-personality-card.back-hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
 
         .floating-character {
             width: 220px;
@@ -683,7 +712,7 @@
                 0 10px 20px rgba(0,0,0,0.2),
                 inset 0 1px 0 rgba(255,255,255,0.1);
             overflow: hidden;
-            max-height: 680px;
+            max-height: 800px;
             display: flex;
             flex-direction: column;
             backdrop-filter: blur(10px);
@@ -692,16 +721,17 @@
         }
         
         .header-robot {
-            width: 60px;
-            height: 60px;
-            margin-right: 15px;
-            border-radius: 15px;
+            width: 240px;
+            height: 240px;
+            margin-right: 25px;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: visible;
             background: transparent;
             animation: float 3s ease-in-out infinite;
+            position: relative;
+            flex-shrink: 0;
         }
 
         .header-robot img {
@@ -709,27 +739,31 @@
             height: 100%;
             object-fit: contain;
             background: transparent;
-            filter: drop-shadow(0 4px 8px rgba(255,215,0,0.3));
+            filter: drop-shadow(0 8px 16px rgba(255,215,0,0.4)) drop-shadow(0 4px 8px rgba(0,0,0,0.3));
         }
 
         .chat-header {
             background: linear-gradient(135deg, rgba(255,215,0,0.15), rgba(0,0,0,0.3));
             backdrop-filter: blur(10px);
             color: #FFD700;
-            padding: 20px 25px;
+            padding: 30px 35px;
             border-bottom: 1px solid rgba(255,215,0,0.2);
             position: relative;
+            min-height: 280px;
+            display: flex;
+            align-items: center;
         }
         
         .chat-header-content {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 15px;
+            gap: 25px;
+            width: 100%;
         }
 
         .header-text h2 {
-            font-size: 24px;
+            font-size: 32px;
             font-weight: 300;
             letter-spacing: 2px;
             margin: 0;
@@ -737,7 +771,7 @@
             transition: all 0.3s ease;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
         }
 
         .header-text h2:hover {
@@ -745,17 +779,17 @@
         }
 
         .header-text p {
-            font-size: 14px;
+            font-size: 18px;
             opacity: 0.8;
             letter-spacing: 1px;
-            margin: 0;
+            margin: 5px 0 0 0;
         }
 
         .chat-messages {
             flex: 1;
             overflow-y: auto;
             padding: 25px;
-            max-height: 450px;
+            max-height: 400px;
             background: rgba(255,255,255,0.05);
         }
 
@@ -1298,9 +1332,27 @@
         const conversationState = document.getElementById('conversationState');
         const resetBtn = document.getElementById('resetBtn');
 
+        // Initialize carousel visibility
+        function initializeCarousel() {
+            const cards = document.querySelectorAll('.big-personality-card');
+            cards.forEach((card, index) => {
+                card.classList.remove('active', 'side-visible', 'back-hidden');
+                if (index === 0) {
+                    card.classList.add('active'); // First card is active
+                } else if (index === 1 || index === 3) {
+                    card.classList.add('side-visible'); // Side cards
+                } else if (index === 2) {
+                    card.classList.add('back-hidden'); // Back card
+                }
+            });
+        }
+        
         // Initialize application
         async function initialize() {
             console.log('Initializing MegaMind SAX...');
+            
+            // Initialize carousel visibility
+            initializeCarousel();
             
             // Try immediate initialization first if msal is already available
             if (typeof msal !== 'undefined' && msal.PublicClientApplication) {
@@ -1475,12 +1527,28 @@
             currentCarouselRotation += direction * 90; // 360/4 = 90 degrees per personality
             document.getElementById('carousel3d').style.transform = `rotateY(${currentCarouselRotation}deg)`;
             
-            // Update active state
+            // Update visibility states
             const cards = document.querySelectorAll('.big-personality-card');
-            cards.forEach(card => card.classList.remove('active'));
+            cards.forEach(card => {
+                card.classList.remove('active', 'side-visible', 'back-hidden');
+            });
             
-            const activeIndex = Math.abs(Math.floor(currentCarouselRotation / 90)) % 4;
-            cards[activeIndex].classList.add('active');
+            // Calculate which card is in front (0°), sides (90°, 270°), and back (180°)
+            const normalizedRotation = ((currentCarouselRotation % 360) + 360) % 360;
+            const activeIndex = Math.round(normalizedRotation / 90) % 4;
+            
+            cards.forEach((card, index) => {
+                // Calculate the relative position of each card
+                const cardRotation = (index * 90 - normalizedRotation + 360) % 360;
+                
+                if (cardRotation === 0 || cardRotation === 360) {
+                    card.classList.add('active'); // Front
+                } else if (cardRotation === 90 || cardRotation === 270) {
+                    card.classList.add('side-visible'); // Sides
+                } else if (cardRotation === 180) {
+                    card.classList.add('back-hidden'); // Back
+                }
+            });
         }
 
         // Personality selector functionality
