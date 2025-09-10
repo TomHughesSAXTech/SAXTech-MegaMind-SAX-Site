@@ -1201,15 +1201,6 @@
                     </div>
                 `;
             }
-            
-            // Note: Auto-expand logic removed as we're showing flat search results
-            // If you want to maintain folder structure in search, that would require different logic
-                    const visibleDocs = folder.querySelectorAll('.document-item[style="display: grid;"], .document-item:not([style])');
-                    if (visibleDocs.length > 0) {
-                        folder.classList.add('expanded');
-                    }
-                });
-            }
         }
 
         function previewDocument(docId, title) {
