@@ -931,23 +931,70 @@
 
         async function fetchDepartmentDocuments(department) {
             try {
-                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.listDocuments}?department=${encodeURIComponent(department)}`, {
-                    method: 'GET',
+                // Query Azure AI Search directly for documents in this department
+                const searchUrl = 'https://saxmegamind.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
+                const response = await fetch(searchUrl, {
+                    method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        // Add your authentication headers here
-                        // 'Authorization': 'Bearer ' + await getAccessToken()
-                    }
+                        'api-key': 'hJRqchPEhyI6ygOHe0yJ0AlAz2gHdvM3AzSeFJGfTg' // Read-only query key
+                    },
+                    body: JSON.stringify({
+                        search: '*',
+                        filter: `department eq '${department}'`,
+                        select: 'id,title,fileName,documentType,description,uploadDate,department',
+                        top: 100,
+                        orderby: 'uploadDate desc'
+                    })
                 });
 
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    throw new Error(`Search API HTTP ${response.status}: ${response.statusText}`);
                 }
 
-                return await response.json();
+                const searchResults = await response.json();
+                
+                // Transform search results into folder structure
+                const folders = {};
+                let totalDocuments = 0;
+                let lastUpdated = '--';
+                
+                if (searchResults.value && searchResults.value.length > 0) {
+                    // Group documents by documentType
+                    searchResults.value.forEach(doc => {
+                        const folderName = doc.documentType || 'General';
+                        if (!folders[folderName]) {
+                            folders[folderName] = [];
+                        }
+                        folders[folderName].push({
+                            id: doc.id,
+                            title: doc.title || doc.fileName,
+                            description: doc.description || '',
+                            lastModified: new Date(doc.uploadDate).toLocaleDateString(),
+                            type: folderName.substring(0, 3).toUpperCase(),
+                            author: 'SAX User',
+                            size: 'N/A',
+                            version: '1.0'
+                        });
+                        totalDocuments++;
+                    });
+                    
+                    // Get the most recent update date
+                    const dates = searchResults.value.map(d => new Date(d.uploadDate));
+                    const mostRecent = new Date(Math.max(...dates));
+                    lastUpdated = mostRecent.toLocaleDateString();
+                }
+                
+                return {
+                    folders: folders,
+                    stats: {
+                        totalDocuments: totalDocuments,
+                        lastUpdated: lastUpdated
+                    }
+                };
             } catch (error) {
-                console.error('API call failed:', error);
-                // Return empty structure until API is connected
+                console.error('Azure Search query failed:', error);
+                // Return empty structure if search fails
                 return {
                     folders: {},
                     stats: {
@@ -1065,23 +1112,98 @@
             return docDiv;
         }
 
-        function handleSearch() {
-            const searchTerm = searchInput.value.toLowerCase();
-            const documentItems = document.querySelectorAll('.document-item');
+        async function handleSearch() {
+            const searchTerm = searchInput.value.trim();
             
-            documentItems.forEach(item => {
-                const searchText = item.getAttribute('data-search');
-                if (searchText.includes(searchTerm)) {
-                    item.style.display = 'grid';
-                } else {
-                    item.style.display = 'none';
+            if (searchTerm.length < 2) {
+                // If search term is too short, just reload current department
+                loadDepartmentDocuments();
+                return;
+            }
+            
+            try {
+                // Search across all documents in Azure AI Search
+                const searchUrl = 'https://saxmegamind.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
+                const response = await fetch(searchUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'api-key': 'hJRqchPEhyI6ygOHe0yJ0AlAz2gHdvM3AzSeFJGfTg'
+                    },
+                    body: JSON.stringify({
+                        search: searchTerm,
+                        searchMode: 'any',
+                        select: 'id,title,fileName,documentType,description,uploadDate,department',
+                        top: 50,
+                        orderby: 'uploadDate desc'
+                    })
+                });
+                
+                if (response.ok) {
+                    const searchResults = await response.json();
+                    
+                    // Clear current display
+                    folderGrid.innerHTML = '';
+                    
+                    if (searchResults.value && searchResults.value.length > 0) {
+                        // Group search results by department
+                        const groupedResults = {};
+                        searchResults.value.forEach(doc => {
+                            const dept = doc.department || 'General';
+                            if (!groupedResults[dept]) {
+                                groupedResults[dept] = [];
+                            }
+                            groupedResults[dept].push(doc);
+                        });
+                        
+                        // Display grouped results
+                        Object.keys(groupedResults).forEach(dept => {
+                            const deptDiv = document.createElement('div');
+                            deptDiv.className = 'search-results-group';
+                            deptDiv.innerHTML = `<h3 style="margin: 10px 0; color: #1e293b;">${dept}</h3>`;
+                            
+                            groupedResults[dept].forEach(doc => {
+                                const docItem = createDocumentItem({
+                                    id: doc.id,
+                                    title: doc.title || doc.fileName,
+                                    description: doc.description || '',
+                                    lastModified: new Date(doc.uploadDate).toLocaleDateString(),
+                                    type: (doc.documentType || 'DOC').substring(0, 3).toUpperCase(),
+                                    author: 'SAX User',
+                                    size: 'N/A',
+                                    version: '1.0'
+                                });
+                                deptDiv.appendChild(docItem);
+                            });
+                            
+                            folderGrid.appendChild(deptDiv);
+                        });
+                        
+                        documentCount.textContent = `${searchResults.value.length} results found`;
+                    } else {
+                        folderGrid.innerHTML = `
+                            <div style="text-align: center; padding: 40px; color: #64748b;">
+                                <div style="font-size: 24px; margin-bottom: 12px;">🔍</div>
+                                <div style="font-weight: 500; margin-bottom: 8px;">No Results Found</div>
+                                <div style="font-size: 13px;">No documents match your search term "${searchTerm}"</div>
+                            </div>
+                        `;
+                        documentCount.textContent = '0 results';
+                    }
                 }
-            });
+            } catch (error) {
+                console.error('Search failed:', error);
+                folderGrid.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #dc2626;">
+                        <div style="font-size: 24px; margin-bottom: 12px;">⚠️</div>
+                        <div style="font-weight: 500;">Search Error</div>
+                        <div style="font-size: 13px;">Unable to search documents at this time</div>
+                    </div>
+                `;
+            }
             
-            // Auto-expand folders that contain visible documents
-            if (searchTerm) {
-                const folders = document.querySelectorAll('.folder-card');
-                folders.forEach(folder => {
+            // Note: Auto-expand logic removed as we're showing flat search results
+            // If you want to maintain folder structure in search, that would require different logic
                     const visibleDocs = folder.querySelectorAll('.document-item[style="display: grid;"], .document-item:not([style])');
                     if (visibleDocs.length > 0) {
                         folder.classList.add('expanded');
@@ -1147,22 +1269,35 @@
 
         async function fetchExistingSOPs(department, sopType) {
             try {
-                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.listDocuments}?department=${encodeURIComponent(department)}&type=${encodeURIComponent(sopType)}`, {
-                    method: 'GET',
+                // Query Azure AI Search directly
+                const searchUrl = 'https://saxmegamind.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
+                const response = await fetch(searchUrl, {
+                    method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        // Add your authentication headers here
-                    }
+                        'api-key': 'hJRqchPEhyI6ygOHe0yJ0AlAz2gHdvM3AzSeFJGfTg'
+                    },
+                    body: JSON.stringify({
+                        search: '*',
+                        filter: `department eq '${department}' and documentType eq '${sopType}'`,
+                        select: 'id,title,fileName,uploadDate',
+                        top: 50,
+                        orderby: 'uploadDate desc'
+                    })
                 });
 
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    throw new Error(`Search API HTTP ${response.status}: ${response.statusText}`);
                 }
 
                 const data = await response.json();
-                return data.documents || [];
+                return data.value ? data.value.map(doc => ({
+                    id: doc.id,
+                    title: doc.title || doc.fileName,
+                    lastModified: new Date(doc.uploadDate).toLocaleDateString()
+                })) : [];
             } catch (error) {
-                console.error('API call failed:', error);
+                console.error('Azure Search query failed:', error);
                 return [];
             }
         }
