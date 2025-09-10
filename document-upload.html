@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SAX Technology Advisors - Document Management Portal</title>
+    <title>SAX Document Portal</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="alternate icon" href="/favicon.ico">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
@@ -833,6 +835,7 @@
         // API Configuration - Azure Function endpoints and n8n webhook
         const API_CONFIG = {
             baseUrl: 'https://saxtechmegamindfunctions.azurewebsites.net/api',
+            functionKey: '', // Configure this in Azure Function App settings for anonymous access
             endpoints: {
                 listDocuments: '/documents/list',
                 uploadDocument: '/documents/upload',
@@ -1414,8 +1417,7 @@
                     body: formData,
                     headers: {
                         // Don't set Content-Type header - browser will set it with boundary for FormData
-                        // Add your authentication headers here
-                        // 'Authorization': 'Bearer ' + await getAccessToken()
+                        // Function key is passed as query parameter for Azure Functions
                     }
                 });
 
