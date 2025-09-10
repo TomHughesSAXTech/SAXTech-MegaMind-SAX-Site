@@ -934,20 +934,15 @@
 
         async function fetchDepartmentDocuments(department) {
             try {
-                // Query Azure AI Search directly for documents in this department
-                const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
+                // Use Azure Function to search documents (Function handles auth)
+                const searchUrl = `${config.apiBase}${config.endpoints.searchDocuments}`;
                 const response = await fetch(searchUrl, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'api-key': 'hJRqchPEhyI6ygOHe0yJ0AlAz2gHdvM3AzSeFJGfTg' // Read-only query key
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        search: '*',
-                        filter: `department eq '${department}'`,
-                        select: 'id,title,fileName,documentType,description,uploadDate,department',
-                        top: 100,
-                        orderby: 'uploadDate desc'
+                        department: department
                     })
                 });
 
@@ -962,9 +957,12 @@
                 let totalDocuments = 0;
                 let lastUpdated = '--';
                 
-                if (searchResults.value && searchResults.value.length > 0) {
+                // Handle both direct search response and function wrapper response
+                const documents = searchResults.documents || searchResults.value || [];
+                
+                if (documents && documents.length > 0) {
                     // Group documents by documentType
-                    searchResults.value.forEach(doc => {
+                    documents.forEach(doc => {
                         const folderName = doc.documentType || 'General';
                         if (!folders[folderName]) {
                             folders[folderName] = [];
@@ -983,7 +981,7 @@
                     });
                     
                     // Get the most recent update date
-                    const dates = searchResults.value.map(d => new Date(d.uploadDate));
+                    const dates = documents.map(d => new Date(d.uploadDate));
                     const mostRecent = new Date(Math.max(...dates));
                     lastUpdated = mostRecent.toLocaleDateString();
                 }
