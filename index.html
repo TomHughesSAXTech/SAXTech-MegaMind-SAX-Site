@@ -1227,7 +1227,21 @@
                     account: currentAccount
                 };
 
-                const response = await msalInstance.acquireTokenSilent(tokenRequest);
+                let response;
+                try {
+                    response = await msalInstance.acquireTokenSilent(tokenRequest);
+                } catch (silentError) {
+                    // If silent token acquisition fails, try interactive
+                    console.log('Silent token acquisition failed, trying interactive...');
+                    try {
+                        response = await msalInstance.acquireTokenPopup(tokenRequest);
+                    } catch (interactiveError) {
+                        console.error('Interactive token acquisition failed:', interactiveError);
+                        // Try to re-authenticate
+                        await signIn();
+                        return;
+                    }
+                }
                 const accessToken = response.accessToken;
 
                 // Fetch user profile with extended properties
