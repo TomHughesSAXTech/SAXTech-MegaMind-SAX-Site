@@ -934,13 +934,13 @@
 
         async function fetchDepartmentDocuments(department) {
             try {
-                // Query Azure AI Search directly (bypassing Azure Function due to CORS)
-                const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
+                // Use Azure Function endpoint to avoid CORS issues
+                const searchUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.searchDocuments}`;
                 const response = await fetch(searchUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
+                        'x-functions-key': API_CONFIG.functionKey
                     },
                     body: JSON.stringify({
                         search: '*',
@@ -948,7 +948,8 @@
                         filter: department ? `department eq '${department.replace(/'/g, "''")}' or department eq null` : null,
                         select: 'id,title,fileName,documentType,description,createdDate,lastModified,department',
                         top: 100,
-                        orderby: 'createdDate desc'
+                        orderby: 'createdDate desc',
+                        indexName: 'sop-documents' // Use the correct index
                     })
                 });
 
@@ -1316,20 +1317,21 @@
 
         async function fetchExistingSOPs(department, sopType) {
             try {
-                // Query Azure AI Search directly
-                const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/saxdocuments/docs/search?api-version=2023-11-01';
+                // Use Azure Function endpoint to avoid CORS issues
+                const searchUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.searchDocuments}`;
                 const response = await fetch(searchUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
+                        'x-functions-key': API_CONFIG.functionKey
                     },
                     body: JSON.stringify({
                         search: '*',
                         filter: `department eq '${department.replace(/'/g, "''")}' and documentType eq '${sopType.replace(/'/g, "''")}}'`,
                         select: 'id,title,fileName,uploadDate',
                         top: 50,
-                        orderby: 'uploadDate desc'
+                        orderby: 'uploadDate desc',
+                        indexName: 'sop-documents' // Use the correct index
                     })
                 });
 
@@ -1341,10 +1343,10 @@
                 return data.value ? data.value.map(doc => ({
                     id: doc.id,
                     title: doc.title || doc.fileName,
-                    lastModified: new Date(doc.uploadDate).toLocaleDateString()
+                    lastModified: doc.uploadDate ? new Date(doc.uploadDate).toLocaleDateString() : 'Unknown'
                 })) : [];
             } catch (error) {
-                console.error('Azure Search query failed:', error);
+                console.error('Document search failed:', error);
                 return [];
             }
         }

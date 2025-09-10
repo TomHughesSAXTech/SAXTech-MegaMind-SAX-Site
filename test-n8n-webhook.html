@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test n8n Webhook</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fafafa;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .response {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success {
+            border-color: #28a745;
+            background: #d4edda;
+        }
+        .error {
+            border-color: #dc3545;
+            background: #f8d7da;
+        }
+        .payload-display {
+            background: #263238;
+            color: #aed581;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔬 n8n Webhook Debug Tool</h1>
+        
+        <div class="test-section">
+            <h2>Test 1: Direct Webhook Test</h2>
+            <p>This sends a minimal test payload directly to the n8n webhook to verify it's responding.</p>
+            <button onclick="testDirectWebhook()">Send Test to n8n Webhook</button>
+            <div id="webhook-payload" class="payload-display" style="display:none;"></div>
+            <div id="webhook-response" class="response" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Test 2: Test with Sample File</h2>
+            <p>This sends a complete document structure as the website would send it.</p>
+            <button onclick="testWithSampleFile()">Send Sample Document</button>
+            <div id="sample-payload" class="payload-display" style="display:none;"></div>
+            <div id="sample-response" class="response" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Test 3: Direct Azure Function Test</h2>
+            <p>This bypasses n8n and tests the Azure Function directly.</p>
+            <button onclick="testAzureDirectly()">Test Azure Function Directly</button>
+            <div id="azure-payload" class="payload-display" style="display:none;"></div>
+            <div id="azure-response" class="response" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Test 4: Upload Real File</h2>
+            <p>Select a file to test the complete upload flow.</p>
+            <input type="file" id="fileInput" accept=".txt,.pdf,.doc,.docx">
+            <button onclick="testRealFile()">Upload Selected File</button>
+            <div id="real-payload" class="payload-display" style="display:none;"></div>
+            <div id="real-response" class="response" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script>
+        const WEBHOOK_URL = 'https://workflows.saxtechnology.com/webhook/sop-document-upload';
+        const AZURE_FUNCTION_URL = 'https://saxtechmegamindfunctions.azurewebsites.net/api/documents/upload-json';
+        const FUNCTION_KEY = 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw==';
+
+        async function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => {
+                    // Remove the data:*;base64, prefix
+                    const base64 = reader.result.split(',')[1];
+                    resolve(base64);
+                };
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        function displayPayload(elementId, payload) {
+            const element = document.getElementById(elementId);
+            element.textContent = JSON.stringify(payload, null, 2);
+            element.style.display = 'block';
+        }
+
+        function displayResponse(elementId, response, isError = false) {
+            const element = document.getElementById(elementId);
+            element.textContent = typeof response === 'string' ? response : JSON.stringify(response, null, 2);
+            element.style.display = 'block';
+            element.className = 'response ' + (isError ? 'error' : 'success');
+        }
+
+        async function testDirectWebhook() {
+            const testPayload = {
+                test: "minimal",
+                timestamp: new Date().toISOString()
+            };
+
+            displayPayload('webhook-payload', testPayload);
+
+            try {
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testPayload)
+                });
+
+                const text = await response.text();
+                let result;
+                try {
+                    result = JSON.parse(text);
+                } catch {
+                    result = text;
+                }
+
+                displayResponse('webhook-response', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    body: result
+                }, !response.ok);
+            } catch (error) {
+                displayResponse('webhook-response', `Error: ${error.message}`, true);
+            }
+        }
+
+        async function testWithSampleFile() {
+            // Create a sample base64 content
+            const sampleContent = btoa('This is a test document content for debugging n8n workflow.');
+            
+            const payload = {
+                // Structure 1: Nested (as sent by the website)
+                file: {
+                    name: "test-document.txt",
+                    type: "text/plain",
+                    size: 58,
+                    content: sampleContent
+                },
+                metadata: {
+                    department: "IT",
+                    documentType: "Policy",
+                    title: "Test Document",
+                    description: "Testing n8n workflow",
+                    keywords: "test, debug",
+                    version: "1.0",
+                    uploadedBy: "Debug Tool",
+                    uploadDate: new Date().toISOString(),
+                    source: "Debug Page"
+                },
+                // Structure 2: Flat (alternative structure)
+                fileName: "test-document.txt",
+                fileContent: sampleContent,
+                mimeType: "text/plain",
+                department: "IT",
+                documentType: "Policy",
+                title: "Test Document",
+                description: "Testing n8n workflow"
+            };
+
+            displayPayload('sample-payload', payload);
+
+            try {
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const text = await response.text();
+                let result;
+                try {
+                    result = JSON.parse(text);
+                } catch {
+                    result = text;
+                }
+
+                displayResponse('sample-response', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    body: result
+                }, !response.ok);
+            } catch (error) {
+                displayResponse('sample-response', `Error: ${error.message}`, true);
+            }
+        }
+
+        async function testAzureDirectly() {
+            const sampleContent = btoa('This is a direct test to Azure Function.');
+            
+            const payload = {
+                fileName: "azure-test.txt",
+                fileContent: sampleContent,
+                mimeType: "text/plain",
+                department: "IT",
+                documentType: "Policy",
+                title: "Azure Direct Test",
+                description: "Testing Azure Function directly",
+                keywords: "test, azure",
+                version: "1.0"
+            };
+
+            displayPayload('azure-payload', payload);
+
+            try {
+                const response = await fetch(AZURE_FUNCTION_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-functions-key': FUNCTION_KEY
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const text = await response.text();
+                let result;
+                try {
+                    result = JSON.parse(text);
+                } catch {
+                    result = text;
+                }
+
+                displayResponse('azure-response', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    body: result || '(empty response)'
+                }, !response.ok);
+            } catch (error) {
+                displayResponse('azure-response', `Error: ${error.message}`, true);
+            }
+        }
+
+        async function testRealFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                displayResponse('real-response', 'Please select a file first', true);
+                return;
+            }
+
+            try {
+                const base64Content = await fileToBase64(file);
+                
+                const payload = {
+                    // Both structures for maximum compatibility
+                    file: {
+                        name: file.name,
+                        type: file.type,
+                        size: file.size,
+                        content: base64Content
+                    },
+                    metadata: {
+                        department: "IT",
+                        documentType: "TestDocument",
+                        title: file.name,
+                        description: "Real file upload test",
+                        keywords: "test, real",
+                        version: "1.0",
+                        uploadedBy: "Debug Tool",
+                        uploadDate: new Date().toISOString(),
+                        source: "Debug Page"
+                    },
+                    // Flat structure as backup
+                    fileName: file.name,
+                    fileContent: base64Content,
+                    mimeType: file.type,
+                    department: "IT"
+                };
+
+                // Show truncated payload for display (base64 can be very long)
+                const displayPayloadObj = JSON.parse(JSON.stringify(payload));
+                if (displayPayloadObj.file.content.length > 100) {
+                    displayPayloadObj.file.content = displayPayloadObj.file.content.substring(0, 100) + '...(truncated)';
+                }
+                if (displayPayloadObj.fileContent.length > 100) {
+                    displayPayloadObj.fileContent = displayPayloadObj.fileContent.substring(0, 100) + '...(truncated)';
+                }
+                displayPayload('real-payload', displayPayloadObj);
+
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const text = await response.text();
+                let result;
+                try {
+                    result = JSON.parse(text);
+                } catch {
+                    result = text;
+                }
+
+                displayResponse('real-response', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    body: result
+                }, !response.ok);
+            } catch (error) {
+                displayResponse('real-response', `Error: ${error.message}`, true);
+            }
+        }
+    </script>
+</body>
+</html>
