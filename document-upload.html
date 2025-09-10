@@ -1210,24 +1210,27 @@
             }
         }
 
-        function previewDocument(docId, title) {
+        function previewDocument(docId, title, fileType = 'pdf', fileSize = null) {
             // Prevent default action
             event.preventDefault();
             event.stopPropagation();
             
-            // Implementation for document preview
             console.log('Preview document:', docId, title);
             
-            // For now, show a message that preview is coming soon
-            alert(`Document preview for "${title}" is coming soon.\n\nThis will open the document in a viewer where you can read it without downloading.`);
-            
-            // TODO: Integrate with Azure Document Intelligence or PDF.js viewer
-            // Option 1: Open in new tab with Azure blob URL
-            // const blobUrl = `${API_CONFIG.blobStorage.baseUrl}/${API_CONFIG.blobStorage.containerName}/${docId}`;
-            // window.open(blobUrl, '_blank');
-            
-            // Option 2: Use embedded PDF viewer
-            // showPDFViewer(docId, title);
+            // Use the document preview modal
+            if (window.documentPreview) {
+                // Extract file extension from title if not provided
+                if (!fileType && title) {
+                    const ext = title.split('.').pop().toLowerCase();
+                    fileType = ext || 'pdf';
+                }
+                
+                window.documentPreview.open(docId, title, fileType, fileSize);
+            } else {
+                // Fallback: Open in new tab
+                const previewUrl = `${API_CONFIG.baseUrl}/documents/preview?id=${docId}`;
+                window.open(previewUrl, '_blank');
+            }
         }
         
         function downloadDocument(docId, title) {
@@ -1264,18 +1267,7 @@
             window.open(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.previewDocument}?id=${docId}`, '_blank');
         }
 
-        function downloadDocument(docId, title) {
-            // Generate secure download link from Azure Blob Storage
-            const downloadUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.downloadDocument}?id=${docId}`;
-            
-            // Create temporary link for download
-            const link = document.createElement('a');
-            link.href = downloadUrl;
-            link.download = title;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
+        // Removed duplicate downloadDocument function
 
         function handleUpdateTypeChange() {
             const updateType = updateTypeSelect.value;
@@ -1777,5 +1769,7 @@
             }, 3000);
         }
     </script>
+    <!-- Document Preview Module -->
+    <script src="js/document-preview.js"></script>
 </body>
 </html>
