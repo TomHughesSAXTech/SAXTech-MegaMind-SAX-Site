@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MegaMind SAX</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #000000 0%, #1a1a1a 25%, #FFD700 50%, #FFA500 75%, #000000 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        /* Document Portal Button */
+        .document-portal-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: #1a1a1a;
+            padding: 10px 20px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            z-index: 100;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* User profile bar */
+        .user-profile {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 15px 20px;
+            color: white;
+            z-index: 100;
+            border: 1px solid rgba(255,215,0,0.3);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #1a1a1a;
+        }
+
+        .user-details h3 {
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+
+        .user-details p {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .sign-out-btn {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 15px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-left: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .container {
+            display: flex;
+            gap: 60px;
+            max-width: 1400px;
+            width: 100%;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* iPhone 16 Style Device */
+        .iphone-container {
+            position: relative;
+            width: 320px;
+            flex-shrink: 0;
+        }
+
+        .iphone {
+            width: 320px;
+            height: 680px;
+            background: linear-gradient(145deg, #3a3a3a, #2a2a2a);
+            border-radius: 55px;
+            padding: 8px;
+            box-shadow: 
+                0 30px 60px rgba(0,0,0,0.5),
+                0 15px 30px rgba(0,0,0,0.3),
+                inset 0 -2px 0 rgba(255,255,255,0.1),
+                inset 0 2px 0 rgba(0,0,0,0.8);
+            position: relative;
+        }
+
+        .dynamic-island {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 126px;
+            height: 37px;
+            background: #000;
+            border-radius: 20px;
+            z-index: 10;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1);
+        }
+
+        .side-button {
+            position: absolute;
+            background: linear-gradient(to bottom, #2a2a2a, #1a1a1a);
+            box-shadow: 
+                0 2px 4px rgba(0,0,0,0.5),
+                inset 0 1px 0 rgba(255,255,255,0.1);
+        }
+
+        .power-button {
+            right: -3px;
+            top: 200px;
+            width: 3px;
+            height: 100px;
+            border-radius: 0 3px 3px 0;
+        }
+
+        .volume-up {
+            left: -3px;
+            top: 180px;
+            width: 3px;
+            height: 60px;
+            border-radius: 3px 0 0 3px;
+        }
+
+        .volume-down {
+            left: -3px;
+            top: 250px;
+            width: 3px;
+            height: 60px;
+            border-radius: 3px 0 0 3px;
+        }
+
+        .screen {
+            width: 100%;
+            height: calc(100% - 16px);
+            background: linear-gradient(180deg, #000000 0%, #0a0a0a 100%);
+            border-radius: 47px;
+            margin-top: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1);
+        }
+
+        .voice-selector {
+            position: absolute;
+            top: 80px;
+            width: 80%;
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 15px;
+        }
+        
+        .voice-selector label {
+            color: #888;
+            font-size: 12px;
+            display: block;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .voice-selector select {
+            width: 100%;
+            padding: 10px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 10px;
+            color: white;
+            font-size: 14px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .speaker-icon {
+            width: 100px;
+            height: 100px;
+            border: 3px solid #FFD700;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            background: rgba(255,215,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .speaker-icon.listening {
+            border-color: #00BFFF;
+            box-shadow: 0 0 30px rgba(0, 191, 255, 0.6);
+            animation: listening 2s infinite;
+            background: rgba(0,191,255,0.1);
+        }
+
+        @keyframes listening {
+            0%, 100% { 
+                transform: scale(1);
+                box-shadow: 0 0 30px rgba(0, 191, 255, 0.6);
+            }
+            50% { 
+                transform: scale(1.05);
+                box-shadow: 0 0 50px rgba(0, 191, 255, 0.8);
+            }
+        }
+
+        .speaker-icon svg {
+            width: 50px;
+            height: 50px;
+            fill: currentColor;
+            color: #FFD700;
+        }
+
+        .speaker-icon.listening svg {
+            color: #00BFFF;
+        }
+
+        .status-text {
+            color: #999;
+            font-size: 16px;
+            text-align: center;
+            margin-bottom: 20px;
+            font-weight: 500;
+            letter-spacing: 1px;
+        }
+
+        .status-text.listening {
+            color: #00BFFF;
+            text-shadow: 0 0 10px rgba(0,191,255,0.5);
+        }
+
+        .volume-bars {
+            display: flex;
+            gap: 4px;
+            margin-top: 20px;
+        }
+
+        .volume-bar {
+            width: 5px;
+            height: 25px;
+            background: #333;
+            border-radius: 3px;
+            transition: all 0.1s ease;
+        }
+
+        .volume-bar.active {
+            background: linear-gradient(to top, #FFD700, #FFA500);
+            box-shadow: 0 0 10px rgba(255,215,0,0.5);
+        }
+
+        .conversation-indicator {
+            position: absolute;
+            bottom: 30px;
+            width: 100%;
+            text-align: center;
+            padding: 10px;
+        }
+        
+        .conversation-state {
+            display: inline-block;
+            padding: 8px 16px;
+            background: rgba(255,215,0,0.2);
+            border: 1px solid #FFD700;
+            border-radius: 20px;
+            color: #FFD700;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        
+        .conversation-state.listening {
+            background: rgba(0,191,255,0.2);
+            border-color: #00BFFF;
+            color: #00BFFF;
+            animation: listening-pulse 1.5s infinite;
+        }
+        
+        @keyframes listening-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        /* Large 3D Spinning Carousel */
+        .personality-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(15px);
+            z-index: 2000;
+            display: none;
+            opacity: 0;
+            transition: all 0.4s ease;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .personality-overlay.show {
+            display: flex;
+            opacity: 1;
+        }
+
+        .big-carousel-container {
+            perspective: 1500px;
+            width: 1200px;
+            height: 700px;
+            position: relative;
+        }
+
+        .big-carousel-3d {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+            transition: transform 0.8s ease;
+            transform: rotateY(0deg);
+        }
+
+        .big-personality-card {
+            position: absolute;
+            width: 440px;
+            height: 550px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            left: 50%;
+            top: 50%;
+            margin-left: -220px;
+            margin-top: -275px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .big-personality-card:nth-child(1) { transform: rotateY(0deg) translateZ(450px); }
+        .big-personality-card:nth-child(2) { transform: rotateY(90deg) translateZ(450px); }
+        .big-personality-card:nth-child(3) { transform: rotateY(180deg) translateZ(450px); }
+        .big-personality-card:nth-child(4) { transform: rotateY(270deg) translateZ(450px); }
+
+        .floating-character {
+            width: 220px;
+            height: 220px;
+            margin-bottom: 30px;
+            border-radius: 0;
+            background: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: visible;
+            animation: bigBounce 2.5s ease-in-out infinite;
+            box-shadow: none;
+            z-index: 10;
+            position: relative;
+        }
+
+        .floating-character img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 0;
+            filter: drop-shadow(0 15px 25px rgba(0,0,0,0.4));
+        }
+
+        .floating-character .emoji-fallback {
+            font-size: 120px;
+            filter: drop-shadow(0 15px 25px rgba(0,0,0,0.4));
+        }
+
+        @keyframes bigBounce {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .character-details {
+            background: linear-gradient(135deg, #2C2C2C 0%, #1F1F1F 50%, #333333 100%);
+            border: 2px solid rgba(255,215,0,0.6);
+            border-radius: 25px;
+            padding: 35px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+
+        .big-personality-card:hover .character-details {
+            border-color: #FFD700;
+            box-shadow: 0 25px 50px rgba(255,215,0,0.5);
+            transform: translateY(-5px);
+            background: linear-gradient(135deg, #333333 0%, #2C2C2C 50%, #3a3a3a 100%);
+        }
+
+        .big-personality-card.active .character-details {
+            border-color: #FFD700;
+            box-shadow: 0 30px 60px rgba(255,215,0,0.7);
+            background: linear-gradient(135deg, #3a3a3a 0%, #333333 50%, #404040 100%);
+        }
+
+        .big-personality-name {
+            color: white;
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        .big-personality-role {
+            color: #FFD700;
+            font-size: 16px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 18px;
+        }
+
+        .big-personality-description {
+            color: #ccc;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .big-carousel-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 50%;
+            width: 70px;
+            height: 70px;
+            color: white;
+            cursor: pointer;
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(15px);
+        }
+
+        .big-carousel-nav:hover {
+            background: rgba(255,215,0,0.3);
+            border-color: #FFD700;
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        .big-carousel-nav.prev {
+            left: -150px;
+        }
+
+        .big-carousel-nav.next {
+            right: -150px;
+        }
+
+        .big-carousel-close {
+            position: absolute;
+            top: -100px;
+            right: 0;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            color: white;
+            cursor: pointer;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(15px);
+        }
+
+        .big-carousel-close:hover {
+            background: rgba(255,69,0,0.3);
+            border-color: #FF4500;
+            color: #FF4500;
+        }
+
+        /* Chat Interface */
+        .chat-container {
+            flex: 1;
+            background: linear-gradient(135deg, #2C2C2C 0%, #1F1F1F 50%, #333333 100%);
+            border-radius: 25px;
+            box-shadow: 
+                0 25px 50px rgba(0,0,0,0.3),
+                0 10px 20px rgba(0,0,0,0.2),
+                inset 0 1px 0 rgba(255,255,255,0.1);
+            overflow: hidden;
+            max-height: 680px;
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,215,0,0.2);
+            position: relative;
+        }
+        
+        .header-robot {
+            width: 60px;
+            height: 60px;
+            margin-right: 15px;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+        }
+
+        .header-robot img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 15px;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, rgba(255,215,0,0.15), rgba(0,0,0,0.3));
+            backdrop-filter: blur(10px);
+            color: #FFD700;
+            padding: 20px 25px;
+            border-bottom: 1px solid rgba(255,215,0,0.2);
+            position: relative;
+        }
+        
+        .chat-header-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .header-text h2 {
+            font-size: 24px;
+            font-weight: 300;
+            letter-spacing: 2px;
+            margin: 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-text h2:hover {
+            transform: scale(1.02);
+        }
+
+        .header-text p {
+            font-size: 14px;
+            opacity: 0.8;
+            letter-spacing: 1px;
+            margin: 0;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 25px;
+            max-height: 450px;
+            background: rgba(255,255,255,0.05);
+        }
+
+        .message {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            animation: messageSlide 0.3s ease;
+        }
+
+        @keyframes messageSlide {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-bubble {
+            max-width: 75%;
+            padding: 15px 20px;
+            border-radius: 20px;
+            word-wrap: break-word;
+            line-height: 1.5;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+
+        .message.user .message-bubble {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: #1a1a1a;
+            border-bottom-right-radius: 5px;
+        }
+
+        .message.bot .message-bubble {
+            background: rgba(255,255,255,0.9);
+            color: #1a1a1a;
+            border-bottom-left-radius: 5px;
+            border: 1px solid rgba(255,215,0,0.2);
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: bold;
+            flex-shrink: 0;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+        }
+
+        .message.user .message-avatar {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: #1a1a1a;
+        }
+
+        .message.bot .message-avatar {
+            background: transparent;
+            overflow: hidden;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+            border-radius: 50%;
+        }
+
+        .message.bot .message-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+
+        .chat-input-container {
+            padding: 25px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.2);
+        }
+
+        .chat-input {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .chat-input input {
+            flex: 1;
+            background: rgba(255,255,255,0.9);
+            border: 1px solid rgba(255,215,0,0.3);
+            padding: 15px 20px;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .chat-input input:focus {
+            border-color: #FFD700;
+            box-shadow: 0 0 20px rgba(255,215,0,0.3);
+        }
+
+        .send-btn, .file-btn, .reset-btn {
+            width: 50px;
+            height: 50px;
+            border: none;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: #1a1a1a;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .send-btn:hover, .file-btn:hover, .reset-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 5px 15px rgba(255,215,0,0.4);
+        }
+
+        .send-btn.stop {
+            background: linear-gradient(135deg, #FF4500, #FF6B47);
+        }
+
+        .send-btn.stop:hover {
+            box-shadow: 0 5px 15px rgba(255,69,0,0.4);
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        @media (max-width: 1400px) {
+            .big-carousel-container {
+                width: 90%;
+                max-width: 1000px;
+            }
+
+            .big-carousel-nav.prev {
+                left: -100px;
+            }
+
+            .big-carousel-nav.next {
+                right: -100px;
+            }
+        }
+
+        @media (max-width: 1200px) {
+            .container {
+                flex-direction: column;
+                gap: 40px;
+            }
+
+            .big-personality-card {
+                width: 350px;
+                height: 450px;
+                margin-left: -175px;
+                margin-top: -225px;
+            }
+
+            .floating-character {
+                width: 180px;
+                height: 180px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Document Portal Button -->
+    <a href="#" class="document-portal-btn">
+        <span>📄</span>
+        <span>SAX Document Portal</span>
+    </a>
+
+    <!-- User profile bar -->
+    <div class="user-profile">
+        <div class="user-info">
+            <div class="user-avatar">DU</div>
+            <div class="user-details">
+                <h3>Demo User</h3>
+                <p>Employee • SAX Advisory Group</p>
+                <p>📍 Demo Location</p>
+            </div>
+            <button class="sign-out-btn">Sign Out</button>
+        </div>
+    </div>
+
+    <!-- Large 3D Spinning Personality Carousel -->
+    <div class="personality-overlay" id="personalityOverlay">
+        <div class="big-carousel-container">
+            <div class="big-carousel-close" id="carouselClose">✕</div>
+            <div class="big-carousel-nav prev" id="carouselPrev">‹</div>
+            <div class="big-carousel-nav next" id="carouselNext">›</div>
+            <div class="big-carousel-3d" id="carousel3d">
+                <div class="big-personality-card active" data-personality="sage">
+                    <div class="floating-character">
+                        <img src="robot.png" alt="SAX Sage" onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=emoji-fallback>🤖</div>';">
+                    </div>
+                    <div class="character-details">
+                        <div class="big-personality-name">SAX Sage</div>
+                        <div class="big-personality-role">General Business Assistant</div>
+                        <div class="big-personality-description">Expert in business operations, strategy, and general advisory services for all departments. Your go-to assistant for comprehensive business guidance.</div>
+                    </div>
+                </div>
+                <div class="big-personality-card" data-personality="cpa">
+                    <div class="floating-character">
+                        <img src="cpa.png" alt="SAX CPA" onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=emoji-fallback>💰</div>';">
+                    </div>
+                    <div class="character-details">
+                        <div class="big-personality-name">SAX CPA</div>
+                        <div class="big-personality-role">Accounting & Tax Specialist</div>
+                        <div class="big-personality-description">Specialized in accounting principles, tax regulations, and financial reporting standards. Expert in GAAP, compliance, and financial analysis.</div>
+                    </div>
+                </div>
+                <div class="big-personality-card" data-personality="auditor">
+                    <div class="floating-character">
+                        <img src="auditor.png" alt="SAX Auditor" onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=emoji-fallback>🔍</div>';">
+                    </div>
+                    <div class="character-details">
+                        <div class="big-personality-name">SAX Auditor</div>
+                        <div class="big-personality-role">Audit & Compliance Expert</div>
+                        <div class="big-personality-description">Focused on audit procedures, compliance requirements, and risk assessment protocols. Expert in audit standards and regulatory compliance.</div>
+                    </div>
+                </div>
+                <div class="big-personality-card" data-personality="teacher">
+                    <div class="floating-character">
+                        <img src="teacher.png" alt="SAX L&D" onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=emoji-fallback>📚</div>';">
+                    </div>
+                    <div class="character-details">
+                        <div class="big-personality-name">SAX L&D</div>
+                        <div class="big-personality-role">Learning & Development</div>
+                        <div class="big-personality-description">Specialized in training, education, professional development, and knowledge management. Your partner in continuous learning and growth.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main application -->
+    <div class="container">
+        <!-- Voice interaction device -->
+        <div class="iphone-container">
+            <div class="iphone">
+                <div class="dynamic-island"></div>
+                <div class="side-button power-button"></div>
+                <div class="side-button volume-up"></div>
+                <div class="side-button volume-down"></div>
+                
+                <div class="screen">
+                    <!-- Voice selector -->
+                    <div class="voice-selector">
+                        <label for="voiceSelect">AI Voice</label>
+                        <select id="voiceSelect">
+                            <option value="rachel">Rachel (Professional Female)</option>
+                            <option value="clyde">Clyde (Professional Male)</option>
+                            <option value="domi">Domi (Young Female)</option>
+                            <option value="nicole">Nicole (Whispery Female)</option>
+                            <option value="fin">Fin (Irish Male)</option>
+                            <option value="sarah">Sarah (Soft American Female)</option>
+                            <option value="antoni">Antoni (Well-Rounded Male)</option>
+                            <option value="thomas">Thomas (Calm Male)</option>
+                            <option value="charlie">Charlie (Casual Male)</option>
+                            <option value="george">George (British Male)</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Speaker icon and status -->
+                    <div class="speaker-icon" id="speakerIcon">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                        </svg>
+                    </div>
+                    
+                    <div class="status-text" id="statusText">Tap speaker to start conversation</div>
+                    
+                    <!-- Volume bars for voice activity -->
+                    <div class="volume-bars">
+                        <div class="volume-bar"></div>
+                        <div class="volume-bar"></div>
+                        <div class="volume-bar"></div>
+                        <div class="volume-bar"></div>
+                        <div class="volume-bar"></div>
+                    </div>
+                    
+                    <!-- Conversation state indicator -->
+                    <div class="conversation-indicator">
+                        <span class="conversation-state" id="conversationState">Ready to listen</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat interface -->
+        <div class="chat-container">
+            <div class="chat-header">
+                <div class="chat-header-content">
+                    <div class="header-robot" id="currentPersonalityAvatar">
+                        <img src="robot.png" alt="MegaMind" onerror="this.style.display='none'; this.parentNode.innerHTML='🤖';">
+                    </div>
+                    <div class="header-text">
+                        <h2 id="personalitySelector">
+                            <span id="currentPersonalityName">MegaMind SAX Sage</span>
+                            <span style="font-size: 14px;">▼</span>
+                        </h2>
+                        <p id="personalityIndicator">General Business Assistant</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chat-messages">
+                <div class="message bot">
+                    <div class="message-avatar">
+                        <img src="robot.png" alt="MegaMind" onerror="this.style.display='none'; this.parentNode.innerHTML='🤖';">
+                    </div>
+                    <div class="message-bubble">
+                        Welcome! I'm MegaMind SAX Sage, your AI-powered assistant. <strong>Click on my name above</strong> to see the large 3D carousel with floating transparent characters! Notice the refresh button is now on the far right.
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chat-input-container">
+                <div class="chat-input">
+                    <input type="text" id="messageInput" placeholder="Type your message...">
+                    <button class="send-btn" id="sendBtn" title="Send message / Stop chat">➤</button>
+                    <button class="file-btn" id="fileBtn" title="Attach file">📎</button>
+                    <button class="reset-btn" id="resetBtn" title="Reset conversation">🔄</button>
+                    <input type="file" id="fileInput" accept="*/*" multiple>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPersonality = 'sage';
+        let isChatRunning = false;
+        let currentCarouselRotation = 0;
+
+        const personalities = {
+            sage: {
+                name: "MegaMind SAX Sage",
+                role: "General Business Assistant", 
+                image: "robot.png",
+                fallback: "🤖"
+            },
+            cpa: {
+                name: "MegaMind SAX CPA",
+                role: "Accounting & Tax Specialist",
+                image: "cpa.png",
+                fallback: "💰"
+            },
+            auditor: {
+                name: "MegaMind SAX Auditor", 
+                role: "Audit & Compliance Expert",
+                image: "auditor.png",
+                fallback: "🔍"
+            },
+            teacher: {
+                name: "MegaMind SAX L&D", 
+                role: "Learning & Development",
+                image: "teacher.png",
+                fallback: "📚"
+            }
+        };
+
+        // 3D Carousel functionality
+        function rotateCarousel(direction) {
+            currentCarouselRotation += direction * 90;
+            document.getElementById('carousel3d').style.transform = `rotateY(${currentCarouselRotation}deg)`;
+            
+            // Update active state
+            const cards = document.querySelectorAll('.big-personality-card');
+            cards.forEach(card => card.classList.remove('active'));
+            
+            const activeIndex = Math.abs(currentCarouselRotation / 90) % 4;
+            cards[activeIndex].classList.add('active');
+        }
+
+        // Personality selector functionality
+        document.getElementById('personalitySelector').addEventListener('click', (e) => {
+            e.stopPropagation();
+            const overlay = document.getElementById('personalityOverlay');
+            overlay.classList.add('show');
+        });
+
+        // Close carousel
+        document.getElementById('carouselClose').addEventListener('click', () => {
+            document.getElementById('personalityOverlay').classList.remove('show');
+        });
+
+        // Carousel navigation
+        document.getElementById('carouselPrev').addEventListener('click', () => {
+            rotateCarousel(1);
+        });
+
+        document.getElementById('carouselNext').addEventListener('click', () => {
+            rotateCarousel(-1);
+        });
+
+        // Close on overlay click
+        document.getElementById('personalityOverlay').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) {
+                document.getElementById('personalityOverlay').classList.remove('show');
+            }
+        });
+
+        // Personality card selection
+        document.addEventListener('click', (e) => {
+            const card = e.target.closest('.big-personality-card');
+            if (card) {
+                const personality = card.dataset.personality;
+                if (personality && personality !== currentPersonality) {
+                    // Remove active state from all cards
+                    document.querySelectorAll('.big-personality-card').forEach(c => c.classList.remove('active'));
+                    // Add active state to clicked card
+                    card.classList.add('active');
+                    
+                    // Update current personality
+                    currentPersonality = personality;
+                    const config = personalities[personality];
+                    
+                    // Update header image
+                    const headerImg = document.querySelector('#currentPersonalityAvatar img');
+                    if (headerImg) {
+                        headerImg.src = config.image;
+                        headerImg.onerror = function() {
+                            this.style.display = 'none';
+                            this.parentNode.innerHTML = config.fallback;
+                        };
+                    }
+                    
+                    // Update header text
+                    document.getElementById('currentPersonalityName').textContent = config.name;
+                    document.getElementById('personalityIndicator').textContent = config.role;
+                    
+                    // Close carousel
+                    document.getElementById('personalityOverlay').classList.remove('show');
+                    
+                    // Add message
+                    addMessage('bot', `Switched to ${config.name} mode! I'm now specialized in ${config.role.toLowerCase()}. How can I help you?`);
+                }
+            }
+        });
+
+        // Send/Stop button functionality
+        document.getElementById('sendBtn').addEventListener('click', () => {
+            const btn = document.getElementById('sendBtn');
+            const input = document.getElementById('messageInput');
+            
+            if (isChatRunning) {
+                isChatRunning = false;
+                btn.innerHTML = '➤';
+                btn.classList.remove('stop');
+                btn.title = 'Send message';
+                addMessage('bot', 'Chat stopped.');
+            } else {
+                const message = input.value.trim();
+                if (message) {
+                    addMessage('user', message);
+                    input.value = '';
+                    
+                    isChatRunning = true;
+                    btn.innerHTML = '⏹️';
+                    btn.classList.add('stop');
+                    btn.title = 'Stop chat';
+                    
+                    setTimeout(() => {
+                        addMessage('bot', `I'm ${personalities[currentPersonality].name}. Perfect! The refresh button is now properly positioned on the far right, and the SAX Document Portal is correctly named!`);
+                        
+                        setTimeout(() => {
+                            isChatRunning = false;
+                            btn.innerHTML = '➤';
+                            btn.classList.remove('stop');
+                            btn.title = 'Send message';
+                        }, 1000);
+                    }, 1500);
+                }
+            }
+        });
+
+        // Enter key support
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('sendBtn').click();
+            }
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            if (confirm('Reset conversation?')) {
+                currentPersonality = 'sage';
+                const config = personalities.sage;
+                
+                const headerImg = document.querySelector('#currentPersonalityAvatar img');
+                if (headerImg) {
+                    headerImg.src = config.image;
+                    headerImg.onerror = function() {
+                        this.style.display = 'none';
+                        this.parentNode.innerHTML = config.fallback;
+                    };
+                }
+                
+                document.getElementById('currentPersonalityName').textContent = config.name;
+                document.getElementById('personalityIndicator').textContent = config.role;
+                
+                document.querySelector('.chat-messages').innerHTML = `
+                    <div class="message bot">
+                        <div class="message-avatar">
+                            <img src="${config.image}" alt="MegaMind" onerror="this.style.display='none'; this.parentNode.innerHTML='${config.fallback}';">
+                        </div>
+                        <div class="message-bubble">Conversation reset! I'm back to SAX Sage mode. How can I help you?</div>
+                    </div>
+                `;
+            }
+        });
+
+        document.getElementById('fileBtn').addEventListener('click', () => {
+            document.getElementById('fileInput').click();
+        });
+
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length > 0) {
+                files.forEach(file => {
+                    addMessage('bot', `File "${file.name}" attached successfully.`);
+                });
+                e.target.value = '';
+            }
+        });
+
+        // Voice interaction demo
+        document.getElementById('speakerIcon').addEventListener('click', () => {
+            const icon = document.getElementById('speakerIcon');
+            const status = document.querySelector('.status-text');
+            const state = document.querySelector('.conversation-state');
+            
+            if (icon.classList.contains('listening')) {
+                icon.classList.remove('listening');
+                status.textContent = 'Tap speaker to start conversation';
+                status.classList.remove('listening');
+                state.textContent = 'Ready to listen';
+                state.classList.remove('listening');
+            } else {
+                icon.classList.add('listening');
+                status.textContent = 'Listening...';
+                status.classList.add('listening');
+                state.textContent = 'Listening';
+                state.classList.add('listening');
+            }
+        });
+
+        function addMessage(sender, message) {
+            const messagesContainer = document.querySelector('.chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            
+            let avatar;
+            if (sender === 'user') {
+                avatar = '<div class="message-avatar">DU</div>';
+            } else {
+                const config = personalities[currentPersonality];
+                avatar = `<div class="message-avatar"><img src="${config.image}" alt="MegaMind" onerror="this.style.display='none'; this.parentNode.innerHTML='${config.fallback}';"></div>`;
+            }
+            
+            messageDiv.innerHTML = `
+                ${avatar}
+                <div class="message-bubble">${message}</div>
+            `;
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+    </script>
+</body>
+</html>

@@ -527,9 +527,10 @@
         }
 
         .big-personality-card:nth-child(1) { transform: rotateY(0deg) translateZ(450px); }
-        .big-personality-card:nth-child(2) { transform: rotateY(90deg) translateZ(450px); }
-        .big-personality-card:nth-child(3) { transform: rotateY(180deg) translateZ(450px); }
-        .big-personality-card:nth-child(4) { transform: rotateY(270deg) translateZ(450px); }
+        .big-personality-card:nth-child(2) { transform: rotateY(72deg) translateZ(450px); }
+        .big-personality-card:nth-child(3) { transform: rotateY(144deg) translateZ(450px); }
+        .big-personality-card:nth-child(4) { transform: rotateY(216deg) translateZ(450px); }
+        .big-personality-card:nth-child(5) { transform: rotateY(288deg) translateZ(450px); }
 
         .floating-character {
             width: 220px;
@@ -1028,17 +1029,27 @@
             <div class="big-carousel-3d" id="carousel3d">
                 <div class="big-personality-card active" data-personality="sage">
                     <div class="floating-character">
-                        <img src="robot.png" alt="SAX" onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=emoji-fallback>🧠</div>';">
+                        <img src="robot.png" alt="SAX Sage" onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=emoji-fallback>🧠</div>';">
                     </div>
                     <div class="character-details">
-                        <div class="big-personality-name">SAX</div>
+                        <div class="big-personality-name">SAX Sage</div>
                         <div class="big-personality-role">General Business Assistant</div>
                         <div class="big-personality-description">Expert in business operations, strategy, and general advisory services for all departments. Your go-to assistant for comprehensive business guidance.</div>
                     </div>
                 </div>
+                <div class="big-personality-card" data-personality="cpa">
+                    <div class="floating-character">
+                        <img src="robot.png" alt="SAX CPA" onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=emoji-fallback>📊</div>';">
+                    </div>
+                    <div class="character-details">
+                        <div class="big-personality-name">SAX CPA</div>
+                        <div class="big-personality-role">Accounting & Financial Expert</div>
+                        <div class="big-personality-description">Specialized in accounting principles, tax regulations, and financial reporting standards. Expert in GAAP, compliance, and financial analysis.</div>
+                    </div>
+                </div>
                 <div class="big-personality-card" data-personality="auditor">
                     <div class="floating-character">
-                        <img src="robot-auditor.png" alt="SAX Auditor" onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=emoji-fallback>🔍</div>';">
+                        <img src="robot.png" alt="SAX Auditor" onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=emoji-fallback>🔍</div>';">
                     </div>
                     <div class="character-details">
                         <div class="big-personality-name">SAX Auditor</div>
@@ -1046,24 +1057,24 @@
                         <div class="big-personality-description">Focused on audit procedures, compliance requirements, and risk assessment protocols. Expert in audit standards and regulatory compliance.</div>
                     </div>
                 </div>
-                <div class="big-personality-card" data-personality="trainer">
+                <div class="big-personality-card" data-personality="hr">
                     <div class="floating-character">
-                        <img src="robot-trainer.png" alt="SAX L&D" onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=emoji-fallback>📚</div>';">
+                        <img src="robot.png" alt="SAX HR" onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=emoji-fallback>👥</div>';">
                     </div>
                     <div class="character-details">
-                        <div class="big-personality-name">SAX L&D</div>
-                        <div class="big-personality-role">Learning & Development</div>
-                        <div class="big-personality-description">Expert in professional development, training programs, and skill building. Your partner in continuous learning and growth.</div>
+                        <div class="big-personality-name">SAX HR Advisor</div>
+                        <div class="big-personality-role">Human Resources Specialist</div>
+                        <div class="big-personality-description">Expert in HR policies, employee relations, and organizational development. Your partner in building strong teams and workplace culture.</div>
                     </div>
                 </div>
                 <div class="big-personality-card" data-personality="tax">
                     <div class="floating-character">
-                        <img src="robot-cpa.png" alt="SAX Tax" onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=emoji-fallback>📋</div>';">
+                        <img src="robot.png" alt="SAX Tax" onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=emoji-fallback>📋</div>';">
                     </div>
                     <div class="character-details">
-                        <div class="big-personality-name">SAX Tax</div>
-                        <div class="big-personality-role">Tax & Accounting Expert</div>
-                        <div class="big-personality-description">Specialized in tax planning, accounting principles, and financial compliance. Expert in federal, state, and local tax regulations.</div>
+                        <div class="big-personality-name">SAX Tax Expert</div>
+                        <div class="big-personality-role">Tax Planning & Strategy</div>
+                        <div class="big-personality-description">Specialized in tax planning, compliance, and optimization strategies. Expert in federal, state, and local tax regulations.</div>
                     </div>
                 </div>
             </div>
@@ -1133,7 +1144,7 @@
                     </div>
                     <div class="header-text">
                         <h2 id="personalitySelector">
-                            <span id="currentPersonalityName">SAX</span>
+                            <span id="currentPersonalityName">SAX Sage</span>
                             <span style="font-size: 14px;">▼</span>
                         </h2>
                         <p id="personalityIndicator">General Business Assistant</p>
@@ -1230,36 +1241,44 @@
         let currentWebhook = 'megamind-chat';
         const aiProfiles = {
             sage: {
-                name: 'SAX',
+                name: 'SAX Sage',
                 webhook: 'megamind-chat',
                 avatar: '🧠',
                 description: 'General business intelligence assistant',
                 robotImage: 'robot.png',
                 role: 'General Business Assistant'
             },
-            tax: {
-                name: 'SAX Tax',
-                webhook: 'megamind-tax',
-                avatar: '📋',
-                description: 'Tax and accounting specialist',
-                robotImage: 'robot-cpa.png',
-                role: 'Tax & Accounting Expert'
+            cpa: {
+                name: 'SAX CPA',
+                webhook: 'megamind-cpa',
+                avatar: '📊',
+                description: 'Accounting and financial specialist',
+                robotImage: 'robot.png',
+                role: 'Accounting & Financial Expert'
             },
             auditor: {
-                name: 'SAX Audit',
+                name: 'SAX Auditor',
                 webhook: 'megamind-auditor',
                 avatar: '🔍',
                 description: 'Audit and compliance expert',
-                robotImage: 'robot-auditor.png',
+                robotImage: 'robot.png',
                 role: 'Audit & Compliance Expert'
             },
-            trainer: {
-                name: 'SAX L&D',
-                webhook: 'megamind-trainer',
-                avatar: '📚',
-                description: 'Learning and development specialist',
-                robotImage: 'robot-trainer.png',
-                role: 'Learning & Development'
+            hr: {
+                name: 'SAX HR Advisor',
+                webhook: 'megamind-hr',
+                avatar: '👥',
+                description: 'Human resources specialist',
+                robotImage: 'robot.png',
+                role: 'Human Resources Specialist'
+            },
+            tax: {
+                name: 'SAX Tax Expert',
+                webhook: 'megamind-tax',
+                avatar: '📋',
+                description: 'Tax planning and compliance expert',
+                robotImage: 'robot.png',
+                role: 'Tax Planning & Strategy'
             }
         };
 
@@ -1384,7 +1403,7 @@
                 console.log('Creating new session:', sessionId);
                 
                 // Show welcome message with personality selector hint
-                addMessage('bot', "Welcome! I'm SAX, your AI-powered business assistant. Click on my name above to switch between different AI personalities. How can I help you today?");
+                addMessage('bot', "Welcome! I'm SAX Sage, your AI-powered business assistant. Click on my name above to switch between different AI personalities. How can I help you today?");
             }
         }
 
@@ -1460,14 +1479,14 @@
 
         // 3D Carousel functionality
         function rotateCarousel(direction) {
-            currentCarouselRotation += direction * 90; // 360/4 = 90 degrees per personality
+            currentCarouselRotation += direction * 72; // 360/5 = 72 degrees per personality
             document.getElementById('carousel3d').style.transform = `rotateY(${currentCarouselRotation}deg)`;
             
             // Update active state
             const cards = document.querySelectorAll('.big-personality-card');
             cards.forEach(card => card.classList.remove('active'));
             
-            const activeIndex = Math.abs(Math.floor(currentCarouselRotation / 90)) % 4;
+            const activeIndex = Math.abs(Math.floor(currentCarouselRotation / 72)) % 5;
             cards[activeIndex].classList.add('active');
         }
 
