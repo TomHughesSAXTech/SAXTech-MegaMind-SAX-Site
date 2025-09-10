@@ -554,6 +554,227 @@
             box-shadow: 0 0 10px rgba(255,215,0,0.5);
         }
 
+        /* Character Selection Carousel - Xbox Style */
+        .character-carousel {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 1200px;
+            z-index: 99;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid rgba(255,215,0,0.2);
+        }
+
+        .carousel-header {
+            text-align: center;
+            color: #FFD700;
+            font-size: 24px;
+            font-weight: 600;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-bottom: 30px;
+            text-shadow: 0 2px 20px rgba(255,215,0,0.5);
+        }
+
+        .characters-container {
+            position: relative;
+            height: 280px;
+            overflow: hidden;
+        }
+
+        .characters-track {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s ease;
+            height: 100%;
+        }
+
+        .character-card {
+            flex-shrink: 0;
+            width: 180px;
+            height: 240px;
+            background: rgba(30,30,30,0.7);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+            opacity: 0.5;
+            transform: scale(0.85);
+        }
+
+        .character-card.center {
+            opacity: 1;
+            transform: scale(1.1);
+            border-color: #FFD700;
+            background: linear-gradient(135deg, rgba(255,215,0,0.2), rgba(255,165,0,0.1));
+            box-shadow: 0 0 40px rgba(255,215,0,0.4);
+        }
+
+        .character-card.near {
+            opacity: 0.8;
+            transform: scale(0.95);
+        }
+
+        .character-avatar {
+            width: 100px;
+            height: 100px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        .character-robot {
+            width: 80px;
+            height: 80px;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .character-card.center .character-robot {
+            animation: float 1.5s ease-in-out infinite;
+        }
+
+        /* Character specific colors */
+        .character-sage .character-avatar {
+            background: linear-gradient(135deg, rgba(59,130,246,0.3), rgba(37,99,235,0.3));
+        }
+
+        .character-cpa .character-avatar {
+            background: linear-gradient(135deg, rgba(16,185,129,0.3), rgba(5,150,105,0.3));
+        }
+
+        .character-auditor .character-avatar {
+            background: linear-gradient(135deg, rgba(139,92,246,0.3), rgba(124,58,237,0.3));
+        }
+
+        .character-hr .character-avatar {
+            background: linear-gradient(135deg, rgba(236,72,153,0.3), rgba(217,70,239,0.3));
+        }
+
+        .character-tax .character-avatar {
+            background: linear-gradient(135deg, rgba(245,158,11,0.3), rgba(217,119,6,0.3));
+        }
+
+        .character-name {
+            color: #FFD700;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .character-role {
+            color: #999;
+            font-size: 11px;
+            text-align: center;
+            line-height: 1.3;
+        }
+
+        .character-stats {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            font-size: 10px;
+            color: #666;
+        }
+
+        /* Selection glow */
+        .character-card.center::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            right: -10px;
+            bottom: -10px;
+            background: radial-gradient(circle, rgba(255,215,0,0.3), transparent);
+            z-index: -1;
+            animation: pulse-glow 2s infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        /* Navigation arrows */
+        .carousel-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 10px;
+            pointer-events: none;
+        }
+
+        .nav-arrow {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,215,0,0.2);
+            border: 2px solid #FFD700;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            pointer-events: all;
+            color: #FFD700;
+            font-size: 20px;
+        }
+
+        .nav-arrow:hover {
+            background: rgba(255,215,0,0.4);
+            transform: scale(1.1);
+        }
+
+        /* Controls hint */
+        .carousel-controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+            color: #666;
+            font-size: 12px;
+        }
+
+        .control-hint {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .key-hint {
+            background: rgba(255,255,255,0.1);
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #999;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
         /* Professional Chat Interface */
         .chat-container {
             flex: 1;
@@ -815,7 +1036,7 @@
 </head>
 <body>
     <!-- Document Portal Button -->
-    <a href="/document-upload.html" id="documentPortalBtn" class="document-portal-btn hidden">
+    <a href="/sax_sop_upload.html" id="documentPortalBtn" class="document-portal-btn hidden">
         <span>📄</span>
         <span>Document Portal</span>
     </a>
@@ -827,6 +1048,94 @@
                 <img src="robot.png" alt="MegaMind Robot" class="robot-image">
                 <div class="robot-shadow"></div>
             </div>
+
+    <!-- Character Selection Carousel -->
+    <div id="characterCarousel" class="character-carousel hidden">
+        <div class="carousel-header">Choose Your AI Assistant</div>
+        <div class="characters-container">
+            <div class="characters-track" id="charactersTrack">
+                <div class="character-card character-sage" data-profile="sage" data-webhook="megamind-chat" data-index="0">
+                    <div class="character-avatar">
+                        <img src="robot.png" alt="SAX Sage" class="character-robot">
+                    </div>
+                    <div class="character-name">SAX Sage</div>
+                    <div class="character-role">General Business<br>Intelligence</div>
+                    <div class="character-stats">
+                        <span>⚡ Fast</span>
+                        <span>🎯 Versatile</span>
+                    </div>
+                </div>
+                
+                <div class="character-card character-cpa" data-profile="cpa" data-webhook="megamind-cpa" data-index="1">
+                    <div class="character-avatar">
+                        <img src="robot.png" alt="SAX CPA" class="character-robot">
+                    </div>
+                    <div class="character-name">SAX CPA</div>
+                    <div class="character-role">Accounting &<br>Financial Expert</div>
+                    <div class="character-stats">
+                        <span>📊 Analytical</span>
+                        <span>✓ Precise</span>
+                    </div>
+                </div>
+                
+                <div class="character-card character-auditor" data-profile="auditor" data-webhook="megamind-auditor" data-index="2">
+                    <div class="character-avatar">
+                        <img src="robot.png" alt="SAX Auditor" class="character-robot">
+                    </div>
+                    <div class="character-name">SAX Auditor</div>
+                    <div class="character-role">Audit &<br>Compliance</div>
+                    <div class="character-stats">
+                        <span>🔍 Detailed</span>
+                        <span>🛡️ Secure</span>
+                    </div>
+                </div>
+                
+                <div class="character-card character-hr" data-profile="hr" data-webhook="megamind-hr" data-index="3">
+                    <div class="character-avatar">
+                        <img src="robot.png" alt="SAX HR" class="character-robot">
+                    </div>
+                    <div class="character-name">SAX HR Advisor</div>
+                    <div class="character-role">Human Resources<br>Specialist</div>
+                    <div class="character-stats">
+                        <span>👥 Empathetic</span>
+                        <span>📋 Policy</span>
+                    </div>
+                </div>
+                
+                <div class="character-card character-tax" data-profile="tax" data-webhook="megamind-tax" data-index="4">
+                    <div class="character-avatar">
+                        <img src="robot.png" alt="SAX Tax" class="character-robot">
+                    </div>
+                    <div class="character-name">SAX Tax Expert</div>
+                    <div class="character-role">Tax Planning &<br>Strategy</div>
+                    <div class="character-stats">
+                        <span>💰 Strategic</span>
+                        <span>📈 Optimizer</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="carousel-nav">
+                <button class="nav-arrow" id="prevChar">‹</button>
+                <button class="nav-arrow" id="nextChar">›</button>
+            </div>
+        </div>
+        
+        <div class="carousel-controls">
+            <div class="control-hint">
+                <span class="key-hint">←→</span>
+                <span>Navigate</span>
+            </div>
+            <div class="control-hint">
+                <span class="key-hint">Enter</span>
+                <span>Select</span>
+            </div>
+            <div class="control-hint">
+                <span class="key-hint">ESC</span>
+                <span>Close</span>
+            </div>
+        </div>
+    </div>
             <h1>MegaMind SAX</h1>
             <p id="authMessage">Your AI-powered assistant for SAX Advisory Group</p>
             <button id="signInBtn" class="sign-in-btn">Sign in with Microsoft</button>
@@ -999,6 +1308,47 @@
         let microphone = null;
         let currentAudio = null;
         let isAISpeaking = false;
+        
+        // AI Profile Management
+        let currentAIProfile = 'sage';  // Default profile
+        let currentWebhook = 'megamind-chat';  // Default webhook
+        const aiProfiles = {
+            sage: {
+                name: 'SAX Sage',
+                webhook: 'megamind-chat',
+                avatar: '🧠',
+                description: 'General business intelligence assistant',
+                robotImage: 'robot.png'
+            },
+            cpa: {
+                name: 'SAX CPA',
+                webhook: 'megamind-cpa',
+                avatar: '📊',
+                description: 'Accounting and financial specialist',
+                robotImage: 'robot.png'  // You can create different robot images
+            },
+            auditor: {
+                name: 'SAX Auditor',
+                webhook: 'megamind-auditor',
+                avatar: '🔍',
+                description: 'Audit and compliance expert',
+                robotImage: 'robot.png'
+            },
+            hr: {
+                name: 'SAX HR Advisor',
+                webhook: 'megamind-hr',
+                avatar: '👥',
+                description: 'Human resources specialist',
+                robotImage: 'robot.png'
+            },
+            tax: {
+                name: 'SAX Tax Expert',
+                webhook: 'megamind-tax',
+                avatar: '📋',
+                description: 'Tax planning and compliance expert',
+                robotImage: 'robot.png'
+            }
+        };
 
         // DOM elements
         const authOverlay = document.getElementById('authOverlay');
@@ -1109,6 +1459,12 @@
             userProfileDiv.classList.remove('hidden');
             mainApp.classList.remove('hidden');
             document.getElementById('documentPortalBtn').classList.remove('hidden');
+            
+            // Show character carousel
+            setTimeout(() => {
+                document.getElementById('characterCarousel').classList.remove('hidden');
+                updateCarouselView();
+            }, 500);
             
             // Clear chat messages display first to prevent duplicates
             chatMessages.innerHTML = '';
@@ -1438,7 +1794,11 @@
                 console.log('Sending payload to n8n:', payload);
                 
                 // Direct webhook call - CORS is now properly configured on n8n
-                const response = await fetch('https://workflows.saxtechnology.com/webhook/megamind-chat', {
+                // Use the current profile's webhook endpoint
+                const webhookUrl = `https://workflows.saxtechnology.com/webhook/${currentWebhook}`;
+                console.log('Using webhook:', webhookUrl);
+                
+                const response = await fetch(webhookUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1867,6 +2227,139 @@
             }
         });
 
+        // Character Carousel Management
+        let currentCharacterIndex = 0;
+        const characters = document.querySelectorAll('.character-card');
+        
+        function updateCarouselView() {
+            characters.forEach((card, index) => {
+                card.classList.remove('center', 'near');
+                
+                if (index === currentCharacterIndex) {
+                    card.classList.add('center');
+                } else if (Math.abs(index - currentCharacterIndex) === 1) {
+                    card.classList.add('near');
+                }
+            });
+        }
+        
+        function switchAIProfile(profileId) {
+            if (!aiProfiles[profileId]) return;
+            
+            // Update current profile
+            currentAIProfile = profileId;
+            currentWebhook = aiProfiles[profileId].webhook;
+            
+            // Update chat header with new profile
+            const chatHeaderTitle = document.querySelector('.chat-header h2');
+            if (chatHeaderTitle) {
+                chatHeaderTitle.textContent = aiProfiles[profileId].name;
+            }
+            
+            const chatHeaderDesc = document.querySelector('.chat-header p');
+            if (chatHeaderDesc) {
+                chatHeaderDesc.textContent = aiProfiles[profileId].description;
+            }
+            
+            // Clear existing conversation and start fresh with new profile
+            chatMessages.innerHTML = '';
+            sessionStorage.removeItem('megamind_sax_messages');
+            
+            // Add introduction message from new profile
+            let introMsg = `Hello! I'm ${aiProfiles[profileId].name}, your ${aiProfiles[profileId].description}. `;
+            
+            switch(profileId) {
+                case 'cpa':
+                    introMsg += 'I can help you with accounting standards, financial reporting, journal entries, and general accounting questions.';
+                    break;
+                case 'auditor':
+                    introMsg += 'I specialize in audit procedures, risk assessment, internal controls, and compliance verification.';
+                    break;
+                case 'hr':
+                    introMsg += 'I can assist with HR policies, employee benefits, onboarding procedures, and workplace compliance.';
+                    break;
+                case 'tax':
+                    introMsg += 'I\'m here to help with tax planning, IRS regulations, deductions, and tax optimization strategies.';
+                    break;
+                default:
+                    introMsg += 'How can I assist you today?';
+            }
+            
+            addMessage('bot', introMsg);
+            
+            // Hide carousel after selection
+            setTimeout(() => {
+                document.getElementById('characterCarousel').classList.add('hidden');
+            }, 300);
+            
+            // Store profile preference
+            localStorage.setItem('preferred_ai_profile', profileId);
+        }
+        
+        // Navigation arrows
+        document.getElementById('prevChar')?.addEventListener('click', () => {
+            if (currentCharacterIndex > 0) {
+                currentCharacterIndex--;
+                updateCarouselView();
+            }
+        });
+        
+        document.getElementById('nextChar')?.addEventListener('click', () => {
+            if (currentCharacterIndex < characters.length - 1) {
+                currentCharacterIndex++;
+                updateCarouselView();
+            }
+        });
+        
+        // Character card click handlers
+        characters.forEach((card, index) => {
+            card.addEventListener('click', () => {
+                currentCharacterIndex = index;
+                updateCarouselView();
+                
+                const profileId = card.dataset.profile;
+                const webhook = card.dataset.webhook;
+                
+                if (profileId && webhook) {
+                    currentWebhook = webhook;
+                    switchAIProfile(profileId);
+                }
+            });
+        });
+        
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            const carousel = document.getElementById('characterCarousel');
+            if (!carousel.classList.contains('hidden')) {
+                if (e.key === 'ArrowLeft' && currentCharacterIndex > 0) {
+                    currentCharacterIndex--;
+                    updateCarouselView();
+                } else if (e.key === 'ArrowRight' && currentCharacterIndex < characters.length - 1) {
+                    currentCharacterIndex++;
+                    updateCarouselView();
+                } else if (e.key === 'Enter') {
+                    const currentCard = characters[currentCharacterIndex];
+                    if (currentCard) {
+                        currentCard.click();
+                    }
+                } else if (e.key === 'Escape') {
+                    carousel.classList.add('hidden');
+                }
+            }
+        });
+        
+        // Show carousel on C key press
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'c' || e.key === 'C') {
+                const carousel = document.getElementById('characterCarousel');
+                if (!authOverlay.classList.contains('hidden')) return;
+                carousel.classList.toggle('hidden');
+                if (!carousel.classList.contains('hidden')) {
+                    updateCarouselView();
+                }
+            }
+        });
+        
         // Initialize the application
         initialize();
     </script>
