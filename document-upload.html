@@ -943,6 +943,7 @@
                         'x-functions-key': API_CONFIG.functionKey
                     },
                     body: JSON.stringify({
+                        query: '*',  // Search all documents
                         department: department
                     })
                 });
@@ -1125,12 +1126,12 @@
             
             try {
                 // Search across all documents in Azure AI Search
-                const searchUrl = 'https://saxmegamind.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
+                const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/saxdocuments/docs/search?api-version=2023-11-01';
                 const response = await fetch(searchUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'api-key': 'hJRqchPEhyI6ygOHe0yJ0AlAz2gHdvM3AzSeFJGfTg'
+                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
                     },
                     body: JSON.stringify({
                         search: searchTerm,
@@ -1263,12 +1264,12 @@
         async function fetchExistingSOPs(department, sopType) {
             try {
                 // Query Azure AI Search directly
-                const searchUrl = 'https://saxmegamind.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
+                const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/saxdocuments/docs/search?api-version=2023-11-01';
                 const response = await fetch(searchUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'api-key': 'hJRqchPEhyI6ygOHe0yJ0AlAz2gHdvM3AzSeFJGfTg'
+                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
                     },
                     body: JSON.stringify({
                         search: '*',
