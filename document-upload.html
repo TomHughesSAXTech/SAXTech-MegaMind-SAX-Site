@@ -771,7 +771,7 @@
                             <div class="upload-icon">📄</div>
                             <div class="upload-text">Select or drop file here</div>
                             <div class="upload-subtext">PDF, DOC, DOCX, TXT, XLS, XLSX formats supported</div>
-                            <input type="file" class="file-input" id="fileInput" accept=".pdf,.doc,.docx,.txt,.xls,.xlsx" required>
+                            <input type="file" class="file-input" id="fileInput" accept=".pdf,.doc,.docx,.txt,.xls,.xlsx">
                         </div>
                         <div class="selected-file" id="selectedFile">
                             <div class="file-info">
@@ -1522,18 +1522,45 @@
             const updateType = updateTypeSelect.value;
             const file = fileInput.files[0];
 
-            if (!department || !sopType || !updateType || !file) {
-                alert('Please complete all required fields and select a file.');
+            // Check file first with better UX
+            if (!file) {
+                alert('Please select a file to upload.');
+                fileUploadArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Highlight the upload area briefly
+                fileUploadArea.style.border = '2px solid #dc2626';
+                setTimeout(() => {
+                    fileUploadArea.style.border = '';
+                }, 2000);
+                return false;
+            }
+
+            if (!department) {
+                alert('Please select a department.');
+                departmentSelect.focus();
+                return false;
+            }
+
+            if (!sopType) {
+                alert('Please select a document type.');
+                sopTypeSelect.focus();
+                return false;
+            }
+
+            if (!updateType) {
+                alert('Please select an action type (New Document or Update Existing).');
+                updateTypeSelect.focus();
                 return false;
             }
 
             if (updateType === 'update' && !selectedSOPIdInput.value) {
                 alert('Please select an existing document to update.');
+                existingSOPsDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 return false;
             }
 
             if (updateType === 'new' && !document.getElementById('sopTitle').value.trim()) {
                 alert('Please provide a title for the new document.');
+                document.getElementById('sopTitle').focus();
                 return false;
             }
 
