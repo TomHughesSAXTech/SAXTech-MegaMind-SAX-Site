@@ -932,7 +932,7 @@
         async function fetchDepartmentDocuments(department) {
             try {
                 // Query Azure AI Search directly for documents in this department
-                const searchUrl = 'https://saxmegamind.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
+                const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
                 const response = await fetch(searchUrl, {
                     method: 'POST',
                     headers: {
