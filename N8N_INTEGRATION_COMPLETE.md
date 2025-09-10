@@ -35,7 +35,7 @@ Document Processing Pipeline
 **Configuration**:
 ```javascript
 n8n: {
-    webhookUrl: 'https://n8n.saxtechnology.com/webhook/sop-document-upload',
+    webhookUrl: 'https://workflows.saxtechnology.com/webhook/sop-document-upload',
     enabled: true  // Toggle to enable/disable n8n integration
 }
 ```
@@ -44,7 +44,7 @@ n8n: {
 
 **Workflow ID**: `DGFfUihtBiCacKyD`
 **Status**: Active ✓
-**Webhook URL**: `https://n8n.saxtechnology.com/webhook/sop-document-upload`
+**Webhook URL**: `https://workflows.saxtechnology.com/webhook/sop-document-upload`
 
 **Workflow Steps**:
 1. **Webhook Trigger**: Receives document uploads from website
@@ -167,7 +167,7 @@ https://your-site-url/document-upload.html
 
 ### 2. Test n8n Webhook Directly
 ```bash
-curl -X POST https://n8n.saxtechnology.com/webhook/sop-document-upload \
+curl -X POST https://workflows.saxtechnology.com/webhook/sop-document-upload \
   -H "Content-Type: application/json" \
   -d '{
     "file": {
@@ -244,7 +244,7 @@ n8n: {
 ## Support & Maintenance
 
 **n8n Workflow**: 
-- Location: https://n8n.saxtechnology.com
+- Location: https://workflows.saxtechnology.com
 - Workflow ID: DGFfUihtBiCacKyD
 
 **Azure Resources**:
