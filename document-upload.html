@@ -830,7 +830,7 @@
     </div>
 
     <script>
-        // API Configuration - Azure Function endpoints
+        // API Configuration - Azure Function endpoints and n8n webhook
         const API_CONFIG = {
             baseUrl: 'https://saxmegamind-documents.azurewebsites.net/api',
             endpoints: {
@@ -844,6 +844,10 @@
             blobStorage: {
                 containerName: 'saxdocuments',
                 baseUrl: 'https://saxmegamind.blob.core.windows.net'
+            },
+            n8n: {
+                webhookUrl: 'https://n8n.saxtechnology.com/webhook/sop-document-upload',
+                enabled: true  // Toggle to enable/disable n8n integration
             }
         };
 
@@ -1278,6 +1282,7 @@
 
         async function uploadDocument(formData) {
             try {
+                // First, upload to Azure Function
                 const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.uploadDocument}`, {
                     method: 'POST',
                     body: formData,
@@ -1289,14 +1294,91 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    throw new Error(`Azure Function upload failed: HTTP ${response.status}: ${response.statusText}`);
                 }
 
-                return await response.json();
+                const azureResult = await response.json();
+                
+                // If n8n integration is enabled, also send to n8n workflow for indexing
+                if (API_CONFIG.n8n.enabled) {
+                    try {
+                        await triggerN8nWorkflow(formData, azureResult);
+                    } catch (n8nError) {
+                        // Log but don't fail the entire upload if n8n fails
+                        console.error('n8n workflow trigger failed:', n8nError);
+                        // Optionally show a warning to the user
+                        console.warn('Document uploaded but indexing may be delayed.');
+                    }
+                }
+
+                return azureResult;
             } catch (error) {
                 console.error('Upload API call failed:', error);
                 throw error;
             }
+        }
+        
+        async function triggerN8nWorkflow(formData, azureResult) {
+            // Convert FormData to JSON for n8n webhook
+            const file = formData.get('file');
+            const fileContent = await fileToBase64(file);
+            
+            const n8nPayload = {
+                file: {
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                    content: fileContent,
+                    contentType: file.type || 'application/octet-stream'
+                },
+                metadata: {
+                    department: formData.get('department'),
+                    documentType: formData.get('sopType'),
+                    title: formData.get('title') || file.name,
+                    description: formData.get('description') || '',
+                    keywords: formData.get('keywords') || '',
+                    version: formData.get('version') || '1.0',
+                    updateType: formData.get('updateType'),
+                    existingDocId: formData.get('existingDocId') || null,
+                    uploadedBy: 'SAX Portal User', // You can replace with actual user info
+                    uploadDate: new Date().toISOString(),
+                    source: 'SAX Document Portal',
+                    azureBlobUrl: azureResult.blobUrl || null,
+                    azureDocumentId: azureResult.documentId || null
+                },
+                indexing: {
+                    indexName: 'sop-documents',
+                    generateEmbeddings: true,
+                    extractEntities: true
+                }
+            };
+            
+            const n8nResponse = await fetch(API_CONFIG.n8n.webhookUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(n8nPayload)
+            });
+            
+            if (!n8nResponse.ok) {
+                throw new Error(`n8n webhook failed: HTTP ${n8nResponse.status}`);
+            }
+            
+            return await n8nResponse.json();
+        }
+        
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => {
+                    // Remove the data:*/*;base64, prefix
+                    const base64 = reader.result.split(',')[1];
+                    resolve(base64);
+                };
+                reader.onerror = error => reject(error);
+            });
         }
 
         function handleUploadError(error) {
