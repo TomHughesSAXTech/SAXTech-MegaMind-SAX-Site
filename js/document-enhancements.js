@@ -497,6 +497,48 @@ class DocumentEnhancements {
      * 6. DEPARTMENT DROPDOWN IN REPOSITORY - Add filter dropdown
      */
     addDepartmentFilter() {
+        // Instead of adding a new filter, let's make the sidebar department dropdown trigger loading
+        // when the page doesn't have documents loaded yet
+        const departmentSelect = document.getElementById('department');
+        const emptyState = document.getElementById('emptyState');
+        
+        if (departmentSelect && emptyState && emptyState.style.display !== 'none') {
+            // If empty state is showing, auto-select first department on page load
+            setTimeout(() => {
+                if (departmentSelect.value === '' && departmentSelect.options.length > 1) {
+                    // Don't auto-select, but add a visual indicator
+                    departmentSelect.style.border = '2px solid #3b82f6';
+                    departmentSelect.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
+                    
+                    // Add pulsing animation to draw attention
+                    departmentSelect.style.animation = 'pulse 2s infinite';
+                    
+                    // Remove animation after first selection
+                    departmentSelect.addEventListener('change', function removeAnimation() {
+                        departmentSelect.style.animation = '';
+                        departmentSelect.style.border = '';
+                        departmentSelect.style.boxShadow = '';
+                        departmentSelect.removeEventListener('change', removeAnimation);
+                    });
+                }
+            }, 500);
+        }
+        
+        // Add CSS for pulse animation if not exists
+        if (!document.getElementById('pulseAnimation')) {
+            const style = document.createElement('style');
+            style.id = 'pulseAnimation';
+            style.textContent = `
+                @keyframes pulse {
+                    0% { transform: scale(1); }
+                    50% { transform: scale(1.02); }
+                    100% { transform: scale(1); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        // Original filter code for when documents are loaded
         const explorerControls = document.querySelector('.explorer-controls');
         if (explorerControls && !document.getElementById('departmentFilter')) {
             const filterHTML = `
@@ -506,7 +548,7 @@ class DocumentEnhancements {
                     gap: 8px;
                     margin-left: auto;
                 ">
-                    <label style="font-size: 12px; color: #64748b;">Filter by:</label>
+                    <label style="font-size: 12px; color: #64748b;">Filter by Type:</label>
                     <select id="departmentFilter" style="
                         padding: 6px 12px;
                         border: 1px solid #d1d5db;
@@ -515,50 +557,60 @@ class DocumentEnhancements {
                         background: white;
                         cursor: pointer;
                     ">
-                        <option value="">All Departments</option>
-                        <option value="A&A">Audit & Advisory</option>
-                        <option value="Finance">Finance</option>
-                        <option value="HR">Human Resources</option>
-                        <option value="IT">Information Technology</option>
-                        <option value="Leadership">Leadership</option>
-                        <option value="Marketing/Business Development">Marketing & Business Development</option>
-                        <option value="Operations">Operations</option>
-                        <option value="Shared Services">Shared Services</option>
-                        <option value="Tax">Tax Services</option>
-                        <option value="Transaction Advisory">Transaction Advisory</option>
-                        <option value="Wealth Management">Wealth Management</option>
-                        <option value="L&D">Learning & Development</option>
+                        <option value="">All Types</option>
+                        <option value="Policy">Policies</option>
+                        <option value="Procedure">Procedures</option>
+                        <option value="Form">Forms</option>
+                        <option value="Template">Templates</option>
+                        <option value="General">General</option>
                     </select>
                 </div>
             `;
             explorerControls.insertAdjacentHTML('beforeend', filterHTML);
             
-            // Add event listener
+            // Add event listener for type filtering
             document.getElementById('departmentFilter').addEventListener('change', (e) => {
-                this.filterByDepartment(e.target.value);
+                this.filterByDocumentType(e.target.value);
             });
         }
     }
 
     /**
-     * Filter documents by department
+     * Filter documents by document type (not department)
      */
-    filterByDepartment(department) {
-        const documentItems = document.querySelectorAll('.document-item');
-        documentItems.forEach(item => {
-            const itemDept = item.getAttribute('data-department');
-            if (!department || itemDept === department) {
-                item.style.display = 'flex';
+    filterByDocumentType(documentType) {
+        const folderCards = document.querySelectorAll('.folder-card');
+        folderCards.forEach(card => {
+            const folderName = card.querySelector('.folder-name')?.textContent;
+            if (!documentType || folderName === documentType) {
+                card.style.display = 'block';
             } else {
-                item.style.display = 'none';
+                card.style.display = 'none';
             }
         });
         
-        // Update document count
-        const visibleCount = document.querySelectorAll('.document-item:not([style*="display: none"])').length;
+        // Update document count based on visible folders
+        let visibleCount = 0;
+        document.querySelectorAll('.folder-card:not([style*="display: none"]) .document-item').forEach(() => {
+            visibleCount++;
+        });
+        
         const documentCount = document.getElementById('documentCount');
         if (documentCount) {
-            documentCount.textContent = `${visibleCount} documents${department ? ` in ${department}` : ''}`;
+            documentCount.textContent = `${visibleCount} documents${documentType ? ` of type ${documentType}` : ''}`;
+        }
+    }
+    
+    /**
+     * Helper to trigger department loading
+     */
+    loadDepartmentDocuments(department) {
+        const departmentSelect = document.getElementById('department');
+        if (departmentSelect && department) {
+            departmentSelect.value = department;
+            // Trigger change event to load documents
+            const event = new Event('change', { bubbles: true });
+            departmentSelect.dispatchEvent(event);
         }
     }
 }

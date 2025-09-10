@@ -823,8 +823,11 @@
             
             <div id="emptyState" class="empty-state">
                 <div class="empty-icon">📁</div>
-                <div class="empty-title">Select a Department</div>
-                <div class="empty-text">Choose a department from the sidebar to view and manage documents in the repository.</div>
+                <div class="empty-title">Welcome to Document Repository</div>
+                <div class="empty-text">
+                    <p style="margin-bottom: 12px;">Choose a department from the <strong style="color: #3b82f6;">dropdown menu in the sidebar</strong> to view documents.</p>
+                    <p style="font-size: 12px; color: #94a3b8;">Documents will auto-load in a moment, or you can select a department now.</p>
+                </div>
             </div>
 
             <div id="explorerContainer" class="explorer-container">
@@ -913,6 +916,26 @@
         
         // Load index statistics on page load
         loadIndexStatistics();
+        
+        // Auto-load first department if none selected
+        setTimeout(() => {
+            if (!departmentSelect.value && departmentSelect.options.length > 1) {
+                // Highlight the department selector to draw attention
+                departmentSelect.style.border = '2px solid #3b82f6';
+                departmentSelect.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
+                
+                // Optional: Auto-select first department after a delay
+                setTimeout(() => {
+                    if (!departmentSelect.value && departmentSelect.options.length > 1) {
+                        departmentSelect.value = departmentSelect.options[1].value;
+                        loadDepartmentDocuments();
+                        // Remove highlight
+                        departmentSelect.style.border = '';
+                        departmentSelect.style.boxShadow = '';
+                    }
+                }, 2000);
+            }
+        }, 500);
 
         function loadDepartmentDocuments() {
             const department = departmentSelect.value;
