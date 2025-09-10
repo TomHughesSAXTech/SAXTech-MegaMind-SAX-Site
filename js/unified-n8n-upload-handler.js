@@ -51,7 +51,7 @@
             // Prepare upload payload (matching Foreman AI structure)
             const uploadPayload = {
                 // File data
-                file: base64Data,
+                fileContent: base64Data,  // Changed from 'file' to 'fileContent' to match n8n workflow expectation
                 fileName: file.name,
                 mimeType: file.type || 'application/octet-stream',
                 fileSize: file.size,
@@ -173,7 +173,7 @@
             
             const chunkPayload = {
                 ...metadata,
-                file: chunks[i],
+                fileContent: chunks[i],  // Changed from 'file' to 'fileContent' to match n8n workflow
                 fileName: file.name,
                 mimeType: file.type,
                 chunkIndex: i,
