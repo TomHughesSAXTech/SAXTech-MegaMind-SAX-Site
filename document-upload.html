@@ -934,18 +934,20 @@
 
         async function fetchDepartmentDocuments(department) {
             try {
-                // Use Azure Function endpoint to avoid CORS issues
-                const searchUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.searchDocuments}`;
+                // Use n8n webhook to proxy the search request and avoid CORS issues
+                const searchUrl = 'https://workflows.saxtechnology.com/webhook/megamind/search';
                 const response = await fetch(searchUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        query: '*',  // The .NET function expects 'query' not 'search'
-                        department: department || null,  // Pass department directly
-                        pageSize: 100,  // The .NET function uses pageSize instead of top
-                        page: 1
+                        search: '*',
+                        filter: department ? `department eq '${department.replace(/'/g, "''")}' or department eq null` : null,
+                        select: 'id,title,fileName,documentType,description,createdDate,lastModified,department',
+                        top: 100,
+                        orderby: 'createdDate desc',
+                        indexName: 'sop-documents'
                     })
                 });
 
@@ -960,8 +962,8 @@
                 let totalDocuments = 0;
                 let lastUpdated = '--';
                 
-                // The .NET function returns results in 'results' array
-                const documents = searchResults.results || [];
+                // n8n webhook returns results in 'value' array (Azure Search format)
+                const documents = searchResults.value || [];
                 
                 if (documents && documents.length > 0) {
                     // Group documents by documentType
@@ -1126,17 +1128,20 @@
             }
             
             try {
-                // Use Azure Function endpoint for search
-                const searchUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.searchDocuments}`;
+                // Use n8n webhook for search to avoid CORS issues
+                const searchUrl = 'https://workflows.saxtechnology.com/webhook/megamind/search';
                 const response = await fetch(searchUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        query: searchTerm,  // The .NET function expects 'query'
-                        pageSize: 50,
-                        page: 1
+                        search: searchTerm,
+                        searchMode: 'any',
+                        select: 'id,title,fileName,documentType,description,uploadDate,department',
+                        top: 50,
+                        orderby: 'uploadDate desc',
+                        indexName: 'sop-documents'
                     })
                 });
                 
@@ -1146,10 +1151,10 @@
                     // Clear current display
                     folderGrid.innerHTML = '';
                     
-                    if (searchResults.results && searchResults.results.length > 0) {
+                    if (searchResults.value && searchResults.value.length > 0) {
                         // Group search results by department
                         const groupedResults = {};
-                        searchResults.results.forEach(doc => {
+                        searchResults.value.forEach(doc => {
                             const dept = doc.department || 'General';
                             if (!groupedResults[dept]) {
                                 groupedResults[dept] = [];
@@ -1180,7 +1185,7 @@
                             folderGrid.appendChild(deptDiv);
                         });
                         
-                        documentCount.textContent = `${searchResults.results.length} results found`;
+                        documentCount.textContent = `${searchResults.value.length} results found`;
                     } else {
                         folderGrid.innerHTML = `
                             <div style="text-align: center; padding: 40px; color: #64748b;">
@@ -1302,19 +1307,20 @@
 
         async function fetchExistingSOPs(department, sopType) {
             try {
-                // Use Azure Function endpoint to avoid CORS issues
-                const searchUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.searchDocuments}`;
+                // Use n8n webhook to proxy the search request and avoid CORS issues
+                const searchUrl = 'https://workflows.saxtechnology.com/webhook/megamind/search';
                 const response = await fetch(searchUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        query: '*',  // The .NET function expects 'query' not 'search'
-                        department: department,  // Pass department directly
-                        documentType: sopType,  // Pass documentType for filtering
-                        pageSize: 50,  // The .NET function uses pageSize instead of top
-                        page: 1
+                        search: '*',
+                        filter: `department eq '${department.replace(/'/g, "''")}' and documentType eq '${sopType.replace(/'/g, "''")}}'`,
+                        select: 'id,title,fileName,uploadDate',
+                        top: 50,
+                        orderby: 'uploadDate desc',
+                        indexName: 'sop-documents'
                     })
                 });
 
@@ -1323,8 +1329,8 @@
                 }
 
                 const data = await response.json();
-                // The .NET function returns results in 'results' array
-                return data.results ? data.results.map(doc => ({
+                // n8n webhook returns results in 'value' array (Azure Search format)
+                return data.value ? data.value.map(doc => ({
                     id: doc.id,
                     title: doc.title || doc.fileName,
                     lastModified: doc.uploadDate ? new Date(doc.uploadDate).toLocaleDateString() : 'Unknown'
