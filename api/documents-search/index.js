@@ -3,6 +3,21 @@ const https = require('https');
 module.exports = async function (context, req) {
     context.log('Document search function triggered');
 
+    // Handle CORS preflight request
+    if (req.method === 'OPTIONS') {
+        context.res = {
+            status: 200,
+            headers: {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type, x-functions-key',
+                'Access-Control-Max-Age': '3600'
+            },
+            body: ''
+        };
+        return;
+    }
+
     try {
         // Get search parameters from request body
         const {

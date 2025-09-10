@@ -939,8 +939,7 @@
                 const response = await fetch(searchUrl, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'x-functions-key': API_CONFIG.functionKey
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         search: '*',
@@ -1322,8 +1321,7 @@
                 const response = await fetch(searchUrl, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'x-functions-key': API_CONFIG.functionKey
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         search: '*',
