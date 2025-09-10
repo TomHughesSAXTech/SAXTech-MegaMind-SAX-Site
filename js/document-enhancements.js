@@ -1,0 +1,580 @@
+/**
+ * Document Management Enhancements
+ * Includes deduplication, chunking, status tracking, and department management
+ */
+
+class DocumentEnhancements {
+    constructor() {
+        this.chunkSize = 1000; // Characters per chunk for large documents
+        this.maxFileSize = 50 * 1024 * 1024; // 50MB max for chunking
+        this.init();
+    }
+
+    init() {
+        // Initialize enhancement features
+        this.setupDepartmentManagement();
+        this.setupUploadStatusTracking();
+    }
+
+    /**
+     * 1. DEDUPLICATION - Calculate SHA256 hash of file
+     */
+    async calculateSHA256(file) {
+        const buffer = await file.arrayBuffer();
+        const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        return hashHex;
+    }
+
+    /**
+     * Check for duplicate documents in the index
+     */
+    async checkDuplicate(fileHash, fileName) {
+        try {
+            const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
+            const response = await fetch(searchUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
+                },
+                body: JSON.stringify({
+                    search: fileHash,
+                    searchFields: 'contentHash,sha256Hash',
+                    select: 'id,title,fileName,uploadDate,department',
+                    top: 1
+                })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.value && data.value.length > 0) {
+                    return data.value[0]; // Return duplicate document info
+                }
+            }
+        } catch (error) {
+            console.error('Duplicate check failed:', error);
+        }
+        return null;
+    }
+
+    /**
+     * 2. LARGE PDF CHUNKING - Split large documents into chunks
+     */
+    async chunkDocument(file) {
+        const chunks = [];
+        const text = await this.extractTextFromFile(file);
+        
+        if (!text) {
+            // If text extraction fails, return file as single chunk
+            return [{
+                content: await this.fileToBase64(file),
+                chunkIndex: 0,
+                totalChunks: 1,
+                type: 'binary'
+            }];
+        }
+
+        // Calculate number of chunks needed
+        const totalChunks = Math.ceil(text.length / this.chunkSize);
+        
+        for (let i = 0; i < totalChunks; i++) {
+            const start = i * this.chunkSize;
+            const end = Math.min(start + this.chunkSize, text.length);
+            
+            // Try to break at sentence boundaries
+            let chunkEnd = end;
+            if (end < text.length) {
+                const lastPeriod = text.lastIndexOf('.', end);
+                const lastNewline = text.lastIndexOf('\n', end);
+                chunkEnd = Math.max(lastPeriod, lastNewline) > start ? 
+                    Math.max(lastPeriod, lastNewline) + 1 : end;
+            }
+            
+            chunks.push({
+                content: text.substring(start, chunkEnd),
+                chunkIndex: i,
+                totalChunks: totalChunks,
+                type: 'text',
+                startChar: start,
+                endChar: chunkEnd
+            });
+        }
+        
+        return chunks;
+    }
+
+    /**
+     * Extract text from various file types
+     */
+    async extractTextFromFile(file) {
+        const fileType = file.type.toLowerCase();
+        
+        // For text-based files, read directly
+        if (fileType.includes('text') || fileType.includes('json') || fileType.includes('xml')) {
+            return await file.text();
+        }
+        
+        // For PDFs and other complex formats, we'll need server-side processing
+        // Return null to indicate binary handling needed
+        return null;
+    }
+
+    /**
+     * Convert file to base64
+     */
+    async fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => {
+                const base64 = reader.result.split(',')[1];
+                resolve(base64);
+            };
+            reader.onerror = error => reject(error);
+        });
+    }
+
+    /**
+     * 3. REAL UPLOAD STATUS - Enhanced progress tracking
+     */
+    setupUploadStatusTracking() {
+        // Create status overlay if it doesn't exist
+        if (!document.getElementById('uploadStatusOverlay')) {
+            const statusHTML = `
+                <div id="uploadStatusOverlay" style="
+                    display: none;
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0, 0, 0, 0.8);
+                    z-index: 10000;
+                    justify-content: center;
+                    align-items: center;
+                ">
+                    <div style="
+                        background: white;
+                        border-radius: 12px;
+                        padding: 24px;
+                        max-width: 500px;
+                        width: 90%;
+                    ">
+                        <h3 style="margin: 0 0 16px 0; color: #1e293b;">Processing Document</h3>
+                        
+                        <div id="uploadStages" style="margin: 16px 0;">
+                            <div class="upload-stage" id="stage-hash">
+                                <span class="stage-icon">⏳</span>
+                                <span class="stage-text">Calculating document hash...</span>
+                            </div>
+                            <div class="upload-stage" id="stage-duplicate">
+                                <span class="stage-icon">⏳</span>
+                                <span class="stage-text">Checking for duplicates...</span>
+                            </div>
+                            <div class="upload-stage" id="stage-chunk">
+                                <span class="stage-icon">⏳</span>
+                                <span class="stage-text">Processing document chunks...</span>
+                            </div>
+                            <div class="upload-stage" id="stage-upload">
+                                <span class="stage-icon">⏳</span>
+                                <span class="stage-text">Uploading to cloud storage...</span>
+                            </div>
+                            <div class="upload-stage" id="stage-index">
+                                <span class="stage-icon">⏳</span>
+                                <span class="stage-text">Indexing for search...</span>
+                            </div>
+                            <div class="upload-stage" id="stage-vector">
+                                <span class="stage-icon">⏳</span>
+                                <span class="stage-text">Creating embeddings...</span>
+                            </div>
+                        </div>
+                        
+                        <div style="
+                            background: #f1f5f9;
+                            border-radius: 8px;
+                            height: 8px;
+                            overflow: hidden;
+                            margin: 16px 0;
+                        ">
+                            <div id="uploadProgressBar" style="
+                                background: linear-gradient(90deg, #3b82f6, #06b6d4);
+                                height: 100%;
+                                width: 0%;
+                                transition: width 0.3s ease;
+                            "></div>
+                        </div>
+                        
+                        <div id="uploadStatusMessage" style="
+                            font-size: 12px;
+                            color: #64748b;
+                            text-align: center;
+                        ">Initializing...</div>
+                    </div>
+                </div>
+                
+                <style>
+                    .upload-stage {
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                        padding: 8px 0;
+                        font-size: 14px;
+                        color: #64748b;
+                    }
+                    .upload-stage.active {
+                        color: #3b82f6;
+                        font-weight: 500;
+                    }
+                    .upload-stage.completed {
+                        color: #10b981;
+                    }
+                    .upload-stage.error {
+                        color: #ef4444;
+                    }
+                    .stage-icon {
+                        font-size: 16px;
+                    }
+                    .upload-stage.completed .stage-icon::before {
+                        content: '✅';
+                    }
+                    .upload-stage.active .stage-icon::before {
+                        content: '⚡';
+                    }
+                    .upload-stage.error .stage-icon::before {
+                        content: '❌';
+                    }
+                </style>
+            `;
+            document.body.insertAdjacentHTML('beforeend', statusHTML);
+        }
+    }
+
+    /**
+     * Update upload status display
+     */
+    updateUploadStatus(stage, status, message) {
+        const overlay = document.getElementById('uploadStatusOverlay');
+        const stageElement = document.getElementById(`stage-${stage}`);
+        const statusMessage = document.getElementById('uploadStatusMessage');
+        const progressBar = document.getElementById('uploadProgressBar');
+        
+        if (overlay) {
+            overlay.style.display = 'flex';
+        }
+        
+        if (stageElement) {
+            // Remove all status classes
+            stageElement.classList.remove('active', 'completed', 'error');
+            // Add appropriate class
+            stageElement.classList.add(status);
+        }
+        
+        if (statusMessage && message) {
+            statusMessage.textContent = message;
+        }
+        
+        // Update progress bar
+        const stages = ['hash', 'duplicate', 'chunk', 'upload', 'index', 'vector'];
+        const currentIndex = stages.indexOf(stage);
+        if (currentIndex !== -1 && progressBar) {
+            const progress = ((currentIndex + (status === 'completed' ? 1 : 0.5)) / stages.length) * 100;
+            progressBar.style.width = `${progress}%`;
+        }
+    }
+
+    /**
+     * Hide upload status overlay
+     */
+    hideUploadStatus() {
+        const overlay = document.getElementById('uploadStatusOverlay');
+        if (overlay) {
+            setTimeout(() => {
+                overlay.style.display = 'none';
+                // Reset all stages
+                document.querySelectorAll('.upload-stage').forEach(stage => {
+                    stage.classList.remove('active', 'completed', 'error');
+                });
+            }, 2000);
+        }
+    }
+
+    /**
+     * 4. DEPARTMENT MANAGEMENT - Add ability to dynamically add departments
+     */
+    setupDepartmentManagement() {
+        // Add department management button if it doesn't exist
+        const departmentSelect = document.getElementById('department');
+        if (departmentSelect && !document.getElementById('addDepartmentBtn')) {
+            const addButton = document.createElement('button');
+            addButton.id = 'addDepartmentBtn';
+            addButton.type = 'button';
+            addButton.textContent = '+ Add Department';
+            addButton.style.cssText = `
+                margin-top: 8px;
+                padding: 6px 12px;
+                background: #f3f4f6;
+                border: 1px solid #d1d5db;
+                border-radius: 6px;
+                font-size: 12px;
+                cursor: pointer;
+                width: 100%;
+            `;
+            addButton.onclick = () => this.showAddDepartmentDialog();
+            departmentSelect.parentElement.appendChild(addButton);
+        }
+    }
+
+    /**
+     * Show dialog to add new department
+     */
+    showAddDepartmentDialog() {
+        const departmentName = prompt('Enter new department name:');
+        if (departmentName && departmentName.trim()) {
+            this.addDepartment(departmentName.trim());
+        }
+    }
+
+    /**
+     * Add new department to the select list
+     */
+    addDepartment(departmentName) {
+        const departmentSelect = document.getElementById('department');
+        if (departmentSelect) {
+            // Check if department already exists
+            const exists = Array.from(departmentSelect.options).some(
+                option => option.value === departmentName
+            );
+            
+            if (!exists) {
+                const option = document.createElement('option');
+                option.value = departmentName;
+                option.textContent = departmentName;
+                departmentSelect.appendChild(option);
+                
+                // Save to localStorage for persistence
+                this.saveDepartments();
+                
+                alert(`Department "${departmentName}" added successfully!`);
+            } else {
+                alert('This department already exists.');
+            }
+        }
+    }
+
+    /**
+     * Save departments to localStorage
+     */
+    saveDepartments() {
+        const departmentSelect = document.getElementById('department');
+        if (departmentSelect) {
+            const departments = Array.from(departmentSelect.options)
+                .filter(opt => opt.value)
+                .map(opt => ({ value: opt.value, text: opt.textContent }));
+            localStorage.setItem('customDepartments', JSON.stringify(departments));
+        }
+    }
+
+    /**
+     * Load saved departments from localStorage
+     */
+    loadSavedDepartments() {
+        const saved = localStorage.getItem('customDepartments');
+        if (saved) {
+            try {
+                const departments = JSON.parse(saved);
+                const departmentSelect = document.getElementById('department');
+                if (departmentSelect) {
+                    // Add any custom departments not already in the list
+                    departments.forEach(dept => {
+                        const exists = Array.from(departmentSelect.options).some(
+                            option => option.value === dept.value
+                        );
+                        if (!exists) {
+                            const option = document.createElement('option');
+                            option.value = dept.value;
+                            option.textContent = dept.text;
+                            departmentSelect.appendChild(option);
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading saved departments:', error);
+            }
+        }
+    }
+
+    /**
+     * 5. SEARCH TOOL FUNCTIONS - Department-specific search
+     */
+    
+    /**
+     * Search all documents excluding L&D department
+     */
+    async searchAllExceptLD(searchTerm) {
+        const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
+        const response = await fetch(searchUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
+            },
+            body: JSON.stringify({
+                search: searchTerm,
+                filter: "department ne 'L&D' and department ne 'Learning & Development'",
+                searchMode: 'all',
+                queryType: 'full',
+                select: 'id,title,fileName,department,description,uploadDate',
+                top: 50,
+                orderby: 'search.score() desc'
+            })
+        });
+        
+        if (response.ok) {
+            return await response.json();
+        }
+        throw new Error('Search failed');
+    }
+
+    /**
+     * Search only L&D department documents
+     */
+    async searchLDOnly(searchTerm) {
+        const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
+        const response = await fetch(searchUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
+            },
+            body: JSON.stringify({
+                search: searchTerm,
+                filter: "department eq 'L&D' or department eq 'Learning & Development'",
+                searchMode: 'all',
+                queryType: 'full',
+                select: 'id,title,fileName,department,description,uploadDate',
+                top: 50,
+                orderby: 'search.score() desc'
+            })
+        });
+        
+        if (response.ok) {
+            return await response.json();
+        }
+        throw new Error('Search failed');
+    }
+
+    /**
+     * Search specific department
+     */
+    async searchByDepartment(searchTerm, department) {
+        const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
+        const response = await fetch(searchUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
+            },
+            body: JSON.stringify({
+                search: searchTerm,
+                filter: `department eq '${department.replace(/'/g, "''")}'`,
+                searchMode: 'all',
+                queryType: 'full',
+                select: 'id,title,fileName,department,description,uploadDate',
+                top: 50,
+                orderby: 'search.score() desc'
+            })
+        });
+        
+        if (response.ok) {
+            return await response.json();
+        }
+        throw new Error('Search failed');
+    }
+
+    /**
+     * 6. DEPARTMENT DROPDOWN IN REPOSITORY - Add filter dropdown
+     */
+    addDepartmentFilter() {
+        const explorerControls = document.querySelector('.explorer-controls');
+        if (explorerControls && !document.getElementById('departmentFilter')) {
+            const filterHTML = `
+                <div class="department-filter" style="
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    margin-left: auto;
+                ">
+                    <label style="font-size: 12px; color: #64748b;">Filter by:</label>
+                    <select id="departmentFilter" style="
+                        padding: 6px 12px;
+                        border: 1px solid #d1d5db;
+                        border-radius: 6px;
+                        font-size: 12px;
+                        background: white;
+                        cursor: pointer;
+                    ">
+                        <option value="">All Departments</option>
+                        <option value="A&A">Audit & Advisory</option>
+                        <option value="Finance">Finance</option>
+                        <option value="HR">Human Resources</option>
+                        <option value="IT">Information Technology</option>
+                        <option value="Leadership">Leadership</option>
+                        <option value="Marketing/Business Development">Marketing & Business Development</option>
+                        <option value="Operations">Operations</option>
+                        <option value="Shared Services">Shared Services</option>
+                        <option value="Tax">Tax Services</option>
+                        <option value="Transaction Advisory">Transaction Advisory</option>
+                        <option value="Wealth Management">Wealth Management</option>
+                        <option value="L&D">Learning & Development</option>
+                    </select>
+                </div>
+            `;
+            explorerControls.insertAdjacentHTML('beforeend', filterHTML);
+            
+            // Add event listener
+            document.getElementById('departmentFilter').addEventListener('change', (e) => {
+                this.filterByDepartment(e.target.value);
+            });
+        }
+    }
+
+    /**
+     * Filter documents by department
+     */
+    filterByDepartment(department) {
+        const documentItems = document.querySelectorAll('.document-item');
+        documentItems.forEach(item => {
+            const itemDept = item.getAttribute('data-department');
+            if (!department || itemDept === department) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+        
+        // Update document count
+        const visibleCount = document.querySelectorAll('.document-item:not([style*="display: none"])').length;
+        const documentCount = document.getElementById('documentCount');
+        if (documentCount) {
+            documentCount.textContent = `${visibleCount} documents${department ? ` in ${department}` : ''}`;
+        }
+    }
+}
+
+// Initialize enhancements when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        window.documentEnhancements = new DocumentEnhancements();
+        window.documentEnhancements.loadSavedDepartments();
+        window.documentEnhancements.addDepartmentFilter();
+    });
+} else {
+    window.documentEnhancements = new DocumentEnhancements();
+    window.documentEnhancements.loadSavedDepartments();
+    window.documentEnhancements.addDepartmentFilter();
+}
+
+// Export for use in other modules
+window.DocumentEnhancements = DocumentEnhancements;

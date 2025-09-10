@@ -1952,5 +1952,17 @@
     </script>
     <!-- Document Preview Module -->
     <script src="js/document-preview.js"></script>
+    <!-- Document Enhancements Module -->
+    <script src="js/document-enhancements.js"></script>
+    <script>
+        // Initialize document enhancements after DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!window.documentEnhancements) {
+                window.documentEnhancements = new DocumentEnhancements();
+                window.documentEnhancements.loadSavedDepartments();
+                window.documentEnhancements.addDepartmentFilter();
+            }
+        });
+    </script>
 </body>
 </html>

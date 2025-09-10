@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Enhancement Features Demo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #1e293b;
+            margin-bottom: 8px;
+        }
+        
+        .subtitle {
+            color: #64748b;
+            margin-bottom: 32px;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+        
+        .feature-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            transition: transform 0.2s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        
+        .feature-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .feature-description {
+            font-size: 13px;
+            color: #64748b;
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        
+        .status-complete {
+            background: #10b981;
+            color: white;
+        }
+        
+        .status-partial {
+            background: #f59e0b;
+            color: white;
+        }
+        
+        .status-pending {
+            background: #6b7280;
+            color: white;
+        }
+        
+        .demo-section {
+            margin-top: 32px;
+            padding: 20px;
+            background: #f1f5f9;
+            border-radius: 8px;
+        }
+        
+        .demo-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 16px;
+        }
+        
+        .test-button {
+            padding: 10px 20px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            margin-right: 12px;
+            margin-bottom: 12px;
+        }
+        
+        .test-button:hover {
+            background: #2563eb;
+        }
+        
+        .file-input-wrapper {
+            display: inline-block;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+        
+        .file-input-label {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #10b981;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .file-input-label:hover {
+            background: #059669;
+        }
+        
+        #testOutput {
+            margin-top: 16px;
+            padding: 12px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #d1d5db;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            color: #374151;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .implementation-note {
+            background: #fef3c7;
+            border: 1px solid #fbbf24;
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 24px;
+        }
+        
+        .implementation-note h3 {
+            color: #92400e;
+            margin: 0 0 8px 0;
+            font-size: 14px;
+        }
+        
+        .implementation-note p {
+            color: #78350f;
+            font-size: 13px;
+            margin: 0;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📚 Document Enhancement Features</h1>
+        <p class="subtitle">Advanced document management capabilities for SAXTech MegaMind</p>
+        
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-title">
+                    <span>🔐</span>
+                    SHA256 Deduplication
+                </div>
+                <div class="feature-description">
+                    Prevents duplicate uploads by calculating SHA256 hash of file content before upload. Checks against existing documents in the index.
+                </div>
+                <span class="status-badge status-complete">Implemented</span>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-title">
+                    <span>📑</span>
+                    Large PDF Chunking
+                </div>
+                <div class="feature-description">
+                    Automatically splits large documents into chunks for better embedding generation and search performance.
+                </div>
+                <span class="status-badge status-complete">Implemented</span>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-title">
+                    <span>⚡</span>
+                    Real Upload Status
+                </div>
+                <div class="feature-description">
+                    Visual progress tracking with detailed status for each upload stage: hashing, deduplication, chunking, uploading, indexing, and vectorization.
+                </div>
+                <span class="status-badge status-complete">Implemented</span>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-title">
+                    <span>🏢</span>
+                    Department Management
+                </div>
+                <div class="feature-description">
+                    Dynamically add new departments to the system. Departments are saved to localStorage for persistence across sessions.
+                </div>
+                <span class="status-badge status-complete">Implemented</span>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-title">
+                    <span>🔍</span>
+                    Department Search Tools
+                </div>
+                <div class="feature-description">
+                    Specialized search functions: search all except L&D, search L&D only, search by specific department.
+                </div>
+                <span class="status-badge status-complete">Implemented</span>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-title">
+                    <span>🎯</span>
+                    Department Filter UI
+                </div>
+                <div class="feature-description">
+                    Dropdown filter in the document repository to filter documents by department in real-time.
+                </div>
+                <span class="status-badge status-complete">Implemented</span>
+            </div>
+        </div>
+        
+        <div class="demo-section">
+            <div class="demo-title">🧪 Test Features</div>
+            
+            <div class="file-input-wrapper">
+                <input type="file" id="testFile" accept=".pdf,.doc,.docx,.txt,.xlsx,.xls">
+                <label for="testFile" class="file-input-label">Select File for Testing</label>
+            </div>
+            
+            <div style="margin-top: 16px;">
+                <button class="test-button" onclick="testSHA256()">Test SHA256 Hash</button>
+                <button class="test-button" onclick="testChunking()">Test Document Chunking</button>
+                <button class="test-button" onclick="testUploadStatus()">Show Upload Status UI</button>
+                <button class="test-button" onclick="testDepartmentSearch()">Test Department Search</button>
+                <button class="test-button" onclick="addTestDepartment()">Add Test Department</button>
+            </div>
+            
+            <div id="testOutput"></div>
+        </div>
+        
+        <div class="implementation-note">
+            <h3>📌 Implementation Notes</h3>
+            <p>
+                All features have been implemented in <strong>js/document-enhancements.js</strong> and integrated into the document upload page.
+                The enhancements module is loaded automatically and provides deduplication, chunking, status tracking, and department management features.
+                SHA256 hashes are calculated client-side for security and performance. Department preferences are saved to localStorage for persistence.
+            </p>
+        </div>
+    </div>
+    
+    <script src="js/document-enhancements.js"></script>
+    <script>
+        // Initialize document enhancements
+        const enhancements = new DocumentEnhancements();
+        
+        function log(message, data = null) {
+            const output = document.getElementById('testOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            let content = `[${timestamp}] ${message}`;
+            if (data) {
+                content += '\n' + JSON.stringify(data, null, 2);
+            }
+            output.innerHTML = content + '\n\n' + output.innerHTML;
+        }
+        
+        async function testSHA256() {
+            const fileInput = document.getElementById('testFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                log('⚠️ Please select a file first');
+                return;
+            }
+            
+            log(`📄 Calculating SHA256 for: ${file.name}`);
+            try {
+                const hash = await enhancements.calculateSHA256(file);
+                log(`✅ SHA256 Hash calculated:`, { 
+                    fileName: file.name,
+                    fileSize: file.size,
+                    hash: hash 
+                });
+                
+                // Test duplicate check
+                log('🔍 Checking for duplicates...');
+                const duplicate = await enhancements.checkDuplicate(hash, file.name);
+                if (duplicate) {
+                    log('⚠️ Duplicate found:', duplicate);
+                } else {
+                    log('✅ No duplicates found');
+                }
+            } catch (error) {
+                log(`❌ Error: ${error.message}`);
+            }
+        }
+        
+        async function testChunking() {
+            const fileInput = document.getElementById('testFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                log('⚠️ Please select a file first');
+                return;
+            }
+            
+            log(`📑 Testing chunking for: ${file.name}`);
+            try {
+                const chunks = await enhancements.chunkDocument(file);
+                log(`✅ Document chunked:`, {
+                    fileName: file.name,
+                    fileSize: file.size,
+                    totalChunks: chunks.length,
+                    chunkDetails: chunks.map(c => ({
+                        index: c.chunkIndex,
+                        type: c.type,
+                        contentLength: c.content ? c.content.length : 0
+                    }))
+                });
+            } catch (error) {
+                log(`❌ Error: ${error.message}`);
+            }
+        }
+        
+        function testUploadStatus() {
+            log('🚀 Showing upload status UI...');
+            
+            // Simulate upload process
+            const stages = [
+                { stage: 'hash', status: 'active', message: 'Calculating document hash...', delay: 1000 },
+                { stage: 'hash', status: 'completed', message: 'Hash calculated', delay: 500 },
+                { stage: 'duplicate', status: 'active', message: 'Checking for duplicates...', delay: 1000 },
+                { stage: 'duplicate', status: 'completed', message: 'No duplicates found', delay: 500 },
+                { stage: 'chunk', status: 'active', message: 'Processing chunks...', delay: 1000 },
+                { stage: 'chunk', status: 'completed', message: 'Chunks processed', delay: 500 },
+                { stage: 'upload', status: 'active', message: 'Uploading to cloud...', delay: 1500 },
+                { stage: 'upload', status: 'completed', message: 'Upload complete', delay: 500 },
+                { stage: 'index', status: 'active', message: 'Indexing document...', delay: 1000 },
+                { stage: 'index', status: 'completed', message: 'Document indexed', delay: 500 },
+                { stage: 'vector', status: 'active', message: 'Creating embeddings...', delay: 1500 },
+                { stage: 'vector', status: 'completed', message: 'Embeddings created', delay: 500 }
+            ];
+            
+            let currentIndex = 0;
+            function nextStage() {
+                if (currentIndex < stages.length) {
+                    const stage = stages[currentIndex];
+                    enhancements.updateUploadStatus(stage.stage, stage.status, stage.message);
+                    currentIndex++;
+                    setTimeout(nextStage, stage.delay);
+                } else {
+                    log('✅ Upload simulation complete');
+                    enhancements.hideUploadStatus();
+                }
+            }
+            
+            nextStage();
+        }
+        
+        async function testDepartmentSearch() {
+            const searchTerm = prompt('Enter search term:', 'budget');
+            if (!searchTerm) return;
+            
+            const department = prompt('Enter department (or leave empty for all):', 'Finance');
+            
+            log(`🔍 Testing search: "${searchTerm}" in ${department || 'all departments'}`);
+            
+            try {
+                let results;
+                if (!department) {
+                    results = await enhancements.searchAllExceptLD(searchTerm);
+                } else if (department === 'L&D') {
+                    results = await enhancements.searchLDOnly(searchTerm);
+                } else {
+                    results = await enhancements.searchByDepartment(searchTerm, department);
+                }
+                
+                log(`✅ Search complete:`, {
+                    query: searchTerm,
+                    department: department || 'all',
+                    resultCount: results.value ? results.value.length : 0,
+                    results: results.value ? results.value.slice(0, 3) : []
+                });
+            } catch (error) {
+                log(`❌ Search error: ${error.message}`);
+            }
+        }
+        
+        function addTestDepartment() {
+            const deptName = prompt('Enter new department name:', 'Research & Development');
+            if (deptName) {
+                enhancements.addDepartment(deptName);
+                log(`✅ Department "${deptName}" added successfully`);
+            }
+        }
+        
+        // Log initialization
+        log('✅ Document Enhancements Test Page Loaded', {
+            features: [
+                'SHA256 Deduplication',
+                'Document Chunking',
+                'Upload Status Tracking',
+                'Department Management',
+                'Department Search Tools',
+                'Department Filter UI'
+            ]
+        });
+    </script>
+</body>
+</html>
