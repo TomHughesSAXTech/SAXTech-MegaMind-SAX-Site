@@ -934,20 +934,20 @@
 
         async function fetchDepartmentDocuments(department) {
             try {
-                // Use n8n webhook to proxy the search request and avoid CORS issues
-                const searchUrl = 'https://workflows.saxtechnology.com/webhook/megamind/search';
+                // Query Azure AI Search directly
+                const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
                 const response = await fetch(searchUrl, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
                     },
                     body: JSON.stringify({
                         search: '*',
                         filter: department ? `department eq '${department.replace(/'/g, "''")}' or department eq null` : null,
                         select: 'id,title,fileName,documentType,description,createdDate,lastModified,department',
                         top: 100,
-                        orderby: 'createdDate desc',
-                        indexName: 'sop-documents'
+                        orderby: 'createdDate desc'
                     })
                 });
 
@@ -962,7 +962,7 @@
                 let totalDocuments = 0;
                 let lastUpdated = '--';
                 
-                // n8n webhook returns results in 'value' array (Azure Search format)
+                // Azure AI Search returns results in 'value' array
                 const documents = searchResults.value || [];
                 
                 if (documents && documents.length > 0) {
@@ -1128,20 +1128,20 @@
             }
             
             try {
-                // Use n8n webhook for search to avoid CORS issues
-                const searchUrl = 'https://workflows.saxtechnology.com/webhook/megamind/search';
+                // Search across all documents in Azure AI Search
+                const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
                 const response = await fetch(searchUrl, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
                     },
                     body: JSON.stringify({
                         search: searchTerm,
                         searchMode: 'any',
                         select: 'id,title,fileName,documentType,description,uploadDate,department',
                         top: 50,
-                        orderby: 'uploadDate desc',
-                        indexName: 'sop-documents'
+                        orderby: 'uploadDate desc'
                     })
                 });
                 
@@ -1307,20 +1307,20 @@
 
         async function fetchExistingSOPs(department, sopType) {
             try {
-                // Use n8n webhook to proxy the search request and avoid CORS issues
-                const searchUrl = 'https://workflows.saxtechnology.com/webhook/megamind/search';
+                // Query Azure AI Search directly
+                const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
                 const response = await fetch(searchUrl, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
                     },
                     body: JSON.stringify({
                         search: '*',
                         filter: `department eq '${department.replace(/'/g, "''")}' and documentType eq '${sopType.replace(/'/g, "''")}}'`,
                         select: 'id,title,fileName,uploadDate',
                         top: 50,
-                        orderby: 'uploadDate desc',
-                        indexName: 'sop-documents'
+                        orderby: 'uploadDate desc'
                     })
                 });
 
@@ -1329,7 +1329,7 @@
                 }
 
                 const data = await response.json();
-                // n8n webhook returns results in 'value' array (Azure Search format)
+                // Azure AI Search returns results in 'value' array
                 return data.value ? data.value.map(doc => ({
                     id: doc.id,
                     title: doc.title || doc.fileName,
