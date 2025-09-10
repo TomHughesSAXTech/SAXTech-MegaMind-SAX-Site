@@ -1002,9 +1002,8 @@
                     },
                     body: JSON.stringify({
                         search: '*',
-                        select: 'id,title,fileName,documentType,description,createdDate,lastModified,department,fileSize,version,sha256Hash,chunkCount,vectorized,indexed',
-                        top: 1000,
-                        orderby: 'department asc, documentType asc, title asc'
+                        select: 'id,title,fileName,documentType,description,createdDate,lastModified,department,fileSize,version,contentHash,author,status,keywords,tags',
+                        top: 1000
                     })
                 });
 
@@ -1042,14 +1041,16 @@
                             lastModified: doc.lastModified || doc.createdDate,
                             uploadDate: doc.createdDate,
                             type: folderName.substring(0, 3).toUpperCase(),
-                            author: 'SAX User',
+                            author: doc.author || 'SAX User',
                             size: doc.fileSize || null,
                             version: doc.version || '1.0',
                             department: doc.department,
-                            sha256Hash: doc.sha256Hash,
-                            chunkCount: doc.chunkCount,
-                            vectorized: doc.vectorized,
-                            indexed: doc.indexed !== false
+                            sha256Hash: doc.contentHash,  // Use contentHash field and alias it as sha256Hash
+                            contentHash: doc.contentHash,
+                            status: doc.status,
+                            keywords: doc.keywords,
+                            tags: doc.tags,
+                            indexed: doc.status === 'indexed' || doc.status === 'completed'
                         });
                         totalDocuments++;
                     });
@@ -1861,9 +1862,9 @@
                         existingDocId: formData.get('existingDocId') || null,
                         uploadedBy: 'SAX Portal User',
                         uploadDate: new Date().toISOString(),
-                        source: 'SAX Document Portal'
-                    }
-                };
+                        source: 'SAX Document Portal',
+                        sha256Hash: fileHash,
+                        contentHash: fileHash  // Include both for compatibility
                 
                 console.log('Uploading document to n8n workflow...');
                 console.log('Payload structure:', {
