@@ -1,0 +1,122 @@
+<!-- 
+Add this script tag to your document-upload.html file 
+RIGHT BEFORE the closing </body> tag
+This will override the existing upload function to use n8n webhooks
+-->
+
+<!-- Unified n8n Upload Handler -->
+<script src="js/unified-n8n-upload-handler.js"></script>
+
+<script>
+// Optional: Add status indicators for n8n processing
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Document upload page initialized with n8n webhook handler');
+    
+    // Override the existing upload function if it exists
+    if (window.uploadDocument && window.uploadDocumentViaWebhook) {
+        console.log('Replacing direct Azure Function upload with n8n webhook approach');
+        
+        // Store original for fallback if needed
+        window._directAzureUpload = window.uploadDocument;
+        
+        // Replace with webhook version
+        window.uploadDocument = async function(formData) {
+            try {
+                // Show n8n processing indicator
+                const statusEl = document.querySelector('.upload-status');
+                if (statusEl) {
+                    statusEl.innerHTML = '<span class="text-blue-600">Processing via n8n workflow...</span>';
+                }
+                
+                // Extract file and metadata from FormData
+                const file = formData.get('file');
+                const metadata = {
+                    department: formData.get('department'),
+                    sopType: formData.get('sopType'),
+                    documentType: formData.get('documentType') || formData.get('sopType'),
+                    updateType: formData.get('updateType'),
+                    title: formData.get('title'),
+                    description: formData.get('description'),
+                    keywords: formData.get('keywords'),
+                    version: formData.get('version'),
+                    existingDocId: formData.get('existingDocId'),
+                    uploadedBy: 'SAX Portal User' // Can be replaced with actual user
+                };
+                
+                // Use the n8n webhook upload
+                const result = await window.uploadDocumentViaWebhook(file, metadata);
+                
+                // Update status
+                if (statusEl) {
+                    statusEl.innerHTML = '<span class="text-green-600">✓ Document processed successfully</span>';
+                }
+                
+                return result;
+                
+            } catch (error) {
+                console.error('n8n webhook upload failed:', error);
+                
+                // Optional: Fallback to direct Azure upload
+                if (window._directAzureUpload) {
+                    console.log('Falling back to direct Azure Function upload');
+                    return await window._directAzureUpload(formData);
+                }
+                
+                throw error;
+            }
+        };
+    }
+    
+    // Add visual feedback for large file chunking
+    const fileInput = document.getElementById('fileUpload');
+    if (fileInput) {
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file && file.size > 50 * 1024 * 1024) {
+                console.log('Large file detected - will use chunked upload');
+                const infoEl = document.querySelector('.file-info') || document.createElement('div');
+                infoEl.className = 'file-info text-sm text-orange-600 mt-2';
+                infoEl.textContent = `Large file (${(file.size / (1024 * 1024)).toFixed(2)} MB) - will be uploaded in chunks`;
+                e.target.parentElement.appendChild(infoEl);
+            }
+        });
+    }
+});
+</script>
+
+<!-- 
+IMPLEMENTATION STEPS:
+
+1. Add the script tags above to your document-upload.html file
+
+2. Import the n8n workflow:
+   - Open n8n
+   - Go to Workflows
+   - Click "Import from File"
+   - Select the n8n-megamind-upload-workflow.json file
+   - Activate the workflow
+
+3. Update the webhook URL if needed:
+   - The default is: https://workflows.saxtechnology.com/webhook/megamind/upload
+   - If your n8n instance is different, update it in unified-n8n-upload-handler.js
+
+4. Test with a small document first to ensure the webhook is working
+
+5. Benefits of this approach:
+   - Centralized workflow management in n8n
+   - Better error handling and retry logic
+   - Support for large file chunking
+   - Consistent with Foreman AI pattern
+   - Easier to monitor and debug in n8n UI
+
+6. The workflow will:
+   - Receive document via webhook
+   - Process through appropriate Azure Function
+   - Update search index
+   - Return success response
+
+7. If you need to create the search index "sax-megamind-docs":
+   - Use the same schema as the Foreman index
+   - Add department and documentType fields
+   - Configure with the same API key
+-->
