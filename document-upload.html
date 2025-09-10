@@ -942,13 +942,10 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        search: '*',
-                        // Azure Search OData filter syntax - escape single quotes
-                        filter: department ? `department eq '${department.replace(/'/g, "''")}' or department eq null` : null,
-                        select: 'id,title,fileName,documentType,description,createdDate,lastModified,department',
-                        top: 100,
-                        orderby: 'createdDate desc',
-                        indexName: 'sop-documents' // Use the correct index
+                        query: '*',  // The .NET function expects 'query' not 'search'
+                        department: department || null,  // Pass department directly
+                        pageSize: 100,  // The .NET function uses pageSize instead of top
+                        page: 1
                     })
                 });
 
@@ -963,8 +960,8 @@
                 let totalDocuments = 0;
                 let lastUpdated = '--';
                 
-                // Azure AI Search returns results in 'value' array
-                const documents = searchResults.value || [];
+                // The .NET function returns results in 'results' array
+                const documents = searchResults.results || [];
                 
                 if (documents && documents.length > 0) {
                     // Group documents by documentType
@@ -1129,20 +1126,17 @@
             }
             
             try {
-                // Search across all documents in Azure AI Search
-                const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/saxdocuments/docs/search?api-version=2023-11-01';
+                // Use Azure Function endpoint for search
+                const searchUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.searchDocuments}`;
                 const response = await fetch(searchUrl, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        search: searchTerm,
-                        searchMode: 'any',
-                        select: 'id,title,fileName,documentType,description,uploadDate,department',
-                        top: 50,
-                        orderby: 'uploadDate desc'
+                        query: searchTerm,  // The .NET function expects 'query'
+                        pageSize: 50,
+                        page: 1
                     })
                 });
                 
@@ -1152,10 +1146,10 @@
                     // Clear current display
                     folderGrid.innerHTML = '';
                     
-                    if (searchResults.value && searchResults.value.length > 0) {
+                    if (searchResults.results && searchResults.results.length > 0) {
                         // Group search results by department
                         const groupedResults = {};
-                        searchResults.value.forEach(doc => {
+                        searchResults.results.forEach(doc => {
                             const dept = doc.department || 'General';
                             if (!groupedResults[dept]) {
                                 groupedResults[dept] = [];
@@ -1186,7 +1180,7 @@
                             folderGrid.appendChild(deptDiv);
                         });
                         
-                        documentCount.textContent = `${searchResults.value.length} results found`;
+                        documentCount.textContent = `${searchResults.results.length} results found`;
                     } else {
                         folderGrid.innerHTML = `
                             <div style="text-align: center; padding: 40px; color: #64748b;">
@@ -1316,12 +1310,11 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        search: '*',
-                        filter: `department eq '${department.replace(/'/g, "''")}' and documentType eq '${sopType.replace(/'/g, "''")}}'`,
-                        select: 'id,title,fileName,uploadDate',
-                        top: 50,
-                        orderby: 'uploadDate desc',
-                        indexName: 'sop-documents' // Use the correct index
+                        query: '*',  // The .NET function expects 'query' not 'search'
+                        department: department,  // Pass department directly
+                        documentType: sopType,  // Pass documentType for filtering
+                        pageSize: 50,  // The .NET function uses pageSize instead of top
+                        page: 1
                     })
                 });
 
@@ -1330,7 +1323,8 @@
                 }
 
                 const data = await response.json();
-                return data.value ? data.value.map(doc => ({
+                // The .NET function returns results in 'results' array
+                return data.results ? data.results.map(doc => ({
                     id: doc.id,
                     title: doc.title || doc.fileName,
                     lastModified: doc.uploadDate ? new Date(doc.uploadDate).toLocaleDateString() : 'Unknown'
