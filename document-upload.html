@@ -934,22 +934,26 @@
 
         async function fetchDepartmentDocuments(department) {
             try {
-                // Use Azure Function to search documents (Function handles auth)
-                const searchUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.searchDocuments}`;
+                // Query Azure AI Search directly (bypassing Azure Function due to CORS)
+                const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/saxdocuments/docs/search?api-version=2023-11-01';
                 const response = await fetch(searchUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-functions-key': API_CONFIG.functionKey
+                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
                     },
                     body: JSON.stringify({
-                        query: '*',  // Search all documents
-                        department: department
+                        search: '*',
+                        // Azure Search OData filter syntax - escape single quotes
+                        filter: department ? `department eq '${department.replace(/'/g, "''")}' or department eq null` : null,
+                        select: 'id,title,fileName,documentType,description,uploadDate,department',
+                        top: 100,
+                        orderby: 'uploadDate desc'
                     })
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Search API HTTP ${response.status}: ${response.statusText}`);
+                    throw new Error(`Azure Search HTTP ${response.status}: ${response.statusText}`);
                 }
 
                 const searchResults = await response.json();
@@ -959,8 +963,8 @@
                 let totalDocuments = 0;
                 let lastUpdated = '--';
                 
-                // Handle both direct search response and function wrapper response
-                const documents = searchResults.documents || searchResults.value || [];
+                // Azure AI Search returns results in 'value' array
+                const documents = searchResults.value || [];
                 
                 if (documents && documents.length > 0) {
                     // Group documents by documentType
@@ -1207,7 +1211,56 @@
         }
 
         function previewDocument(docId, title) {
-            // Integrate with your Azure Document Intelligence or PDF.js viewer
+            // Prevent default action
+            event.preventDefault();
+            event.stopPropagation();
+            
+            // Implementation for document preview
+            console.log('Preview document:', docId, title);
+            
+            // For now, show a message that preview is coming soon
+            alert(`Document preview for "${title}" is coming soon.\n\nThis will open the document in a viewer where you can read it without downloading.`);
+            
+            // TODO: Integrate with Azure Document Intelligence or PDF.js viewer
+            // Option 1: Open in new tab with Azure blob URL
+            // const blobUrl = `${API_CONFIG.blobStorage.baseUrl}/${API_CONFIG.blobStorage.containerName}/${docId}`;
+            // window.open(blobUrl, '_blank');
+            
+            // Option 2: Use embedded PDF viewer
+            // showPDFViewer(docId, title);
+        }
+        
+        function downloadDocument(docId, title) {
+            // Prevent default action
+            event.preventDefault();
+            event.stopPropagation();
+            
+            console.log('Download document:', docId, title);
+            
+            // Call Azure Function to get download URL
+            const downloadUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.downloadDocument}?id=${docId}`;
+            
+            // Create a temporary link and trigger download
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = title;
+            link.target = '_blank';
+            
+            // Add function key as query parameter for authentication
+            const urlWithAuth = `${downloadUrl}&code=${API_CONFIG.functionKey}`;
+            link.href = urlWithAuth;
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Show success message
+            console.log(`Downloading: ${title}`);
+        }
+        
+        function showPDFViewer(docId, title) {
+            // Future implementation for embedded PDF viewer
+            // This could open a modal with an iframe or use PDF.js
             window.open(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.previewDocument}?id=${docId}`, '_blank');
         }
 
@@ -1411,37 +1464,56 @@
 
         async function uploadDocument(formData) {
             try {
-                // First, upload to Azure Function
-                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.uploadDocument}`, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        // Don't set Content-Type header - browser will set it with boundary for FormData
-                        'x-functions-key': API_CONFIG.functionKey
-                    }
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Azure Function upload failed: HTTP ${response.status}: ${response.statusText}`);
-                }
-
-                const azureResult = await response.json();
+                // Upload directly to n8n webhook (which handles Azure storage and indexing)
+                const file = formData.get('file');
+                const fileContent = await fileToBase64(file);
                 
-                // If n8n integration is enabled, also send to n8n workflow for indexing
-                if (API_CONFIG.n8n.enabled) {
-                    try {
-                        await triggerN8nWorkflow(formData, azureResult);
-                    } catch (n8nError) {
-                        // Log but don't fail the entire upload if n8n fails
-                        console.error('n8n workflow trigger failed:', n8nError);
-                        // Optionally show a warning to the user
-                        console.warn('Document uploaded but indexing may be delayed.');
+                const n8nPayload = {
+                    file: {
+                        name: file.name,
+                        type: file.type,
+                        size: file.size,
+                        content: fileContent,
+                        contentType: file.type || 'application/octet-stream'
+                    },
+                    metadata: {
+                        department: formData.get('department'),
+                        documentType: formData.get('sopType'),
+                        title: formData.get('title') || file.name,
+                        description: formData.get('description') || '',
+                        keywords: formData.get('keywords') || '',
+                        version: formData.get('version') || '1.0',
+                        updateType: formData.get('updateType'),
+                        existingDocId: formData.get('existingDocId') || null,
+                        uploadedBy: 'SAX Portal User',
+                        uploadDate: new Date().toISOString(),
+                        source: 'SAX Document Portal'
+                    },
+                    indexing: {
+                        indexName: 'saxdocuments',
+                        generateEmbeddings: true,
+                        extractEntities: true
                     }
+                };
+                
+                console.log('Uploading document to n8n workflow...');
+                const response = await fetch(API_CONFIG.n8n.webhookUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(n8nPayload)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`n8n webhook failed: HTTP ${response.status}`);
                 }
-
-                return azureResult;
+                
+                const result = await response.json();
+                console.log('Document uploaded successfully:', result);
+                return result;
             } catch (error) {
-                console.error('Upload API call failed:', error);
+                console.error('Upload failed:', error);
                 throw error;
             }
         }
