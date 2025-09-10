@@ -964,7 +964,7 @@
                     body: JSON.stringify({
                         search: '*',
                         filter: department ? `department eq '${department.replace(/'/g, "''")}' or department eq null` : null,
-                        select: 'id,title,fileName,documentType,description,createdDate,lastModified,department',
+                        select: 'id,title,fileName,documentType,description,createdDate,lastModified,department,fileSize,version,sha256Hash,chunkCount,vectorized,indexed',
                         top: 100,
                         orderby: 'createdDate desc'
                     })
@@ -995,11 +995,17 @@
                             id: doc.id,
                             title: doc.title || doc.fileName,
                             description: doc.description || '',
-                            lastModified: new Date(doc.lastModified || doc.createdDate).toLocaleDateString(),
+                            lastModified: doc.lastModified || doc.createdDate,
+                            uploadDate: doc.createdDate,
                             type: folderName.substring(0, 3).toUpperCase(),
                             author: 'SAX User',
-                            size: 'N/A',
-                            version: '1.0'
+                            size: doc.fileSize || null,
+                            version: doc.version || '1.0',
+                            department: doc.department,
+                            sha256Hash: doc.sha256Hash,
+                            chunkCount: doc.chunkCount,
+                            vectorized: doc.vectorized,
+                            indexed: doc.indexed !== false
                         });
                         totalDocuments++;
                     });
@@ -1109,22 +1115,27 @@
             const docDiv = document.createElement('div');
             docDiv.className = 'document-item';
             docDiv.setAttribute('data-search', `${doc.title} ${doc.description || ''} ${doc.author || ''}`.toLowerCase());
+            docDiv.setAttribute('data-department', doc.department || '');
             
             // Determine file type and icon
             const fileExt = doc.title ? doc.title.split('.').pop().toLowerCase() : '';
             const typeInfo = getFileTypeInfo(fileExt);
             
             // Format file size
-            const fileSize = doc.size ? formatFileSize(doc.size) : 'Unknown size';
+            const fileSize = doc.size ? formatFileSize(doc.size) : '';
             
             // Format dates
             const uploadDate = doc.uploadDate ? new Date(doc.uploadDate).toLocaleDateString() : null;
-            const modifiedDate = doc.lastModified ? new Date(doc.lastModified).toLocaleDateString() : uploadDate || 'Unknown';
+            const modifiedDate = doc.lastModified ? new Date(doc.lastModified).toLocaleDateString() : uploadDate || '';
             
             // Build metadata items
             const metaItems = [];
-            metaItems.push(`<span class="meta-item"><span style="font-size: 10px;">📅</span> ${modifiedDate}</span>`);
-            metaItems.push(`<span class="meta-item"><span style="font-size: 10px;">📦</span> ${fileSize}</span>`);
+            if (modifiedDate) {
+                metaItems.push(`<span class="meta-item"><span style="font-size: 10px;">📅</span> ${modifiedDate}</span>`);
+            }
+            if (fileSize) {
+                metaItems.push(`<span class="meta-item"><span style="font-size: 10px;">📦</span> ${fileSize}</span>`);
+            }
             
             // Add indexing status
             if (doc.indexed !== false) {
@@ -1280,20 +1291,19 @@
             
             console.log('Preview document:', docId, title);
             
-            // Use the document preview modal
-            if (window.documentPreview) {
-                // Extract file extension from title if not provided
-                if (!fileType && title) {
-                    const ext = title.split('.').pop().toLowerCase();
-                    fileType = ext || 'pdf';
-                }
-                
-                window.documentPreview.open(docId, title, fileType, fileSize);
-            } else {
-                // Fallback: Open in new tab
-                const previewUrl = `${API_CONFIG.baseUrl}/documents/preview?id=${docId}`;
-                window.open(previewUrl, '_blank');
+            // Extract file extension from title if not provided
+            if (!fileType && title) {
+                const ext = title.split('.').pop().toLowerCase();
+                fileType = ext || 'pdf';
             }
+            
+            // For now, show a message that preview is not available
+            // In production, this would open a preview modal or redirect to Azure Blob Storage
+            alert(`Document Preview\n\nTitle: ${title}\nType: ${fileType.toUpperCase()}\nID: ${docId}\n\nNote: Direct preview is currently not available. Please use the Download button to view the document locally.`);
+            
+            // Alternative: Try to construct Azure Blob URL if we have enough info
+            // const blobUrl = `${API_CONFIG.blobStorage.baseUrl}/${API_CONFIG.blobStorage.containerName}/${docId}`;
+            // window.open(blobUrl, '_blank');
         }
         
         function downloadDocument(docId, title) {
@@ -1374,9 +1384,9 @@
                     },
                     body: JSON.stringify({
                         search: '*',
-                        count: true,
-                        top: 0,
-                        includeTotalCount: true
+                        searchMode: 'all',
+                        $count: true,
+                        $top: 0
                     })
                 });
                 
@@ -1418,28 +1428,52 @@
             }
             
             try {
-                // Call Azure Function to delete document
-                const deleteUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.deleteDocument}`;
-                const response = await fetch(deleteUrl, {
+                // First, try to delete from Azure Search index
+                const searchUrl = `https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/index?api-version=2023-11-01`;
+                const searchResponse = await fetch(searchUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-functions-key': API_CONFIG.functionKey
+                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
                     },
                     body: JSON.stringify({
-                        id: docId,
-                        fileName: title
+                        value: [{
+                            "@search.action": "delete",
+                            "id": docId
+                        }]
                     })
                 });
                 
-                if (response.ok) {
+                if (searchResponse.ok) {
                     // Show success message
-                    alert(`Document "${title}" has been deleted successfully.`);
+                    alert(`Document "${title}" has been deleted successfully from the index.`);
+                    
+                    // Try to also delete from Azure Function if endpoint exists
+                    try {
+                        const deleteUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.deleteDocument}`;
+                        await fetch(deleteUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'x-functions-key': API_CONFIG.functionKey
+                            },
+                            body: JSON.stringify({
+                                id: docId,
+                                fileName: title
+                            })
+                        });
+                    } catch (err) {
+                        console.log('Azure Function delete failed, but index deletion succeeded');
+                    }
                     
                     // Refresh the document list
                     loadDepartmentDocuments();
+                    
+                    // Refresh statistics
+                    loadIndexStatistics();
                 } else {
-                    throw new Error('Failed to delete document');
+                    const errorData = await searchResponse.text();
+                    throw new Error(`Failed to delete document: ${errorData}`);
                 }
             } catch (error) {
                 console.error('Delete error:', error);
