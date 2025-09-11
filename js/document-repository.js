@@ -15,11 +15,11 @@
                 baseUrl: 'https://saxtechmegamindfunctions.azurewebsites.net/api',
                 key: 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw==',
                 endpoints: {
-                    search: '/documents/search',
-                    process: '/documents/process',
-                    generateSAS: '/generate-sas-token',
+                    search: '/DocumentsSearch',
+                    process: '/documents-upload-json',
+                    generateSAS: '/GenerateSASToken',
                     deleteDocument: '/documents-delete',
-                    indexMaintenance: '/index/maintenance'
+                    indexMaintenance: '/IndexMaintenance'
                 }
             }
         },
@@ -565,7 +565,7 @@
     // Load departments dynamically from Azure
     async function loadDepartments() {
         try {
-            const response = await fetch(`${CONFIG.azure.functionApp.baseUrl}/index/maintenance`, {
+            const response = await fetch(`${CONFIG.azure.functionApp.baseUrl}${CONFIG.azure.functionApp.endpoints.indexMaintenance}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

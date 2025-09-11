@@ -36,7 +36,7 @@ class DocumentEnhancements {
             const API_CONFIG = window.API_CONFIG || {
                 baseUrl: 'https://saxtechmegamindfunctions.azurewebsites.net/api',
                 functionKey: 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw==',
-                endpoints: { search: '/documents/search' }
+                endpoints: { search: '/DocumentsSearch' }
             };
             
             const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
@@ -421,8 +421,8 @@ class DocumentEnhancements {
     async searchAllExceptLD(searchTerm) {
         const API_CONFIG = window.API_CONFIG || {
             baseUrl: 'https://saxtechmegamindfunctions.azurewebsites.net/api',
-            functionKey: 'xvFEr2CW2PcT3s1vcOuDK8uVNrMpaMT5K7kRAKT1YJPxAzFuhE6qyg==',
-            endpoints: { search: '/documents/search' }
+            functionKey: 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw==',
+            endpoints: { search: '/DocumentsSearch' }
         };
         
         const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
@@ -454,8 +454,8 @@ class DocumentEnhancements {
     async searchLDOnly(searchTerm) {
         const API_CONFIG = window.API_CONFIG || {
             baseUrl: 'https://saxtechmegamindfunctions.azurewebsites.net/api',
-            functionKey: 'xvFEr2CW2PcT3s1vcOuDK8uVNrMpaMT5K7kRAKT1YJPxAzFuhE6qyg==',
-            endpoints: { search: '/documents/search' }
+            functionKey: 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw==',
+            endpoints: { search: '/DocumentsSearch' }
         };
         
         const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
@@ -487,8 +487,8 @@ class DocumentEnhancements {
     async searchByDepartment(searchTerm, department) {
         const API_CONFIG = window.API_CONFIG || {
             baseUrl: 'https://saxtechmegamindfunctions.azurewebsites.net/api',
-            functionKey: 'xvFEr2CW2PcT3s1vcOuDK8uVNrMpaMT5K7kRAKT1YJPxAzFuhE6qyg==',
-            endpoints: { search: '/documents/search' }
+            functionKey: 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw==',
+            endpoints: { search: '/DocumentsSearch' }
         };
         
         const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {

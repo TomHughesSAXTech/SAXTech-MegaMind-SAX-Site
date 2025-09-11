@@ -920,13 +920,15 @@
             baseUrl: 'https://saxtechmegamindfunctions.azurewebsites.net/api',
             functionKey: 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw==', // Function key for authentication
             endpoints: {
-                listDocuments: '/documents/list',
-                uploadDocument: '/documents/upload-json',
-                deleteDocument: '/documents-delete',  // New function endpoint
-                downloadDocument: '/documents/download',
-                previewDocument: '/documents/view',
-                searchDocuments: '/documents/search',
-                generateSAS: '/GenerateSASToken'  // New function endpoint
+                listDocuments: '/documents-list',
+                uploadDocument: '/documents-upload-json',
+                deleteDocument: '/documents-delete',
+                downloadDocument: '/documents-download',
+                previewDocument: '/documents-view',
+                search: '/DocumentsSearch',
+                generateSAS: '/GenerateSASToken',
+                process: '/documents-upload-json',
+                indexMaintenance: '/IndexMaintenance'
             },
             blobStorage: {
                 containerName: 'saxdocuments',
@@ -1863,7 +1865,7 @@
         async function loadDepartmentsFromAzure() {
             try {
                 // Call the index maintenance function to get departments
-                const response = await fetch(`${API_CONFIG.baseUrl}/index/maintenance`, {
+                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.indexMaintenance}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1949,7 +1951,7 @@
         async function loadIndexStatistics() {
             try {
                 // Use Azure Function to get statistics
-                const response = await fetch(`${API_CONFIG.baseUrl}/index/maintenance`, {
+                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.indexMaintenance}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
