@@ -375,9 +375,25 @@ class DocumentEnhancements {
     saveDepartments() {
         const departmentSelect = document.getElementById('department');
         if (departmentSelect) {
+            // Define the hardcoded departments that should NOT be saved
+            const hardcodedDepartments = [
+                'A&A', 'Audit & Advisory',
+                'Finance',
+                'HR', 'Human Resources',
+                'Leadership',
+                'Marketing/Business Development', 'Marketing & Business Development',
+                'Operations',
+                'Shared Services',
+                'Tax', 'Tax Services',
+                'Transaction Advisory',
+                'Wealth Management'
+            ];
+            
+            // Only save departments that are NOT in the hardcoded list
             const departments = Array.from(departmentSelect.options)
-                .filter(opt => opt.value)
+                .filter(opt => opt.value && !hardcodedDepartments.includes(opt.value) && !hardcodedDepartments.includes(opt.textContent))
                 .map(opt => ({ value: opt.value, text: opt.textContent }));
+            
             localStorage.setItem('customDepartments', JSON.stringify(departments));
         }
     }
@@ -646,6 +662,8 @@ if (document.readyState === 'loading') {
 } else {
     window.documentEnhancements = new DocumentEnhancements();
     window.documentEnhancements.loadSavedDepartments();
+    window.documentEnhancements.addDepartmentFilter();
+}
     window.documentEnhancements.addDepartmentFilter();
 }
 
