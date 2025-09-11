@@ -1557,14 +1557,11 @@
 
         // Sign out (local only - doesn't sign out of Microsoft 365)
         signOutBtn.addEventListener('click', () => {
-            // Clear MSAL accounts from cache
+            // Clear all MSAL cache items
             const accounts = msalInstance.getAllAccounts();
+            
+            // Clear the active account
             if (accounts.length > 0) {
-                // Set account to null to clear the session
-                const logoutRequest = {
-                    account: accounts[0]
-                };
-                // Clear the account from cache without redirecting
                 msalInstance.setActiveAccount(null);
             }
             
@@ -1572,19 +1569,26 @@
             currentAccount = null;
             userProfile = null;
             
+            // Clear ALL localStorage items related to MSAL
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.includes('msal') || key.includes('login'))) {
+                    keysToRemove.push(key);
+                }
+            }
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+            
             // Clear session storage
             sessionStorage.clear();
-            localStorage.removeItem('msal.account.keys');
             
-            // Reset UI
+            // Reset UI first
             showAuthOverlay();
             
-            console.log('Signed out locally');
+            console.log('Signed out locally, clearing all auth data');
             
-            // Reload page to fully reset
-            setTimeout(() => {
-                window.location.reload();
-            }, 100);
+            // Don't reload - just stay on auth screen
+            // The reload was causing auto-login
         });
 
         // 3D Carousel functionality
