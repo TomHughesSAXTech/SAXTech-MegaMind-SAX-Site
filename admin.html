@@ -526,7 +526,7 @@
                                 <td style="padding: 12px;">${doc.uploadDate ? new Date(doc.uploadDate).toLocaleDateString() : 'N/A'}</td>
                                 <td style="padding: 12px; text-align: center;">
                                     <button class="btn btn-danger" style="padding: 6px 12px; font-size: 12px;" 
-                                            onclick="deleteDocumentById('${doc.id}')">Delete</button>
+                                            onclick="deleteDocumentById('${doc.id}', event)">Delete</button>
                                 </td>
                             </tr>
                         `).join('')}
@@ -550,10 +550,16 @@
                 return;
             }
             
-            await deleteDocumentById(docId);
+            await deleteDocumentById(docId, null);
         }
 
-        async function deleteDocumentById(docId) {
+        async function deleteDocumentById(docId, event) {
+            // Prevent any default action or bubbling
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            
             try {
                 // Try Azure Function first
                 const functionResponse = await fetch(
