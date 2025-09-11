@@ -932,12 +932,20 @@
             box-shadow: 0 5px 15px rgba(255,215,0,0.4);
         }
 
-        .send-btn.stop {
+        .send-btn.stop-mode {
             background: linear-gradient(135deg, #FF4500, #FF6B47);
+            animation: pulse 1.5s infinite;
         }
 
-        .send-btn.stop:hover {
+        .send-btn.stop-mode:hover {
             box-shadow: 0 5px 15px rgba(255,69,0,0.4);
+            transform: scale(1.15);
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
         }
 
         #fileInput {
@@ -1201,10 +1209,10 @@
             <div class="chat-input-container">
                 <div class="chat-input">
                     <input type="text" id="messageInput" placeholder="Type your message or click voice to speak...">
+                    <button class="send-btn" id="sendBtn" title="Send message">➤</button>
                     <button class="file-btn" id="fileBtn" title="Attach file">📎</button>
                     <input type="file" id="fileInput" accept="*/*" multiple>
                     <button class="voice-btn" id="voiceBtn" title="Voice input">🎤</button>
-                    <button class="send-btn" id="sendBtn" title="Send message">➤</button>
                     <button class="reset-btn" id="resetBtn" title="Reset conversation">🔄</button>
                 </div>
             </div>
@@ -1277,6 +1285,7 @@
         let isAISpeaking = false;
         let currentCarouselRotation = 0;
         let isChatRunning = false;
+        let abortController = null;  // For cancelling fetch requests
         
         // AI Profile Management
         let currentAIProfile = 'sage';  // Start with SAX MegaMind as default
@@ -1679,6 +1688,12 @@
             // Clear input
             messageInput.value = '';
             
+            // Update button to stop mode
+            isChatRunning = true;
+            sendBtn.innerHTML = '⏹️';  // Stop icon
+            sendBtn.title = 'Stop generating';
+            sendBtn.classList.add('stop-mode');
+            
             // Add typing indicator
             const typingDiv = document.createElement('div');
             typingDiv.className = 'message bot';
@@ -1697,6 +1712,9 @@
             chatMessages.scrollTop = chatMessages.scrollHeight;
             
             try {
+                // Create abort controller for this request
+                abortController = new AbortController();
+                
                 // Prepare payload
                 const payload = {
                     message: message,
@@ -1723,11 +1741,14 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify(payload),
+                    signal: abortController.signal
                 });
                 
                 // Remove typing indicator
-                chatMessages.removeChild(typingDiv);
+                if (chatMessages.contains(typingDiv)) {
+                    chatMessages.removeChild(typingDiv);
+                }
                 
                 if (response.ok) {
                     const responseText = await response.text();
@@ -1753,14 +1774,25 @@
                     throw new Error(`Server responded with status ${response.status}`);
                 }
             } catch (error) {
-                console.error('Error sending message:', error);
-                
                 // Remove typing indicator if it still exists
                 if (chatMessages.contains(typingDiv)) {
                     chatMessages.removeChild(typingDiv);
                 }
                 
-                addMessage('bot', 'Sorry, I encountered an error. Please try again.');
+                if (error.name === 'AbortError') {
+                    console.log('Request cancelled by user');
+                    addMessage('bot', 'Response generation stopped.');
+                } else {
+                    console.error('Error sending message:', error);
+                    addMessage('bot', 'Sorry, I encountered an error. Please try again.');
+                }
+            } finally {
+                // Reset button to send mode
+                isChatRunning = false;
+                sendBtn.innerHTML = '➤';  // Send arrow icon
+                sendBtn.title = 'Send message';
+                sendBtn.classList.remove('stop-mode');
+                abortController = null;
             }
             
             // Clear attached files
@@ -1850,10 +1882,25 @@
         }
 
         // Event listeners
-        sendBtn.addEventListener('click', sendMessage);
+        sendBtn.addEventListener('click', () => {
+            if (isChatRunning) {
+                // Stop the current request
+                if (abortController) {
+                    abortController.abort();
+                }
+                // Reset button immediately
+                isChatRunning = false;
+                sendBtn.innerHTML = '➤';  // Send arrow icon
+                sendBtn.title = 'Send message';
+                sendBtn.classList.remove('stop-mode');
+            } else {
+                // Send message
+                sendMessage();
+            }
+        });
         
         messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter' && !isChatRunning) {
                 sendMessage();
             }
         });
