@@ -22,7 +22,7 @@ module.exports = async function (context, req) {
         }
 
         // Azure Storage configuration
-        const accountName = process.env.AZURE_STORAGE_ACCOUNT || 'saxmegamind';
+        const accountName = process.env.AZURE_STORAGE_ACCOUNT || 'saxtechmegamind';
         const accountKey = process.env.AZURE_STORAGE_KEY;
         const container = containerName || 'saxdocuments';
 

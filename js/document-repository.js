@@ -12,7 +12,7 @@
             searchUrl: 'https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs',
             searchApiKey: 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO',
             searchApiVersion: '2023-11-01',
-            storageAccount: 'saxmegamind',
+            storageAccount: 'saxtechmegamind',
             containerName: 'saxdocuments',
             functionApp: {
                 baseUrl: 'https://saxtechmegamindfunctions.azurewebsites.net/api',
