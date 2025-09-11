@@ -414,7 +414,7 @@
             try {
                 // Use Azure Function to get stats
                 const response = await fetch(
-                    `${API_CONFIG.functionUrl}/index-maintenance`,
+                    `${API_CONFIG.functionUrl}/index/maintenance`,
                     {
                         method: 'POST',
                         headers: {
@@ -631,7 +631,7 @@
             try {
                 // Use Azure Function to clear index
                 const response = await fetch(
-                    `${API_CONFIG.functionUrl}/index-maintenance`,
+                    `${API_CONFIG.functionUrl}/index/maintenance`,
                     {
                         method: 'POST',
                         headers: {

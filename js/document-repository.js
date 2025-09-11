@@ -19,7 +19,7 @@
                     process: '/documents-upload-json',
                     generateSAS: '/GenerateSASToken',
                     deleteDocument: '/documents-delete',
-                    indexMaintenance: '/index-maintenance'
+                    indexMaintenance: '/index/maintenance'
                 }
             }
         },
