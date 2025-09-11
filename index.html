@@ -1422,7 +1422,14 @@
                 if (accounts.length > 0) {
                     console.log('Found existing account:', accounts[0].username);
                     currentAccount = accounts[0];
-                    await loadUserProfile();
+                    
+                    // Try to load profile but don't fail if it doesn't work
+                    try {
+                        await loadUserProfile();
+                    } catch (profileError) {
+                        console.warn('Could not load full profile, using basic info:', profileError);
+                    }
+                    
                     showMainApp();
                 } else {
                     console.log('No existing account found');
@@ -1430,27 +1437,46 @@
                 }
             } catch (error) {
                 console.error('Error initializing MSAL:', error);
-                alert('Authentication initialization failed: ' + error.message);
-                showAuthOverlay();
+                
+                // More specific error handling
+                if (error.message && error.message.includes('classList')) {
+                    console.error('DOM element missing, attempting recovery...');
+                    // Try to continue without full UI update
+                    if (authOverlay) {
+                        showAuthOverlay();
+                    } else {
+                        console.error('Critical UI elements missing, page may need refresh');
+                    }
+                } else {
+                    // Only show alert for actual auth errors, not UI errors
+                    if (!error.message || !error.message.includes('null')) {
+                        alert('Authentication initialization failed: Cannot read properties of null');
+                    }
+                    showAuthOverlay();
+                }
             }
         }
 
         // Show authentication overlay
         function showAuthOverlay() {
-            authOverlay.classList.remove('hidden');
-            userProfileDiv.classList.add('hidden');
-            mainApp.classList.add('hidden');
+            if (authOverlay) authOverlay.classList.remove('hidden');
+            if (userProfileDiv) userProfileDiv.classList.add('hidden');
+            if (mainApp) mainApp.classList.add('hidden');
+            
+            // Hide any other elements that might be visible
+            const docPortalBtn = document.getElementById('documentPortalBtn');
+            if (docPortalBtn) docPortalBtn.classList.add('hidden');
         }
 
         // Show main application
         function showMainApp() {
-            authOverlay.classList.add('hidden');
-            userProfileDiv.classList.remove('hidden');
-            mainApp.classList.remove('hidden');
-            document.getElementById('documentPortalBtn').classList.remove('hidden');
+            // Ensure elements exist before manipulating them
+            if (authOverlay) authOverlay.classList.add('hidden');
+            if (userProfileDiv) userProfileDiv.classList.remove('hidden');
+            if (mainApp) mainApp.classList.remove('hidden');
             
-            // Show admin button for admin users (you can add role check here)
-            document.getElementById('adminBtn').classList.remove('hidden');
+            const docPortalBtn = document.getElementById('documentPortalBtn');
+            if (docPortalBtn) docPortalBtn.classList.remove('hidden');
             
             // Clear chat messages display first
             chatMessages.innerHTML = '';
@@ -1488,10 +1514,21 @@
         // Load user profile from Microsoft Graph
         async function loadUserProfile() {
             try {
-                const tokenResponse = await msalInstance.acquireTokenSilent({
-                    scopes: ["User.Read"],
-                    account: currentAccount
-                });
+                let tokenResponse;
+                try {
+                    // Try silent token acquisition first
+                    tokenResponse = await msalInstance.acquireTokenSilent({
+                        scopes: ["User.Read"],
+                        account: currentAccount
+                    });
+                } catch (silentError) {
+                    // If silent fails, try interactive
+                    console.log('Silent token acquisition failed, trying interactive...');
+                    tokenResponse = await msalInstance.acquireTokenPopup({
+                        scopes: ["User.Read"],
+                        account: currentAccount
+                    });
+                }
                 
                 const response = await fetch('https://graph.microsoft.com/v1.0/me', {
                     headers: {
@@ -1503,25 +1540,29 @@
                 console.log('User profile loaded:', userProfile);
                 
                 // Update UI with user info
-                userName.textContent = userProfile.displayName || 'User';
-                userRole.textContent = userProfile.jobTitle || 'Employee • SAX Advisory Group';
-                userLocation.textContent = `📍 ${userProfile.officeLocation || userProfile.city || 'Remote'}`;
+                if (userName) userName.textContent = userProfile.displayName || 'User';
+                if (userRole) userRole.textContent = userProfile.jobTitle || 'Employee • SAX Advisory Group';
+                if (userLocation) userLocation.textContent = `📍 ${userProfile.officeLocation || userProfile.city || 'Remote'}`;
                 
                 // Set avatar initials
                 const initials = userProfile.displayName
                     ? userProfile.displayName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
                     : 'U';
-                userAvatar.textContent = initials;
+                if (userAvatar) userAvatar.textContent = initials;
                 
                 // Check for admin role
-                if (userProfile.jobTitle && userProfile.jobTitle.toLowerCase().includes('admin')) {
+                if (adminBadge && userProfile.jobTitle && userProfile.jobTitle.toLowerCase().includes('admin')) {
                     adminBadge.classList.remove('hidden');
                 }
             } catch (error) {
                 console.error('Error loading user profile:', error);
-                userName.textContent = currentAccount.username;
-                userRole.textContent = 'SAX Advisory Group';
-                userAvatar.textContent = currentAccount.username.substring(0, 2).toUpperCase();
+                // Fallback to basic account info
+                if (currentAccount) {
+                    if (userName) userName.textContent = currentAccount.username || 'User';
+                    if (userRole) userRole.textContent = 'SAX Advisory Group';
+                    if (userAvatar) userAvatar.textContent = (currentAccount.username || 'U').substring(0, 2).toUpperCase();
+                }
+                // Don't throw the error, just log it
             }
         }
 
