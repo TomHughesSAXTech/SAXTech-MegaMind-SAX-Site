@@ -1052,6 +1052,12 @@
         <span>📄</span>
         <span>SAX Document Portal</span>
     </a>
+    
+    <!-- Admin Button (only for admins) -->
+    <a href="/admin.html" id="adminBtn" class="document-portal-btn hidden" style="top: 70px; background: linear-gradient(135deg, #FF4500, #FF6B47);">
+        <span>🛠️</span>
+        <span>Admin Console</span>
+    </a>
 
     <!-- Authentication overlay -->
     <div id="authOverlay" class="auth-overlay hidden">
@@ -1434,6 +1440,9 @@
             userProfileDiv.classList.remove('hidden');
             mainApp.classList.remove('hidden');
             document.getElementById('documentPortalBtn').classList.remove('hidden');
+            
+            // Show admin button for admin users (you can add role check here)
+            document.getElementById('adminBtn').classList.remove('hidden');
             
             // Clear chat messages display first
             chatMessages.innerHTML = '';
