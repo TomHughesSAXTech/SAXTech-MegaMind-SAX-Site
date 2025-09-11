@@ -12,7 +12,7 @@ class DocumentEnhancements {
 
     init() {
         // Initialize enhancement features
-        this.setupDepartmentManagement();
+        // Removed setupDepartmentManagement since departments come from blob storage
         this.setupUploadStatusTracking();
     }
 
@@ -370,9 +370,9 @@ class DocumentEnhancements {
     }
 
     /**
-     * Save departments to localStorage
+     * Save departments to localStorage AND Azure (for centralized storage)
      */
-    saveDepartments() {
+    async saveDepartments() {
         const departmentSelect = document.getElementById('department');
         if (departmentSelect) {
             // Define the hardcoded departments that should NOT be saved
@@ -394,7 +394,32 @@ class DocumentEnhancements {
                 .filter(opt => opt.value && !hardcodedDepartments.includes(opt.value) && !hardcodedDepartments.includes(opt.textContent))
                 .map(opt => ({ value: opt.value, text: opt.textContent }));
             
+            // Save to localStorage for immediate use
             localStorage.setItem('customDepartments', JSON.stringify(departments));
+            
+            // Also save to Azure for centralized storage (all users will see these)
+            try {
+                const API_CONFIG = window.API_CONFIG || {
+                    baseUrl: 'https://saxtechmegamindfunctions.azurewebsites.net/api',
+                    functionKey: 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw==',
+                    endpoints: { indexMaintenance: '/index/maintenance' }
+                };
+                
+                // Save custom departments to Azure
+                await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.indexMaintenance}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-functions-key': API_CONFIG.functionKey
+                    },
+                    body: JSON.stringify({
+                        operation: 'save-custom-departments',
+                        departments: departments
+                    })
+                });
+            } catch (error) {
+                console.error('Failed to save departments to Azure:', error);
+            }
         }
     }
 
@@ -656,12 +681,12 @@ class DocumentEnhancements {
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         window.documentEnhancements = new DocumentEnhancements();
-        window.documentEnhancements.loadSavedDepartments();
+        // Don't load from localStorage - departments come from blob storage
         window.documentEnhancements.addDepartmentFilter();
     });
 } else {
     window.documentEnhancements = new DocumentEnhancements();
-    window.documentEnhancements.loadSavedDepartments();
+    // Don't load from localStorage - departments come from blob storage
     window.documentEnhancements.addDepartmentFilter();
 }
     window.documentEnhancements.addDepartmentFilter();
