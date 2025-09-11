@@ -1478,13 +1478,13 @@
                     ${doc.description ? `<div class="document-description" style="font-size: 11px; color: #94a3b8; line-height: 1.4;">${doc.description}</div>` : ''}
                 </div>
                 <div class="document-actions" style="display: flex; gap: 8px; align-items: center;">
-                    <button class="action-btn btn-preview" onclick="previewDocument('${doc.id}', '${displayName}', '${fileExt}')" style="padding: 6px 12px; background: white; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 12px; color: #374151;">
+                    <button class="action-btn btn-preview" onclick="previewDocument('${doc.id}', '${displayName}', '${fileExt}', null, event)" style="padding: 6px 12px; background: white; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 12px; color: #374151;">
                         <span style="margin-right: 4px;">👁️</span> Preview
                     </button>
-                    <button class="action-btn btn-download" onclick="downloadDocument('${doc.id}', '${displayName}')" style="padding: 6px 12px; background: white; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 12px; color: #374151;">
+                    <button class="action-btn btn-download" onclick="downloadDocument('${doc.id}', '${displayName}', event)" style="padding: 6px 12px; background: white; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 12px; color: #374151;">
                         <span style="margin-right: 4px;">⬇️</span> Download
                     </button>
-                    <button class="btn-delete" onclick="deleteDocument('${doc.id}', '${doc.title || displayName}')" style="width: 32px; height: 32px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; color: #dc2626; display: flex; align-items: center; justify-content: center;" title="Delete document">
+                    <button class="btn-delete" onclick="deleteDocument('${doc.id}', '${doc.title || displayName}', event)" style="width: 32px; height: 32px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; color: #dc2626; display: flex; align-items: center; justify-content: center;" title="Delete document">
                         <span style="font-size: 16px;">🗑️</span>
                     </button>
                 </div>
@@ -1583,10 +1583,12 @@
             }
         }
 
-        async function previewDocument(docId, fileName, fileType = 'pdf', fileSize = null) {
+        async function previewDocument(docId, fileName, fileType = 'pdf', fileSize = null, event = null) {
             // Prevent default action
-            event.preventDefault();
-            event.stopPropagation();
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
             
             console.log('Preview document:', docId, fileName);
             
@@ -1988,10 +1990,12 @@
         }
         
         // Delete document function
-        async function deleteDocument(docId, title) {
+        async function deleteDocument(docId, title, event) {
             // Prevent default action
-            event.preventDefault();
-            event.stopPropagation();
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
             
             // Confirm deletion
             if (!confirm(`Are you sure you want to delete "${title}"?\n\nThis action cannot be undone.`)) {
