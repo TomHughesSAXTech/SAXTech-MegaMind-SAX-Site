@@ -1878,8 +1878,9 @@
                 if (response.ok) {
                     const data = await response.json();
                     if (data.success && data.departments) {
-                        // Update department dropdowns
-                        updateDepartmentDropdowns(data.departments);
+                        // Don't update dropdowns - use hardcoded departments only
+                        // updateDepartmentDropdowns(data.departments);
+                        console.log('Departments from Azure:', data.departments);
                     }
                 } else {
                     console.log('Could not load departments from Azure, using defaults');
