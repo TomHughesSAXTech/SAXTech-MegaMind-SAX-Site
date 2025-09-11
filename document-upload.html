@@ -1895,6 +1895,18 @@
             const departmentSelect = document.getElementById('department');
             const departmentFilter = document.getElementById('departmentFilter');
             
+            // List of invalid department names to filter out
+            const invalidDepartments = [
+                'Select Department',
+                'select department',
+                'IT',  // Single IT should not be a department
+                'converted-documents',
+                'original-documents',
+                '',
+                null,
+                undefined
+            ];
+            
             if (departmentSelect) {
                 // Save current selection
                 const currentValue = departmentSelect.value;
@@ -1904,9 +1916,10 @@
                     departmentSelect.remove(1);
                 }
                 
-                // Add departments from Azure
+                // Add departments from Azure, filtering out invalid ones
                 departments.forEach(dept => {
-                    if (dept && dept !== 'converted-documents' && dept !== 'original-documents') {
+                    // Check if department is valid
+                    if (dept && !invalidDepartments.includes(dept) && !invalidDepartments.includes(dept.toLowerCase())) {
                         const option = document.createElement('option');
                         option.value = dept;
                         option.textContent = dept.charAt(0).toUpperCase() + dept.slice(1);
@@ -1929,9 +1942,10 @@
                     departmentFilter.remove(1);
                 }
                 
-                // Add departments from Azure
+                // Add departments from Azure, filtering out invalid ones
                 departments.forEach(dept => {
-                    if (dept && dept !== 'converted-documents' && dept !== 'original-documents') {
+                    // Check if department is valid (using same invalidDepartments list from above)
+                    if (dept && !invalidDepartments.includes(dept) && !invalidDepartments.includes(dept.toLowerCase())) {
                         const option = document.createElement('option');
                         option.value = dept;
                         option.textContent = dept.charAt(0).toUpperCase() + dept.slice(1);
