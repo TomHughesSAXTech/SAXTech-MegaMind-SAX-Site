@@ -920,13 +920,13 @@
             baseUrl: 'https://saxtechmegamindfunctions.azurewebsites.net/api',
             functionKey: 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw==', // Function key for authentication
             endpoints: {
-                listDocuments: '/documents-list',
-                uploadDocument: '/documents-upload-json',
-                deleteDocument: '/documents-delete',
-                downloadDocument: '/documents-download',
-                previewDocument: '/documents-view',
-                searchDocuments: '/documents-search',
-                generateSAS: '/GenerateSASToken'
+                listDocuments: '/documents/list',
+                uploadDocument: '/documents/upload-json',
+                deleteDocument: '/documents-delete',  // New function endpoint
+                downloadDocument: '/documents/download',
+                previewDocument: '/documents/view',
+                searchDocuments: '/documents/search',
+                generateSAS: '/GenerateSASToken'  // New function endpoint
             },
             blobStorage: {
                 containerName: 'saxdocuments',
@@ -1602,16 +1602,18 @@
                         body: JSON.stringify({
                             fileName: title,
                             department: deptForPreview,
+                            blobPath: `${deptForPreview}/${title}`,  // Correct path without original-documents
                             containerName: 'saxdocuments',
-                            permissions: 'r',
                             expiryMinutes: 60
                         })
                     });
                     
                     if (sasResponse.ok) {
                         const sasData = await sasResponse.json();
-                        window.open(sasData.blobUrl, '_blank');
-                        return;
+                        if (sasData.sasUrl || sasData.blobUrl) {
+                            window.open(sasData.sasUrl || sasData.blobUrl, '_blank');
+                            return;
+                        }
                     }
                 } catch (sasError) {
                     console.log('SAS token generation failed, trying fallback:', sasError);
@@ -1644,7 +1646,7 @@
                 const fileName = title;
                 
                 // Try constructing blob URL
-                const blobUrl = `https://saxtechmegamind.blob.core.windows.net/saxdocuments/original-documents/${deptForUrl.toLowerCase()}/${fileName}`;
+                const blobUrl = `https://saxtechmegamind.blob.core.windows.net/saxdocuments/${deptForUrl}/${fileName}`;  // Correct path without original-documents
                 
                 // Open in new tab - browser will handle if URL is valid
                 window.open(blobUrl, '_blank');
@@ -1676,8 +1678,8 @@
                         body: JSON.stringify({
                             fileName: title,
                             department: deptForDownload,
+                            blobPath: `${deptForDownload}/${title}`,  // Correct path without original-documents
                             containerName: 'saxdocuments',
-                            permissions: 'r',
                             expiryMinutes: 60
                         })
                     });
@@ -1687,7 +1689,7 @@
                         
                         // Create a temporary link and trigger download
                         const link = document.createElement('a');
-                        link.href = sasData.blobUrl;
+                        link.href = sasData.sasUrl || sasData.blobUrl;
                         link.download = title;
                         document.body.appendChild(link);
                         link.click();

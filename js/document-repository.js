@@ -474,31 +474,33 @@
         }
         
         try {
-            // Delete from Azure Search index
-            const deleteUrl = `${CONFIG.azure.searchUrl}/index?api-version=${CONFIG.azure.searchApiVersion}`;
+            // Use Azure Function to delete document (handles both blob and index)
+            const deleteUrl = `${CONFIG.azure.functionApp.baseUrl}/documents-delete`;
             
             const response = await fetch(deleteUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'api-key': CONFIG.azure.searchApiKey
+                    'x-functions-key': CONFIG.azure.functionApp.key
                 },
                 body: JSON.stringify({
-                    value: [{
-                        "@search.action": "delete",
-                        "id": docId
-                    }]
+                    documentIds: [docId]
                 })
             });
             
             if (response.ok) {
-                showNotification(`Document "${fileName}" deleted successfully`, 'success');
-                
-                // Reload documents
-                setTimeout(() => {
-                    loadDocuments();
-                    loadIndexStatistics();
-                }, 1000);
+                const result = await response.json();
+                if (result.success) {
+                    showNotification(`Document "${fileName}" deleted successfully`, 'success');
+                    
+                    // Reload documents
+                    setTimeout(() => {
+                        loadDocuments();
+                        loadIndexStatistics();
+                    }, 1000);
+                } else {
+                    throw new Error(result.message || 'Delete failed');
+                }
             } else {
                 throw new Error('Delete failed');
             }
@@ -512,7 +514,7 @@
     async function generateSASToken(fileName, department) {
         try {
             // Call Azure Function to generate SAS token
-            const response = await fetch(`${CONFIG.azure.functionApp.baseUrl}/documents/generateSAS`, {
+            const response = await fetch(`${CONFIG.azure.functionApp.baseUrl}/GenerateSASToken`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -522,7 +524,7 @@
                     fileName: fileName,
                     department: department,
                     containerName: CONFIG.azure.containerName,
-                    permissions: 'r', // Read permission
+                    blobPath: `${department}/${fileName}`,  // Correct path without original-documents
                     expiryMinutes: 60 // Token valid for 1 hour
                 })
             });
@@ -541,7 +543,7 @@
     function constructBlobUrl(fileName, department, sasToken) {
         const baseUrl = `https://${CONFIG.azure.storageAccount}.blob.core.windows.net`;
         const container = CONFIG.azure.containerName;
-        const path = `original-documents/${department.toLowerCase()}/${fileName}`;
+        const path = `${department}/${fileName}`;  // Correct path without original-documents
         
         return `${baseUrl}/${container}/${path}?${sasToken}`;
     }
