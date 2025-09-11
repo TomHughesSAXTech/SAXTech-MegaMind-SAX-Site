@@ -646,6 +646,17 @@
                 align-items: stretch;
             }
         }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
     </style>
 </head>
 <body>
@@ -788,8 +799,8 @@
                         <div class="file-upload-section" id="fileUploadArea">
                             <div class="upload-icon">📄</div>
                             <div class="upload-text">Select or drop file here</div>
-                            <div class="upload-subtext">PDF, DOC, DOCX, TXT, XLS, XLSX formats supported</div>
-                            <input type="file" class="file-input" id="fileInput" accept=".pdf,.doc,.docx,.txt,.xls,.xlsx">
+                            <div class="upload-subtext">PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, TXT formats supported</div>
+                            <input type="file" class="file-input" id="fileInput" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.csv">
                         </div>
                         <div class="selected-file" id="selectedFile">
                             <div class="file-info">
@@ -898,6 +909,9 @@
         const documentCount = document.getElementById('documentCount');
         const lastUpdated = document.getElementById('lastUpdated');
         const folderGrid = document.getElementById('folderGrid');
+        
+        // Track current department for preview/download operations
+        let currentDepartment = '';
 
         // Event listeners
         updateTypeSelect.addEventListener('change', handleUpdateTypeChange);
@@ -924,6 +938,7 @@
 
         function loadDepartmentDocuments() {
             const department = departmentSelect.value;
+            currentDepartment = department; // Track for preview/download
             
             if (!department) {
                 // Load all documents if no department selected
@@ -1256,8 +1271,9 @@
             docDiv.setAttribute('data-search', `${doc.title} ${doc.description || ''} ${doc.author || ''}`.toLowerCase());
             docDiv.setAttribute('data-department', doc.department || '');
             
-            // Determine file type and icon
-            const fileExt = doc.title ? doc.title.split('.').pop().toLowerCase() : '';
+            // Use fileName for display, not title (title might be user-entered text)
+            const displayName = doc.fileName || doc.title || 'Unknown Document';
+            const fileExt = displayName ? displayName.split('.').pop().toLowerCase() : '';
             const typeInfo = getFileTypeInfo(fileExt);
             
             // Format file size
@@ -1304,17 +1320,38 @@
                 metaItems.push(`<span class="meta-item"><span style="font-size: 10px;">🏢</span> ${doc.department}</span>`);
             }
             
+            // Create better formatted metadata with labels
+            const formattedMeta = [];
+            if (displayName) {
+                formattedMeta.push(`<span class="meta-item" style="font-weight: 500;"><span style="font-size: 10px;">📄</span> ${displayName}</span>`);
+            }
+            if (modifiedDate) {
+                formattedMeta.push(`<span class="meta-item"><span style="font-size: 10px;">📅</span> Updated: ${modifiedDate}</span>`);
+            }
+            if (fileSize) {
+                formattedMeta.push(`<span class="meta-item"><span style="font-size: 10px;">💾</span> Size: ${fileSize}</span>`);
+            }
+            if (doc.status) {
+                const statusIcon = doc.status === 'indexed' || doc.status === 'completed' ? '✅' : '⏳';
+                formattedMeta.push(`<span class="meta-item"><span style="font-size: 10px;">${statusIcon}</span> ${doc.status}</span>`);
+            }
+            
             docDiv.innerHTML = `
-                <div class="doc-type-icon ${typeInfo.class}" style="background: ${typeInfo.gradient};">
-                    <span style="color: white; font-size: 24px;">${typeInfo.icon}</span>
-                    ${doc.vectorized ? '<div class="vectorized-badge" style="position: absolute; top: -4px; right: -4px; width: 16px; height: 16px; background: #10b981; border: 2px solid white; border-radius: 50%;">✓</div>' : ''}
+                <div class="doc-type-icon ${typeInfo.class}" style="background: ${typeInfo.gradient}; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0;">
+                    ${typeof typeInfo.icon === 'string' && typeInfo.icon.includes('<svg') ? typeInfo.icon : `<span style="color: white; font-size: 28px;">${typeInfo.icon}</span>`}
+                    ${doc.indexed ? '<div class="indexed-badge" style="position: absolute; top: -4px; right: -4px; width: 16px; height: 16px; background: #10b981; border: 2px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px;">✓</div>' : ''}
                 </div>
-                <div class="document-info" style="flex: 1;">
-                    <div class="document-title" style="font-weight: 600; color: #1e293b; margin-bottom: 4px;">${doc.title}</div>
-                    <div class="document-meta" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px;">
-                        ${metaItems.join('')}
+                <div class="document-info" style="flex: 1; min-width: 0;">
+                    <div class="document-title" style="font-weight: 600; color: #1e293b; margin-bottom: 4px; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${doc.title || displayName}">
+                        ${doc.title || 'Untitled Document'}
                     </div>
-                    <div class="document-description" style="font-size: 12px; color: #64748b; line-height: 1.4;">${doc.description || 'No description available'}</div>
+                    <div class="document-filename" style="font-size: 12px; color: #64748b; margin-bottom: 4px;">
+                        <strong>File:</strong> ${displayName}
+                    </div>
+                    <div class="document-meta" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; font-size: 11px;">
+                        ${formattedMeta.join('')}
+                    </div>
+                    ${doc.description ? `<div class="document-description" style="font-size: 11px; color: #94a3b8; line-height: 1.4;">${doc.description}</div>` : ''}
                 </div>
                 <div class="document-actions" style="display: flex; gap: 8px; align-items: center;">
                     <button class="action-btn btn-preview" onclick="previewDocument('${doc.id}', '${doc.title}', '${fileExt}')" style="padding: 6px 12px; background: white; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 12px; color: #374151;">
@@ -1423,54 +1460,110 @@
             }
         }
 
-        function previewDocument(docId, title, fileType = 'pdf', fileSize = null) {
+        async function previewDocument(docId, title, fileType = 'pdf', fileSize = null) {
             // Prevent default action
             event.preventDefault();
             event.stopPropagation();
             
             console.log('Preview document:', docId, title);
             
-            // Extract file extension from title if not provided
-            if (!fileType && title) {
-                const ext = title.split('.').pop().toLowerCase();
-                fileType = ext || 'pdf';
+            try {
+                // First, try to get document details from Azure Search to find blob URL
+                const searchUrl = `https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/${docId}?api-version=2023-11-01`;
+                const response = await fetch(searchUrl, {
+                    headers: {
+                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO',
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const doc = await response.json();
+                    
+                    // Check if we have a blob URL
+                    if (doc.blobUrl || doc.fileUrl || doc.storageUrl) {
+                        const fileUrl = doc.blobUrl || doc.fileUrl || doc.storageUrl;
+                        // Open the actual document in a new tab
+                        window.open(fileUrl, '_blank');
+                        return;
+                    }
+                }
+                
+                // If no blob URL found, try to construct one based on known patterns
+                // Azure Blob Storage URL pattern: https://{account}.blob.core.windows.net/{container}/{path}
+                const department = currentDepartment || 'General';
+                const fileName = title;
+                
+                // Try constructing blob URL
+                const blobUrl = `https://saxmegamind.blob.core.windows.net/saxdocuments/original-documents/${department.toLowerCase()}/${fileName}`;
+                
+                // Open in new tab - browser will handle if URL is valid
+                window.open(blobUrl, '_blank');
+                
+            } catch (error) {
+                console.error('Preview error:', error);
+                // Fallback: show alert with document info
+                alert(`Document Preview\n\nTitle: ${title}\nType: ${fileType.toUpperCase()}\nID: ${docId}\n\nNote: Unable to open document preview. Please try the Download button.`);
             }
-            
-            // For now, show a message that preview is not available
-            // In production, this would open a preview modal or redirect to Azure Blob Storage
-            alert(`Document Preview\n\nTitle: ${title}\nType: ${fileType.toUpperCase()}\nID: ${docId}\n\nNote: Direct preview is currently not available. Please use the Download button to view the document locally.`);
-            
-            // Alternative: Try to construct Azure Blob URL if we have enough info
-            // const blobUrl = `${API_CONFIG.blobStorage.baseUrl}/${API_CONFIG.blobStorage.containerName}/${docId}`;
-            // window.open(blobUrl, '_blank');
         }
         
-        function downloadDocument(docId, title) {
+        async function downloadDocument(docId, title) {
             // Prevent default action
             event.preventDefault();
             event.stopPropagation();
             
             console.log('Download document:', docId, title);
             
-            // Call Azure Function to get download URL
-            const downloadUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.downloadDocument}?id=${docId}`;
-            
-            // Create a temporary link and trigger download
-            const link = document.createElement('a');
-            link.href = downloadUrl;
-            link.download = title;
-            link.target = '_blank';
-            
-            // Add function key as query parameter for authentication
-            const urlWithAuth = `${downloadUrl}&code=${API_CONFIG.functionKey}`;
-            link.href = urlWithAuth;
-            
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            // Show success message
-            console.log(`Downloading: ${title}`);
+            try {
+                // First, try to get document details from Azure Search to find blob URL
+                const searchUrl = `https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/${docId}?api-version=2023-11-01`;
+                const response = await fetch(searchUrl, {
+                    headers: {
+                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO',
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const doc = await response.json();
+                    
+                    // Check if we have a blob URL
+                    if (doc.blobUrl || doc.fileUrl || doc.storageUrl) {
+                        const fileUrl = doc.blobUrl || doc.fileUrl || doc.storageUrl;
+                        
+                        // Create a temporary link and trigger download
+                        const link = document.createElement('a');
+                        link.href = fileUrl;
+                        link.download = title;
+                        link.target = '_blank';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        
+                        console.log(`Downloading from blob: ${title}`);
+                        return;
+                    }
+                }
+                
+                // Fallback: Try Azure Function endpoint
+                const downloadUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.downloadDocument}?id=${docId}`;
+                const urlWithAuth = `${downloadUrl}&code=${API_CONFIG.functionKey}`;
+                
+                // Create a temporary link and trigger download
+                const link = document.createElement('a');
+                link.href = urlWithAuth;
+                link.download = title;
+                link.target = '_blank';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                console.log(`Downloading via function: ${title}`);
+                
+            } catch (error) {
+                console.error('Download error:', error);
+                alert(`Unable to download document "${title}". Please try again later.`);
+            }
         }
         
         function showPDFViewer(docId, title) {
@@ -1479,26 +1572,82 @@
             window.open(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.previewDocument}?id=${docId}`, '_blank');
         }
         
-        // Helper function to get file type info
+        // Helper function to get file type info with brand icons
         function getFileTypeInfo(ext) {
             const types = {
-                'pdf': { icon: '📄', class: 'pdf', gradient: 'linear-gradient(135deg, #ff6b6b 0%, #ff4444 100%)' },
-                'doc': { icon: '📘', class: 'word', gradient: 'linear-gradient(135deg, #2185d0 0%, #1e5bb8 100%)' },
-                'docx': { icon: '📘', class: 'word', gradient: 'linear-gradient(135deg, #2185d0 0%, #1e5bb8 100%)' },
-                'xls': { icon: '📊', class: 'excel', gradient: 'linear-gradient(135deg, #21ba45 0%, #16ab39 100%)' },
-                'xlsx': { icon: '📊', class: 'excel', gradient: 'linear-gradient(135deg, #21ba45 0%, #16ab39 100%)' },
-                'txt': { icon: '📓', class: 'text', gradient: 'linear-gradient(135deg, #fbbd08 0%, #f2711c 100%)' },
-                'csv': { icon: '📋', class: 'text', gradient: 'linear-gradient(135deg, #fbbd08 0%, #f2711c 100%)' },
-                'json': { icon: '🕹️', class: 'text', gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
-                'xml': { icon: '🎯', class: 'text', gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
-                'jpg': { icon: '🎨', class: 'image', gradient: 'linear-gradient(135deg, #a333c8 0%, #9627ba 100%)' },
-                'jpeg': { icon: '🎨', class: 'image', gradient: 'linear-gradient(135deg, #a333c8 0%, #9627ba 100%)' },
-                'png': { icon: '🎨', class: 'image', gradient: 'linear-gradient(135deg, #a333c8 0%, #9627ba 100%)' },
-                'gif': { icon: '🎨', class: 'image', gradient: 'linear-gradient(135deg, #a333c8 0%, #9627ba 100%)' },
-                'bmp': { icon: '🎨', class: 'image', gradient: 'linear-gradient(135deg, #a333c8 0%, #9627ba 100%)' }
+                // Adobe PDF
+                'pdf': { 
+                    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M10,19H8V15H9.5C10.3,15 11,15.7 11,16.5C11,17.3 10.3,18 9.5,18H10V19M9.5,17H9V16H9.5C9.8,16 10,16.2 10,16.5C10,16.8 9.8,17 9.5,17M14,19H12V15H14A2,2 0 0,1 16,17A2,2 0 0,1 14,19M14,16H13V18H14C14.5,18 15,17.5 15,17C15,16.5 14.5,16 14,16Z"/></svg>`, 
+                    class: 'pdf', 
+                    gradient: 'linear-gradient(135deg, #ee3e38 0%, #c4302b 100%)',
+                    name: 'PDF Document'
+                },
+                // Microsoft Word
+                'doc': { 
+                    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M17,12L14,15V13H10V11H14V9L17,12Z"/></svg>`, 
+                    class: 'word', 
+                    gradient: 'linear-gradient(135deg, #2b579a 0%, #1e3a6f 100%)',
+                    name: 'Word Document'
+                },
+                'docx': { 
+                    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M17,12L14,15V13H10V11H14V9L17,12Z"/></svg>`, 
+                    class: 'word', 
+                    gradient: 'linear-gradient(135deg, #2b579a 0%, #1e3a6f 100%)',
+                    name: 'Word Document'
+                },
+                // Microsoft Excel
+                'xls': { 
+                    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M8,15.5H16V17H8V15.5M8,12.5H16V14H8V12.5Z"/></svg>`, 
+                    class: 'excel', 
+                    gradient: 'linear-gradient(135deg, #217346 0%, #185c37 100%)',
+                    name: 'Excel Spreadsheet'
+                },
+                'xlsx': { 
+                    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M8,15.5H16V17H8V15.5M8,12.5H16V14H8V12.5Z"/></svg>`, 
+                    class: 'excel', 
+                    gradient: 'linear-gradient(135deg, #217346 0%, #185c37 100%)',
+                    name: 'Excel Spreadsheet'
+                },
+                // Microsoft PowerPoint
+                'ppt': { 
+                    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M8,11H16V13H8V11M8,14H16V16H8V14M8,17H12V19H8V17Z"/></svg>`, 
+                    class: 'powerpoint', 
+                    gradient: 'linear-gradient(135deg, #d24726 0%, #b92b15 100%)',
+                    name: 'PowerPoint Presentation'
+                },
+                'pptx': { 
+                    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M8,11H16V13H8V11M8,14H16V16H8V14M8,17H12V19H8V17Z"/></svg>`, 
+                    class: 'powerpoint', 
+                    gradient: 'linear-gradient(135deg, #d24726 0%, #b92b15 100%)',
+                    name: 'PowerPoint Presentation'
+                },
+                // Text files
+                'txt': { 
+                    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M8,12H16V14H8V12M8,16H13V18H8V16Z"/></svg>`, 
+                    class: 'text', 
+                    gradient: 'linear-gradient(135deg, #64748b 0%, #475569 100%)',
+                    name: 'Text Document'
+                },
+                'csv': { 
+                    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M8,15.5H16V17H8V15.5M8,12.5H16V14H8V12.5Z"/></svg>`, 
+                    class: 'csv', 
+                    gradient: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                    name: 'CSV File'
+                },
+                // Images
+                'jpg': { icon: '🖼️', class: 'image', gradient: 'linear-gradient(135deg, #a333c8 0%, #9627ba 100%)', name: 'JPEG Image' },
+                'jpeg': { icon: '🖼️', class: 'image', gradient: 'linear-gradient(135deg, #a333c8 0%, #9627ba 100%)', name: 'JPEG Image' },
+                'png': { icon: '🖼️', class: 'image', gradient: 'linear-gradient(135deg, #a333c8 0%, #9627ba 100%)', name: 'PNG Image' },
+                'gif': { icon: '🖼️', class: 'image', gradient: 'linear-gradient(135deg, #a333c8 0%, #9627ba 100%)', name: 'GIF Image' },
+                'bmp': { icon: '🖼️', class: 'image', gradient: 'linear-gradient(135deg, #a333c8 0%, #9627ba 100%)', name: 'Bitmap Image' }
             };
             
-            return types[ext] || { icon: '📁', class: 'unknown', gradient: 'linear-gradient(135deg, #767676 0%, #616161 100%)' };
+            return types[ext] || { 
+                icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/></svg>`, 
+                class: 'unknown', 
+                gradient: 'linear-gradient(135deg, #767676 0%, #616161 100%)',
+                name: 'Document'
+            };
         }
         
         // Helper function to format file size
@@ -1566,43 +1715,70 @@
             }
             
             try {
-                // First, try to delete from Azure Search index
-                const searchUrl = `https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/index?api-version=2023-11-01`;
-                const searchResponse = await fetch(searchUrl, {
+                // First try to use Azure Function for deletion (avoids CORS issues)
+                const deleteUrl = `/api/documents/delete`;
+                const functionResponse = await fetch(deleteUrl, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        value: [{
-                            "@search.action": "delete",
-                            "id": docId
-                        }]
+                        documentId: docId,
+                        fileName: title,
+                        indexName: 'sop-documents'
                     })
                 });
                 
-                if (searchResponse.ok) {
-                    // Show success message
-                    alert(`Document "${title}" has been deleted successfully from the index.`);
-                    
-                    // Try to also delete from Azure Function if endpoint exists
-                    try {
-                        const deleteUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.deleteDocument}`;
-                        await fetch(deleteUrl, {
+                if (functionResponse.ok || functionResponse.status === 404) {
+                    // If function succeeded or doesn't exist, try direct deletion
+                    if (functionResponse.status === 404) {
+                        console.log('Delete function not found, attempting direct deletion');
+                        
+                        // Try direct deletion from Azure Search index
+                        const searchUrl = `https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/index?api-version=2023-11-01`;
+                        const searchResponse = await fetch(searchUrl, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'x-functions-key': API_CONFIG.functionKey
+                                'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
                             },
                             body: JSON.stringify({
-                                id: docId,
-                                fileName: title
+                                value: [{
+                                    "@search.action": "delete",
+                                    "id": docId
+                                }]
                             })
                         });
-                    } catch (err) {
-                        console.log('Azure Function delete failed, but index deletion succeeded');
+                        
+                        if (!searchResponse.ok) {
+                            const errorData = await searchResponse.text();
+                            if (errorData.includes('CORS')) {
+                                throw new Error('CORS error: Please configure an Azure Function for document deletion.');
+                            }
+                            throw new Error(`Delete failed: ${errorData}`);
+                        }
                     }
+                    
+                    // Show success message with cleaner notification
+                    const successDiv = document.createElement('div');
+                    successDiv.style.cssText = `
+                        position: fixed;
+                        top: 20px;
+                        right: 20px;
+                        background: #10b981;
+                        color: white;
+                        padding: 12px 20px;
+                        border-radius: 8px;
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                        z-index: 10000;
+                        animation: slideIn 0.3s ease-out;
+                    `;
+                    successDiv.innerHTML = `✓ Document "${title}" deleted successfully`;
+                    document.body.appendChild(successDiv);
+                    
+                    setTimeout(() => {
+                        successDiv.remove();
+                    }, 3000);
                     
                     // Refresh the document list
                     loadDepartmentDocuments();
@@ -1610,12 +1786,32 @@
                     // Refresh statistics
                     loadIndexStatistics();
                 } else {
-                    const errorData = await searchResponse.text();
-                    throw new Error(`Failed to delete document: ${errorData}`);
+                    const errorData = await functionResponse.text();
+                    throw new Error(`Delete failed: ${errorData}`);
                 }
             } catch (error) {
                 console.error('Delete error:', error);
-                alert(`Failed to delete document "${title}".\n\nError: ${error.message}`);
+                
+                // Show error message with cleaner notification
+                const errorDiv = document.createElement('div');
+                errorDiv.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: #ef4444;
+                    color: white;
+                    padding: 12px 20px;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    z-index: 10000;
+                    animation: slideIn 0.3s ease-out;
+                `;
+                errorDiv.innerHTML = `✗ Failed to delete document: ${error.message}`;
+                document.body.appendChild(errorDiv);
+                
+                setTimeout(() => {
+                    errorDiv.remove();
+                }, 5000);
             }
         }
 
