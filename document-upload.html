@@ -1833,6 +1833,9 @@
                 
                 console.log('Base64 content generated, length:', fileContent.length);
                 
+                // Calculate file hash for deduplication
+                const fileHash = await window.documentEnhancements?.calculateSHA256(file) || null;
+                
                 // Create the payload with both structures for compatibility
                 const n8nPayload = {
                     // Flat structure for backward compatibility
@@ -1865,6 +1868,8 @@
                         source: 'SAX Document Portal',
                         sha256Hash: fileHash,
                         contentHash: fileHash  // Include both for compatibility
+                    }
+                };
                 
                 console.log('Uploading document to n8n workflow...');
                 console.log('Payload structure:', {
