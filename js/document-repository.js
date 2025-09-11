@@ -305,18 +305,14 @@
     // Document Loading
     async function loadDocuments() {
         try {
-            // Build query
+            // Build query - match backend expectations
             let query = {
-                search: state.searchTerm || '*',
-                select: 'id,title,fileName,documentType,description,uploadDate,lastModified,department,fileSize,author,blobUrl',
-                top: 100,
-                orderby: 'uploadDate desc'
+                query: state.searchTerm || '*',  // Changed from 'search' to 'query'
+                department: state.currentDepartment || '',  // Direct department field
+                documentType: '',  // Can add document type filter if needed
+                page: 1,
+                pageSize: 100
             };
-            
-            // Add department filter if selected
-            if (state.currentDepartment) {
-                query.filter = `department eq '${state.currentDepartment}'`;
-            }
             
             const response = await fetch(`${CONFIG.azure.functionApp.baseUrl}${CONFIG.azure.functionApp.endpoints.search}`, {
                 method: 'POST',
@@ -328,11 +324,14 @@
             });
             
             if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Search API error:', errorText);
                 throw new Error('Failed to load documents');
             }
             
             const data = await response.json();
-            state.documents = data.value || [];
+            // Handle both response formats
+            state.documents = data.value || data.results || [];
             
             displayDocuments();
             updateDocumentCount();
@@ -477,18 +476,14 @@
         }
         
         try {
-            // Use Azure Function to delete document (handles both blob and index)
-            const deleteUrl = `${CONFIG.azure.functionApp.baseUrl}/documents-delete`;
+            // Use correct delete endpoint URL format
+            const deleteUrl = `${CONFIG.azure.functionApp.baseUrl}/documents/delete/${docId}?code=${CONFIG.azure.functionApp.key}`;
             
             const response = await fetch(deleteUrl, {
-                method: 'POST',
+                method: 'DELETE',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'x-functions-key': CONFIG.azure.functionApp.key
-                },
-                body: JSON.stringify({
-                    documentIds: [docId]
-                })
+                    'Content-Type': 'application/json'
+                }
             });
             
             if (response.ok) {
@@ -505,6 +500,8 @@
                     throw new Error(result.message || 'Delete failed');
                 }
             } else {
+                const errorText = await response.text();
+                console.error('Delete API error:', errorText);
                 throw new Error('Delete failed');
             }
         } catch (error) {
@@ -558,7 +555,10 @@
     }
 
     function handleDepartmentFilter() {
-        state.currentDepartment = elements.departmentFilter.value;
+        const selectedValue = elements.departmentFilter.value;
+        // Empty string for 'All Departments', otherwise use the selected value
+        state.currentDepartment = selectedValue === '' ? '' : selectedValue;
+        console.log('Department filter changed to:', state.currentDepartment || 'All Departments');
         loadDocuments();
     }
 

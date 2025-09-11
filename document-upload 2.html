@@ -847,11 +847,6 @@
                         <input type="text" class="search-input" id="searchInput" placeholder="Search documents...">
                         <span class="search-icon">🔍</span>
                     </div>
-                    <div style="display: flex; gap: 12px; align-items: center;">
-                        <select id="departmentFilter" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; background: white; cursor: pointer;">
-                            <option value="">All Departments</option>
-                        </select>
-                    </div>
                     <div class="stats-panel">
                         <span id="documentCount">0 documents</span>
                         <span>•</span>
@@ -866,51 +861,6 @@
         </main>
     </div>
 
-    <!-- Upload Status Modal -->
-    <div class="upload-modal" id="uploadModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); z-index: 10000; align-items: center; justify-content: center;">
-        <div class="modal-content" style="background: white; border-radius: 16px; padding: 32px; max-width: 480px; width: 90%; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
-            <div class="modal-header" style="text-align: center; margin-bottom: 24px;">
-                <div class="modal-title" style="font-size: 20px; font-weight: 600; color: #1e293b; margin-bottom: 8px;">Processing Document</div>
-                <div class="modal-subtitle" style="font-size: 14px; color: #64748b;">Please wait while we process your document</div>
-            </div>
-            <div class="upload-steps">
-                <div class="upload-step" id="step-hash" style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #e2e8f0; opacity: 0.5; transition: all 0.3s;">
-                    <div class="step-icon" style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: #94a3b8; font-size: 16px;">🔐</div>
-                    <div class="step-text" style="flex: 1; font-size: 14px; color: #1e293b;">Calculating document hash...</div>
-                    <div class="step-status" style="font-size: 12px; color: #94a3b8;"></div>
-                </div>
-                <div class="upload-step" id="step-duplicate" style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #e2e8f0; opacity: 0.5; transition: all 0.3s;">
-                    <div class="step-icon" style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: #94a3b8; font-size: 16px;">🔍</div>
-                    <div class="step-text" style="flex: 1; font-size: 14px; color: #1e293b;">Checking for duplicates...</div>
-                    <div class="step-status" style="font-size: 12px; color: #94a3b8;"></div>
-                </div>
-                <div class="upload-step" id="step-chunk" style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #e2e8f0; opacity: 0.5; transition: all 0.3s;">
-                    <div class="step-icon" style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: #94a3b8; font-size: 16px;">📑</div>
-                    <div class="step-text" style="flex: 1; font-size: 14px; color: #1e293b;">Processing document chunks...</div>
-                    <div class="step-status" style="font-size: 12px; color: #94a3b8;"></div>
-                </div>
-                <div class="upload-step" id="step-upload" style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #e2e8f0; opacity: 0.5; transition: all 0.3s;">
-                    <div class="step-icon" style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: #94a3b8; font-size: 16px;">☁️</div>
-                    <div class="step-text" style="flex: 1; font-size: 14px; color: #1e293b;">Uploading to cloud storage...</div>
-                    <div class="step-status" style="font-size: 12px; color: #94a3b8;"></div>
-                </div>
-                <div class="upload-step" id="step-index" style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #e2e8f0; opacity: 0.5; transition: all 0.3s;">
-                    <div class="step-icon" style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: #94a3b8; font-size: 16px;">🔎</div>
-                    <div class="step-text" style="flex: 1; font-size: 14px; color: #1e293b;">Indexing for search...</div>
-                    <div class="step-status" style="font-size: 12px; color: #94a3b8;"></div>
-                </div>
-                <div class="upload-step" id="step-embeddings" style="display: flex; align-items: center; gap: 12px; padding: 12px 0; opacity: 0.5; transition: all 0.3s;">
-                    <div class="step-icon" style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: #94a3b8; font-size: 16px;">🧮</div>
-                    <div class="step-text" style="flex: 1; font-size: 14px; color: #1e293b;">Creating embeddings...</div>
-                    <div class="step-status" style="font-size: 12px; color: #94a3b8;"></div>
-                </div>
-            </div>
-            <div class="modal-progress" style="height: 4px; background: #f1f5f9; border-radius: 2px; overflow: hidden; margin: 24px 0;">
-                <div class="modal-progress-fill" id="modalProgressFill" style="height: 100%; background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%); border-radius: 2px; transition: width 0.3s ease-out; width: 0%;"></div>
-            </div>
-        </div>
-    </div>
-
     <script>
         // API Configuration - Azure Function endpoints and n8n webhook
         const API_CONFIG = {
@@ -918,14 +868,11 @@
             functionKey: 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw==', // Function key for authentication
             endpoints: {
                 listDocuments: '/documents/list',
-                uploadDocument: '/documents/upload-json',
-                deleteDocument: '/documents/delete',  // Fixed route with slash
+                uploadDocument: '/documents/upload',
+                deleteDocument: '/documents/delete',
                 downloadDocument: '/documents/download',
-                previewDocument: '/documents/view',
-                search: '/documents/search',  // Correct route with slash
-                generateSAS: '/GenerateSASToken',
-                process: '/documents/upload-json',
-                indexMaintenance: '/index/maintenance'  // Correct route with slash
+                previewDocument: '/documents/preview',
+                searchDocuments: '/documents/search'
             },
             blobStorage: {
                 containerName: 'saxdocuments',
@@ -981,95 +928,26 @@
         form.addEventListener('submit', handleFormSubmit);
         searchInput.addEventListener('input', handleSearch);
         
-        // Add department filter listener
-        const departmentFilter = document.getElementById('departmentFilter');
-        if (departmentFilter) {
-            departmentFilter.addEventListener('change', function() {
-                currentDepartment = this.value;
-                loadDepartmentDocuments();
-            });
-        }
-        
         // Load index statistics on page load
         loadIndexStatistics();
-        
-        // Load departments from Azure
-        loadDepartmentsFromAzure();
         
         // Auto-load all documents on page load
         setTimeout(() => {
             loadAllDocuments();
         }, 500);
-        
-        // Upload Modal Functions
-        function showUploadModal() {
-            const modal = document.getElementById('uploadModal');
-            modal.style.display = 'flex';
-            
-            // Reset all steps
-            const steps = ['step-hash', 'step-duplicate', 'step-chunk', 'step-upload', 'step-index', 'step-embeddings'];
-            steps.forEach(stepId => {
-                const step = document.getElementById(stepId);
-                step.style.opacity = '0.5';
-                step.querySelector('.step-status').textContent = '';
-            });
-            
-            // Start animation
-            simulateUploadSteps();
-        }
-        
-        async function simulateUploadSteps() {
-            const steps = [
-                { id: 'step-hash', duration: 1000 },
-                { id: 'step-duplicate', duration: 1500 },
-                { id: 'step-chunk', duration: 2000 },
-                { id: 'step-upload', duration: 2500 },
-                { id: 'step-index', duration: 2000 },
-                { id: 'step-embeddings', duration: 3000 }
-            ];
-            
-            const progressFill = document.getElementById('modalProgressFill');
-            
-            for (let i = 0; i < steps.length; i++) {
-                const step = document.getElementById(steps[i].id);
-                
-                // Activate current step
-                step.style.opacity = '1';
-                step.querySelector('.step-icon').style.background = 'rgba(59, 130, 246, 0.1)';
-                step.querySelector('.step-icon').style.color = '#3b82f6';
-                
-                // Update progress
-                const progress = ((i + 1) / steps.length) * 100;
-                progressFill.style.width = progress + '%';
-                
-                // Wait for step duration
-                await new Promise(resolve => setTimeout(resolve, steps[i].duration));
-                
-                // Complete step
-                step.querySelector('.step-icon').style.background = 'rgba(16, 185, 129, 0.1)';
-                step.querySelector('.step-icon').style.color = '#10b981';
-                step.querySelector('.step-status').textContent = '✓';
-                step.querySelector('.step-status').style.color = '#10b981';
-            }
-        }
-        
-        function closeUploadModal() {
-            const modal = document.getElementById('uploadModal');
-            modal.style.display = 'none';
-        }
 
         function loadDepartmentDocuments() {
-            const selectedDept = departmentSelect.value;
-            currentDepartment = selectedDept; // Track for preview/download
+            const department = departmentSelect.value;
+            currentDepartment = department; // Track for preview/download
             
-            if (!selectedDept) {
+            if (!department) {
                 // Load all documents if no department selected
                 loadAllDocuments();
                 return;
             }
 
             // Filter already loaded documents by department
-            filterDocumentsByDepartment(selectedDept);
+            filterDocumentsByDepartment(department);
         }
         
         function loadAllDocuments() {
@@ -1129,12 +1007,13 @@
 
         async function fetchAllDocuments() {
             try {
-                // Query all documents using Azure Function
-                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
+                // Query Azure AI Search for all documents
+                const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
+                const response = await fetch(searchUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-functions-key': API_CONFIG.functionKey
+                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
                     },
                     body: JSON.stringify({
                         search: '*',
@@ -1144,7 +1023,7 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Search HTTP ${response.status}: ${response.statusText}`);
+                    throw new Error(`Azure Search HTTP ${response.status}: ${response.statusText}`);
                 }
 
                 const searchResults = await response.json();
@@ -1173,7 +1052,6 @@
                         departments[deptName][folderName].push({
                             id: doc.id,
                             title: doc.title || doc.fileName,
-                            fileName: doc.fileName,  // Always store the actual filename
                             description: doc.description || '',
                             lastModified: doc.lastModified || doc.createdDate,
                             uploadDate: doc.createdDate,
@@ -1187,19 +1065,17 @@
                             status: doc.status,
                             keywords: doc.keywords,
                             tags: doc.tags,
-                            indexed: doc.status === 'indexed' || doc.status === 'completed' || doc.status === 'Active'
+                            indexed: doc.status === 'indexed' || doc.status === 'completed'
                         });
                         totalDocuments++;
                     });
                     
                     // Get the most recent update date
-                    const dates = documents.filter(d => d.lastModified || d.uploadDate || d.createdDate)
-                                          .map(d => new Date(d.lastModified || d.uploadDate || d.createdDate));
+                    const dates = documents.filter(d => d.lastModified || d.createdDate)
+                                          .map(d => new Date(d.lastModified || d.createdDate));
                     if (dates.length > 0) {
                         const mostRecent = new Date(Math.max(...dates));
-                        const dateStr = mostRecent.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                        const timeStr = mostRecent.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                        lastUpdated = `${dateStr} ${timeStr}`;
+                        lastUpdated = mostRecent.toLocaleDateString();
                     }
                 }
                 
@@ -1478,13 +1354,13 @@
                     ${doc.description ? `<div class="document-description" style="font-size: 11px; color: #94a3b8; line-height: 1.4;">${doc.description}</div>` : ''}
                 </div>
                 <div class="document-actions" style="display: flex; gap: 8px; align-items: center;">
-                    <button class="action-btn btn-preview" onclick="previewDocument('${doc.id}', '${displayName}', '${fileExt}')" style="padding: 6px 12px; background: white; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 12px; color: #374151;">
+                    <button class="action-btn btn-preview" onclick="previewDocument('${doc.id}', '${doc.title}', '${fileExt}')" style="padding: 6px 12px; background: white; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 12px; color: #374151;">
                         <span style="margin-right: 4px;">👁️</span> Preview
                     </button>
-                    <button class="action-btn btn-download" onclick="downloadDocument('${doc.id}', '${displayName}')" style="padding: 6px 12px; background: white; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 12px; color: #374151;">
+                    <button class="action-btn btn-download" onclick="downloadDocument('${doc.id}', '${doc.title}')" style="padding: 6px 12px; background: white; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 12px; color: #374151;">
                         <span style="margin-right: 4px;">⬇️</span> Download
                     </button>
-                    <button class="btn-delete" onclick="deleteDocument('${doc.id}', '${doc.title || displayName}')" style="width: 32px; height: 32px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; color: #dc2626; display: flex; align-items: center; justify-content: center;" title="Delete document">
+                    <button class="btn-delete" onclick="deleteDocument('${doc.id}', '${doc.title}')" style="width: 32px; height: 32px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; color: #dc2626; display: flex; align-items: center; justify-content: center;" title="Delete document">
                         <span style="font-size: 16px;">🗑️</span>
                     </button>
                 </div>
@@ -1503,12 +1379,13 @@
             }
             
             try {
-                // Search across all documents using Azure Function
-                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
+                // Search across all documents in Azure AI Search
+                const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
+                const response = await fetch(searchUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-functions-key': API_CONFIG.functionKey
+                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
                     },
                     body: JSON.stringify({
                         search: searchTerm,
@@ -1583,63 +1460,28 @@
             }
         }
 
-        async function previewDocument(docId, fileName, fileType = 'pdf', fileSize = null) {
+        async function previewDocument(docId, title, fileType = 'pdf', fileSize = null) {
             // Prevent default action
             event.preventDefault();
             event.stopPropagation();
             
-            console.log('Preview document:', docId, fileName);
+            console.log('Preview document:', docId, title);
             
             try {
-                // First try to generate SAS token for secure blob access
-                const deptForPreview = currentDepartment || 'General';
-                try {
-                    const sasResponse = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.generateSAS}`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'x-functions-key': API_CONFIG.functionKey
-                        },
-                        body: JSON.stringify({
-                            fileName: fileName,  // Use actual filename
-                            department: deptForPreview,
-                            blobPath: `${deptForPreview}/${fileName}`,  // Use actual filename in path
-                            containerName: 'saxdocuments',
-                            expiryMinutes: 60
-                        })
-                    });
-                    
-                    if (sasResponse.ok) {
-                        const sasData = await sasResponse.json();
-                        if (sasData.sasUrl || sasData.blobUrl) {
-                            window.open(sasData.sasUrl || sasData.blobUrl, '_blank');
-                            return;
-                        }
-                    }
-                } catch (sasError) {
-                    console.log('SAS token generation failed, trying fallback:', sasError);
-                }
-                
-                // First, try to get document details using Azure Function to find blob URL
-                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
-                    method: 'POST',
+                // First, try to get document details from Azure Search to find blob URL
+                const searchUrl = `https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/${docId}?api-version=2023-11-01`;
+                const response = await fetch(searchUrl, {
                     headers: {
-                        'Content-Type': 'application/json',
-                        'x-functions-key': API_CONFIG.functionKey
-                    },
-                    body: JSON.stringify({
-                        search: `id:${docId}`,
-                        select: 'id,blobUrl,fileUrl,storageUrl',
-                        top: 1
-                    })
+                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO',
+                        'Content-Type': 'application/json'
+                    }
                 });
                 
                 if (response.ok) {
-                    const data = await response.json();
-                    const doc = data.value && data.value[0] ? data.value[0] : null;
+                    const doc = await response.json();
                     
                     // Check if we have a blob URL
-                    if (doc && (doc.blobUrl || doc.fileUrl || doc.storageUrl)) {
+                    if (doc.blobUrl || doc.fileUrl || doc.storageUrl) {
                         const fileUrl = doc.blobUrl || doc.fileUrl || doc.storageUrl;
                         // Open the actual document in a new tab
                         window.open(fileUrl, '_blank');
@@ -1649,10 +1491,11 @@
                 
                 // If no blob URL found, try to construct one based on known patterns
                 // Azure Blob Storage URL pattern: https://{account}.blob.core.windows.net/{container}/{path}
-                const deptForUrl = currentDepartment || 'General';
+                const department = currentDepartment || 'General';
+                const fileName = title;
                 
-                // Try constructing blob URL with actual filename
-                const blobUrl = `https://saxtechmegamind.blob.core.windows.net/saxdocuments/${deptForUrl}/${fileName}`;  // Use actual filename
+                // Try constructing blob URL
+                const blobUrl = `https://saxmegamind.blob.core.windows.net/saxdocuments/original-documents/${department.toLowerCase()}/${fileName}`;
                 
                 // Open in new tab - browser will handle if URL is valid
                 window.open(blobUrl, '_blank');
@@ -1660,86 +1503,44 @@
             } catch (error) {
                 console.error('Preview error:', error);
                 // Fallback: show alert with document info
-                alert(`Document Preview\n\nFile: ${fileName}\nType: ${fileType.toUpperCase()}\nID: ${docId}\n\nNote: Unable to open document preview. Please try the Download button.`);
+                alert(`Document Preview\n\nTitle: ${title}\nType: ${fileType.toUpperCase()}\nID: ${docId}\n\nNote: Unable to open document preview. Please try the Download button.`);
             }
         }
         
-        async function downloadDocument(docId, fileName) {
+        async function downloadDocument(docId, title) {
             // Prevent default action
             event.preventDefault();
             event.stopPropagation();
             
-            console.log('Download document:', docId, fileName);
+            console.log('Download document:', docId, title);
             
             try {
-                // First try to generate SAS token for secure blob access
-                const deptForDownload = currentDepartment || 'General';
-                try {
-                    const sasResponse = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.generateSAS}`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'x-functions-key': API_CONFIG.functionKey
-                        },
-                        body: JSON.stringify({
-                            fileName: fileName,  // Use actual filename
-                            department: deptForDownload,
-                            blobPath: `${deptForDownload}/${fileName}`,  // Use actual filename in path
-                            containerName: 'saxdocuments',
-                            expiryMinutes: 60
-                        })
-                    });
-                    
-                    if (sasResponse.ok) {
-                        const sasData = await sasResponse.json();
-                        
-                        // Create a temporary link and trigger download
-                        const link = document.createElement('a');
-                        link.href = sasData.sasUrl || sasData.blobUrl;
-                        link.download = fileName;  // Use actual filename for download
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                        
-                        console.log(`Downloading with SAS token: ${fileName}`);
-                        return;
-                    }
-                } catch (sasError) {
-                    console.log('SAS token generation failed, trying fallback:', sasError);
-                }
-                
-                // First, try to get document details using Azure Function to find blob URL
-                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
-                    method: 'POST',
+                // First, try to get document details from Azure Search to find blob URL
+                const searchUrl = `https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/${docId}?api-version=2023-11-01`;
+                const response = await fetch(searchUrl, {
                     headers: {
-                        'Content-Type': 'application/json',
-                        'x-functions-key': API_CONFIG.functionKey
-                    },
-                    body: JSON.stringify({
-                        search: `id:${docId}`,
-                        select: 'id,blobUrl,fileUrl,storageUrl',
-                        top: 1
-                    })
+                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO',
+                        'Content-Type': 'application/json'
+                    }
                 });
                 
                 if (response.ok) {
-                    const data = await response.json();
-                    const doc = data.value && data.value[0] ? data.value[0] : null;
+                    const doc = await response.json();
                     
                     // Check if we have a blob URL
-                    if (doc && (doc.blobUrl || doc.fileUrl || doc.storageUrl)) {
+                    if (doc.blobUrl || doc.fileUrl || doc.storageUrl) {
                         const fileUrl = doc.blobUrl || doc.fileUrl || doc.storageUrl;
                         
                         // Create a temporary link and trigger download
                         const link = document.createElement('a');
                         link.href = fileUrl;
-                        link.download = fileName;  // Use actual filename for download
+                        link.download = title;
                         link.target = '_blank';
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
                         
-                        console.log(`Downloading from blob: ${fileName}`);
+                        console.log(`Downloading from blob: ${title}`);
                         return;
                     }
                 }
@@ -1751,17 +1552,17 @@
                 // Create a temporary link and trigger download
                 const link = document.createElement('a');
                 link.href = urlWithAuth;
-                link.download = fileName;  // Use actual filename for download
+                link.download = title;
                 link.target = '_blank';
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
                 
-                console.log(`Downloading via function: ${fileName}`);
+                console.log(`Downloading via function: ${title}`);
                 
             } catch (error) {
                 console.error('Download error:', error);
-                alert(`Unable to download document "${fileName}". Please try again later.`);
+                alert(`Unable to download document "${title}". Please try again later.`);
             }
         }
         
@@ -1858,110 +1659,27 @@
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
         
-        // Load departments from Azure Storage/Index
-        async function loadDepartmentsFromAzure() {
-            try {
-                // Call the index maintenance function to get departments
-                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.indexMaintenance}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-functions-key': API_CONFIG.functionKey
-                    },
-                    body: JSON.stringify({
-                        operation: 'list-departments'
-                    })
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.success && data.departments) {
-                        // Update department dropdowns
-                        updateDepartmentDropdowns(data.departments);
-                    }
-                } else {
-                    console.log('Could not load departments from Azure, using defaults');
-                }
-            } catch (error) {
-                console.error('Error loading departments:', error);
-                // Use default departments if Azure load fails
-            }
-        }
-        
-        // Update department dropdowns with dynamic data
-        function updateDepartmentDropdowns(departments) {
-            const departmentSelect = document.getElementById('department');
-            const departmentFilter = document.getElementById('departmentFilter');
-            
-            if (departmentSelect) {
-                // Save current selection
-                const currentValue = departmentSelect.value;
-                
-                // Clear existing options except the first (empty) one
-                while (departmentSelect.options.length > 1) {
-                    departmentSelect.remove(1);
-                }
-                
-                // Add departments from Azure
-                departments.forEach(dept => {
-                    if (dept && dept !== 'converted-documents' && dept !== 'original-documents') {
-                        const option = document.createElement('option');
-                        option.value = dept;
-                        option.textContent = dept.charAt(0).toUpperCase() + dept.slice(1);
-                        departmentSelect.appendChild(option);
-                    }
-                });
-                
-                // Restore selection if it still exists
-                if (currentValue && Array.from(departmentSelect.options).some(opt => opt.value === currentValue)) {
-                    departmentSelect.value = currentValue;
-                }
-            }
-            
-            if (departmentFilter) {
-                // Save current selection
-                const currentValue = departmentFilter.value;
-                
-                // Clear existing options except the first (All Departments)
-                while (departmentFilter.options.length > 1) {
-                    departmentFilter.remove(1);
-                }
-                
-                // Add departments from Azure
-                departments.forEach(dept => {
-                    if (dept && dept !== 'converted-documents' && dept !== 'original-documents') {
-                        const option = document.createElement('option');
-                        option.value = dept;
-                        option.textContent = dept.charAt(0).toUpperCase() + dept.slice(1);
-                        departmentFilter.appendChild(option);
-                    }
-                });
-                
-                // Restore selection if it still exists
-                if (currentValue && Array.from(departmentFilter.options).some(opt => opt.value === currentValue)) {
-                    departmentFilter.value = currentValue;
-                }
-            }
-        }
-        
         // Load index statistics
         async function loadIndexStatistics() {
             try {
-                // Use Azure Function to get statistics
-                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.indexMaintenance}`, {
+                // Query Azure Search for total document count
+                const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
+                const response = await fetch(searchUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-functions-key': API_CONFIG.functionKey
+                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
                     },
                     body: JSON.stringify({
-                        operation: 'stats'
+                        search: '*',
+                        count: true,
+                        top: 0
                     })
                 });
                 
                 if (response.ok) {
                     const data = await response.json();
-                    const totalDocs = data.stats?.totalDocuments || 0;
+                    const totalDocs = data['@odata.count'] || 0;
                     
                     // Update statistics in header
                     document.getElementById('totalDocCount').textContent = totalDocs.toLocaleString();
@@ -1971,12 +1689,10 @@
                     const totalSizeMB = (totalDocs * avgDocSize / 1024).toFixed(1);
                     document.getElementById('totalIndexSize').textContent = `${totalSizeMB} MB`;
                     
-                    // Get last update time from stats
-                    if (data.stats?.lastUpdated) {
-                        document.getElementById('lastIndexUpdate').textContent = data.stats.lastUpdated;
-                    } else {
-                        document.getElementById('lastIndexUpdate').textContent = '--';
-                    }
+                    // Set last update to now
+                    const now = new Date();
+                    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                    document.getElementById('lastIndexUpdate').textContent = timeStr;
                     
                     // Estimate vectorized count (for now, assume 80% are vectorized)
                     const vectorized = Math.floor(totalDocs * 0.8);
@@ -2000,15 +1716,16 @@
             
             try {
                 // First try to use Azure Function for deletion (avoids CORS issues)
-                const deleteUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.deleteDocument}`;
+                const deleteUrl = `/api/documents/delete`;
                 const functionResponse = await fetch(deleteUrl, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'x-functions-key': API_CONFIG.functionKey
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        documentIds: [docId]
+                        documentId: docId,
+                        fileName: title,
+                        indexName: 'sop-documents'
                     })
                 });
                 
@@ -2017,9 +1734,29 @@
                     if (functionResponse.status === 404) {
                         console.log('Delete function not found, attempting direct deletion');
                         
-                        // Function not found - this shouldn't happen in production
-                        console.warn('DocumentsDelete function not available');
-                        throw new Error('Delete function not available. Please contact support.');
+                        // Try direct deletion from Azure Search index
+                        const searchUrl = `https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/index?api-version=2023-11-01`;
+                        const searchResponse = await fetch(searchUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
+                            },
+                            body: JSON.stringify({
+                                value: [{
+                                    "@search.action": "delete",
+                                    "id": docId
+                                }]
+                            })
+                        });
+                        
+                        if (!searchResponse.ok) {
+                            const errorData = await searchResponse.text();
+                            if (errorData.includes('CORS')) {
+                                throw new Error('CORS error: Please configure an Azure Function for document deletion.');
+                            }
+                            throw new Error(`Delete failed: ${errorData}`);
+                        }
                     }
                     
                     // Show success message with cleaner notification
@@ -2100,13 +1837,13 @@
         }
 
         function loadExistingSOPs() {
-            const dept = departmentSelect.value;
+            const department = departmentSelect.value;
             const sopType = sopTypeSelect.value;
             const updateType = updateTypeSelect.value;
 
-            if (updateType === 'update' && dept && sopType) {
+            if (updateType === 'update' && department && sopType) {
                 // Call Azure Function to get existing SOPs for this department/type
-                fetchExistingSOPs(dept, sopType)
+                fetchExistingSOPs(department, sopType)
                     .then(sops => {
                         displaySOPs(sops);
                     })
@@ -2119,20 +1856,20 @@
 
         async function fetchExistingSOPs(department, sopType) {
             try {
-                // Query documents using Azure Function with correct format
-                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
+                // Query Azure AI Search directly
+                const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
+                const response = await fetch(searchUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-functions-key': API_CONFIG.functionKey
+                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
                     },
                     body: JSON.stringify({
-                        query: '*',  // Use 'query' not 'search'
-                        department: department || '',  // Direct department field
-                        documentType: sopType || '',  // Direct documentType field
-                        page: 1,
-                        pageSize: 50,
-                        useVectorSearch: false  // Explicitly disable vector search
+                        search: '*',
+                        filter: `department eq '${department.replace(/'/g, "''")}' and documentType eq '${sopType.replace(/'/g, "''")}}'`,
+                        select: 'id,title,fileName,uploadDate',
+                        top: 50,
+                        orderby: 'uploadDate desc'
                     })
                 });
 
@@ -2232,9 +1969,6 @@
                 return;
             }
 
-            // Show upload modal
-            showUploadModal();
-            
             submitBtn.disabled = true;
             submitBtn.textContent = 'Processing...';
             progressBar.style.display = 'block';
@@ -2258,10 +1992,6 @@
             uploadDocument(formData)
                 .then(response => {
                     completeUpload();
-                    // Close the upload modal after success
-                    setTimeout(() => {
-                        closeUploadModal();
-                    }, 2000);
                     // Refresh the document explorer if a department is selected
                     if (departmentSelect.value) {
                         loadDepartmentDocuments();
@@ -2269,7 +1999,6 @@
                 })
                 .catch(error => {
                     console.error('Upload failed:', error);
-                    closeUploadModal();
                     handleUploadError(error);
                 });
         }
@@ -2493,19 +2222,16 @@
         }
 
         function handleUploadError(error) {
-            // Show upload modal
-            showUploadModal();
-            
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Uploading...';
-            progressBar.style.display = 'block';
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Upload Document';
+            progressBar.style.display = 'none';
             progressFill.style.width = '0%';
             
             alert(`Upload failed: ${error.message}\n\nPlease try again or contact IT support if the problem persists.`);
         }
 
         function validateForm() {
-            const dept = departmentSelect.value;
+            const department = departmentSelect.value;
             const sopType = sopTypeSelect.value;
             const updateType = updateTypeSelect.value;
             const file = fileInput.files[0];
@@ -2522,7 +2248,7 @@
                 return false;
             }
 
-            if (!dept) {
+            if (!department) {
                 alert('Please select a department.');
                 departmentSelect.focus();
                 return false;
