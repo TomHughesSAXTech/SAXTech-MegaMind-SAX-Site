@@ -34,8 +34,8 @@ class DocumentEnhancements {
         try {
             // Use Azure Function for search (assuming API_CONFIG is available)
             const API_CONFIG = window.API_CONFIG || {
-                baseUrl: 'https://saxmegaminddocuments.azurewebsites.net/api',
-                functionKey: 'xvFEr2CW2PcT3s1vcOuDK8uVNrMpaMT5K7kRAKT1YJPxAzFuhE6qyg==',
+                baseUrl: 'https://saxtechmegamindfunctions.azurewebsites.net/api',
+                functionKey: 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw==',
                 endpoints: { search: '/documents/search' }
             };
             
@@ -420,7 +420,7 @@ class DocumentEnhancements {
      */
     async searchAllExceptLD(searchTerm) {
         const API_CONFIG = window.API_CONFIG || {
-            baseUrl: 'https://saxmegaminddocuments.azurewebsites.net/api',
+            baseUrl: 'https://saxtechmegamindfunctions.azurewebsites.net/api',
             functionKey: 'xvFEr2CW2PcT3s1vcOuDK8uVNrMpaMT5K7kRAKT1YJPxAzFuhE6qyg==',
             endpoints: { search: '/documents/search' }
         };
@@ -453,7 +453,7 @@ class DocumentEnhancements {
      */
     async searchLDOnly(searchTerm) {
         const API_CONFIG = window.API_CONFIG || {
-            baseUrl: 'https://saxmegaminddocuments.azurewebsites.net/api',
+            baseUrl: 'https://saxtechmegamindfunctions.azurewebsites.net/api',
             functionKey: 'xvFEr2CW2PcT3s1vcOuDK8uVNrMpaMT5K7kRAKT1YJPxAzFuhE6qyg==',
             endpoints: { search: '/documents/search' }
         };
@@ -486,7 +486,7 @@ class DocumentEnhancements {
      */
     async searchByDepartment(searchTerm, department) {
         const API_CONFIG = window.API_CONFIG || {
-            baseUrl: 'https://saxmegaminddocuments.azurewebsites.net/api',
+            baseUrl: 'https://saxtechmegamindfunctions.azurewebsites.net/api',
             functionKey: 'xvFEr2CW2PcT3s1vcOuDK8uVNrMpaMT5K7kRAKT1YJPxAzFuhE6qyg==',
             endpoints: { search: '/documents/search' }
         };

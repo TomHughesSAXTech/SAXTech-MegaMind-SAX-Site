@@ -12,8 +12,8 @@
             storageAccount: 'saxtechmegamind',
             containerName: 'saxdocuments',
             functionApp: {
-                baseUrl: 'https://saxmegaminddocuments.azurewebsites.net/api',
-                key: 'xvFEr2CW2PcT3s1vcOuDK8uVNrMpaMT5K7kRAKT1YJPxAzFuhE6qyg==',
+                baseUrl: 'https://saxtechmegamindfunctions.azurewebsites.net/api',
+                key: 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw==',
                 endpoints: {
                     search: '/documents/search',
                     process: '/documents/process',
