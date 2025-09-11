@@ -1049,7 +1049,7 @@
     <div id="authOverlay" class="auth-overlay hidden">
         <div class="auth-card">
             <div class="robot-logo">
-                <img src="robot.png" alt="MegaMind Robot" class="robot-image">
+                <img src="robot-cpa.png" alt="MegaMind Robot" class="robot-image">
                 <div class="robot-shadow"></div>
             </div>
             <h1>MegaMind SAX</h1>
@@ -1079,14 +1079,24 @@
             <div class="big-carousel-nav prev" id="carouselPrev">‹</div>
             <div class="big-carousel-nav next" id="carouselNext">›</div>
             <div class="big-carousel-3d" id="carousel3d">
-                <div class="big-personality-card active" data-personality="sage">
+                <div class="big-personality-card active" data-personality="tax">
                     <div class="floating-character">
-                        <img src="robot.png" alt="SAX" onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=emoji-fallback>🧠</div>';">
+                        <img src="robot-cpa.png" alt="SAX CPA" onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=emoji-fallback>📋</div>';">
                     </div>
                     <div class="character-details">
-                        <div class="big-personality-name">SAX</div>
-                        <div class="big-personality-role">General Business Assistant</div>
-                        <div class="big-personality-description">Expert in business operations, strategy, and general advisory services for all departments. Your go-to assistant for comprehensive business guidance.</div>
+                        <div class="big-personality-name">SAX CPA</div>
+                        <div class="big-personality-role">Tax & Accounting Expert</div>
+                        <div class="big-personality-description">Specialized in tax planning, accounting principles, and financial compliance. Expert in federal, state, and local tax regulations.</div>
+                    </div>
+                </div>
+                <div class="big-personality-card" data-personality="trainer">
+                    <div class="floating-character">
+                        <img src="robot-trainer.png" alt="SAX Trainer" onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=emoji-fallback>📚</div>';">
+                    </div>
+                    <div class="character-details">
+                        <div class="big-personality-name">SAX Trainer</div>
+                        <div class="big-personality-role">Learning & Development</div>
+                        <div class="big-personality-description">Expert in professional development, training programs, and skill building. Your partner in continuous learning and growth.</div>
                     </div>
                 </div>
                 <div class="big-personality-card" data-personality="auditor">
@@ -1099,24 +1109,14 @@
                         <div class="big-personality-description">Focused on audit procedures, compliance requirements, and risk assessment protocols. Expert in audit standards and regulatory compliance.</div>
                     </div>
                 </div>
-                <div class="big-personality-card" data-personality="trainer">
+                <div class="big-personality-card" data-personality="sage">
                     <div class="floating-character">
-                        <img src="robot-trainer.png" alt="SAX L&D" onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=emoji-fallback>📚</div>';">
+                        <img src="robot.png" alt="SAX MegaMind" onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=emoji-fallback>🧠</div>';">
                     </div>
                     <div class="character-details">
-                        <div class="big-personality-name">SAX L&D</div>
-                        <div class="big-personality-role">Learning & Development</div>
-                        <div class="big-personality-description">Expert in professional development, training programs, and skill building. Your partner in continuous learning and growth.</div>
-                    </div>
-                </div>
-                <div class="big-personality-card" data-personality="tax">
-                    <div class="floating-character">
-                        <img src="robot-cpa.png" alt="SAX Tax" onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=emoji-fallback>📋</div>';">
-                    </div>
-                    <div class="character-details">
-                        <div class="big-personality-name">SAX Tax</div>
-                        <div class="big-personality-role">Tax & Accounting Expert</div>
-                        <div class="big-personality-description">Specialized in tax planning, accounting principles, and financial compliance. Expert in federal, state, and local tax regulations.</div>
+                        <div class="big-personality-name">SAX MegaMind</div>
+                        <div class="big-personality-role">General Business Assistant</div>
+                        <div class="big-personality-description">Expert in business operations, strategy, and general advisory services for all departments. Your go-to assistant for comprehensive business guidance.</div>
                     </div>
                 </div>
             </div>
@@ -1182,14 +1182,14 @@
             <div class="chat-header">
                 <div class="chat-header-content">
                     <div class="header-robot" id="currentPersonalityAvatar">
-                        <img src="robot.png" alt="MegaMind" onerror="this.style.display='none'; this.parentNode.innerHTML='🧠';">
+                        <img src="robot-cpa.png" alt="SAX CPA" onerror="this.style.display='none'; this.parentNode.innerHTML='📋';">
                     </div>
                     <div class="header-text">
                         <h2 id="personalitySelector">
-                            <span id="currentPersonalityName">SAX</span>
+                            <span id="currentPersonalityName">SAX CPA</span>
                             <span style="font-size: 14px;">▼</span>
                         </h2>
-                        <p id="personalityIndicator">General Business Assistant</p>
+                        <p id="personalityIndicator">Tax & Accounting Expert</p>
                     </div>
                 </div>
             </div>
@@ -1279,40 +1279,40 @@
         let isChatRunning = false;
         
         // AI Profile Management
-        let currentAIProfile = 'sage';
-        let currentWebhook = 'megamind-chat';
+        let currentAIProfile = 'tax';  // Start with SAX CPA as default
+        let currentWebhook = 'megamind-tax';
         const aiProfiles = {
-            sage: {
-                name: 'SAX',
-                webhook: 'megamind-chat',
-                avatar: '🧠',
-                description: 'General business intelligence assistant',
-                robotImage: 'robot.png',
-                role: 'General Business Assistant'
-            },
             tax: {
-                name: 'SAX Tax',
+                name: 'SAX CPA',
                 webhook: 'megamind-tax',
                 avatar: '📋',
                 description: 'Tax and accounting specialist',
                 robotImage: 'robot-cpa.png',
                 role: 'Tax & Accounting Expert'
             },
+            trainer: {
+                name: 'SAX Trainer',
+                webhook: 'megamind-trainer',
+                avatar: '📚',
+                description: 'Learning and development specialist',
+                robotImage: 'robot-trainer.png',
+                role: 'Learning & Development'
+            },
             auditor: {
-                name: 'SAX Audit',
+                name: 'SAX Auditor',
                 webhook: 'megamind-auditor',
                 avatar: '🔍',
                 description: 'Audit and compliance expert',
                 robotImage: 'robot-auditor.png',
                 role: 'Audit & Compliance Expert'
             },
-            trainer: {
-                name: 'SAX L&D',
-                webhook: 'megamind-trainer',
-                avatar: '📚',
-                description: 'Learning and development specialist',
-                robotImage: 'robot-trainer.png',
-                role: 'Learning & Development'
+            sage: {
+                name: 'SAX MegaMind',
+                webhook: 'megamind-chat',
+                avatar: '🧠',
+                description: 'General business intelligence assistant',
+                robotImage: 'robot.png',
+                role: 'General Business Assistant'
             }
         };
 
@@ -1895,10 +1895,10 @@
                 chatMessages.innerHTML = '';
                 sessionStorage.removeItem('megamind_sax_messages');
                 
-                // Reset to default personality
-                currentAIProfile = 'sage';
-                currentWebhook = 'megamind-chat';
-                const config = aiProfiles.sage;
+                // Reset to default personality (SAX CPA)
+                currentAIProfile = 'tax';
+                currentWebhook = 'megamind-tax';
+                const config = aiProfiles.tax;
                 
                 // Update UI
                 document.getElementById('currentPersonalityName').textContent = config.name;
@@ -1914,7 +1914,7 @@
                 }
                 
                 // Add welcome message
-                addMessage('bot', "Conversation reset! I'm back to SAX Sage mode. How can I help you?");
+                addMessage('bot', "Conversation reset! I'm back to SAX CPA mode. How can I help you with tax and accounting?");
             }
         });
 
