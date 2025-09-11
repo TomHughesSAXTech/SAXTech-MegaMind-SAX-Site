@@ -1728,8 +1728,8 @@
                 // Try constructing blob URL with actual filename
                 const blobUrl = `https://saxtechmegamind.blob.core.windows.net/saxdocuments/${deptForUrl}/${fileName}`;  // Use actual filename
                 
-                // Open in new tab - browser will handle if URL is valid
-                window.open(blobUrl, '_blank');
+                // Show in modal instead of opening new window (which causes auto-download)
+                showDocumentInModal(blobUrl, fileName, docId, department);
                 
             } catch (error) {
                 console.error('Preview error:', error);
@@ -2232,8 +2232,8 @@
         // Load index statistics
         async function loadIndexStatistics() {
             try {
-                // Use Azure Function to get statistics
-                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.indexMaintenance}`, {
+                // First get document count
+                const statsResponse = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.indexMaintenance}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -2244,9 +2244,10 @@
                     })
                 });
                 
-                if (response.ok) {
-                    const data = await response.json();
-                    const totalDocs = data.stats?.totalDocuments || 0;
+                let totalDocs = 0;
+                if (statsResponse.ok) {
+                    const data = await statsResponse.json();
+                    totalDocs = data.stats?.totalDocuments || 0;
                     
                     // Update statistics in header
                     document.getElementById('totalDocCount').textContent = totalDocs.toLocaleString();
@@ -2256,19 +2257,66 @@
                     const totalSizeMB = (totalDocs * avgDocSize / 1024).toFixed(1);
                     document.getElementById('totalIndexSize').textContent = `${totalSizeMB} MB`;
                     
-                    // Get last update time from stats
-                    if (data.stats?.lastUpdated) {
-                        document.getElementById('lastIndexUpdate').textContent = data.stats.lastUpdated;
-                    } else {
-                        document.getElementById('lastIndexUpdate').textContent = '--';
-                    }
-                    
                     // Estimate vectorized count (for now, assume 80% are vectorized)
                     const vectorized = Math.floor(totalDocs * 0.8);
                     document.getElementById('vectorizedCount').textContent = vectorized.toLocaleString();
                 }
+                
+                // Now query for the most recent document to get actual last update time
+                const searchResponse = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-functions-key': API_CONFIG.functionKey
+                    },
+                    body: JSON.stringify({
+                        query: '*',
+                        top: 10,
+                        orderby: 'uploadDate desc',
+                        select: 'uploadDate,createdDate,lastModified'
+                    })
+                });
+                
+                if (searchResponse.ok) {
+                    const searchData = await searchResponse.json();
+                    const documents = searchData.value || searchData.results || [];
+                    
+                    if (documents && documents.length > 0) {
+                        // Find the most recent date from the documents
+                        let mostRecentDate = null;
+                        documents.forEach(doc => {
+                            const dates = [doc.uploadDate, doc.createdDate, doc.lastModified].filter(d => d);
+                            dates.forEach(dateStr => {
+                                const date = new Date(dateStr);
+                                if (!mostRecentDate || date > mostRecentDate) {
+                                    mostRecentDate = date;
+                                }
+                            });
+                        });
+                        
+                        if (mostRecentDate) {
+                            // Format to EST - just show date and time, no full timestamp
+                            const options = {
+                                timeZone: 'America/New_York',
+                                month: '2-digit',
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: true
+                            };
+                            const formatter = new Intl.DateTimeFormat('en-US', options);
+                            const formatted = formatter.format(mostRecentDate);
+                            document.getElementById('lastIndexUpdate').textContent = formatted;
+                        } else {
+                            document.getElementById('lastIndexUpdate').textContent = '--';
+                        }
+                    } else {
+                        document.getElementById('lastIndexUpdate').textContent = '--';
+                    }
+                }
             } catch (error) {
                 console.error('Failed to load index statistics:', error);
+                document.getElementById('lastIndexUpdate').textContent = '--';
             }
         }
         

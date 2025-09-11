@@ -680,7 +680,7 @@
                             search: query,  // Add both query and search for compatibility
                             filter: filter,
                             top: parseInt(top),
-                            select: 'id,title,fileName,department,documentType,uploadDate,author,fileSize'  // Use comma-separated string
+                            select: 'id,title,fileName,department,documentType,uploadDate,createdDate,author,fileSize,status,vectorized,chunkCount,conversionMethod,contentHash'  // Extended fields
                         })
                     }
                 );
@@ -708,35 +708,94 @@
                 return;
             }
             
-            // Create a table for better display
+            // Create a detailed table display
             resultsDiv.innerHTML = `
-                <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                <table style="width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px;">
                     <thead>
                         <tr style="background: #f5f5f5; border-bottom: 2px solid #ddd;">
-                            <th style="padding: 12px; text-align: left;">Title/File</th>
-                            <th style="padding: 12px; text-align: left;">Department</th>
-                            <th style="padding: 12px; text-align: left;">Type</th>
-                            <th style="padding: 12px; text-align: left;">Date</th>
-                            <th style="padding: 12px; text-align: center;">Actions</th>
+                            <th style="padding: 10px; text-align: left;">Title/File</th>
+                            <th style="padding: 10px; text-align: left;">Department</th>
+                            <th style="padding: 10px; text-align: left;">Type</th>
+                            <th style="padding: 10px; text-align: left;">Index Method</th>
+                            <th style="padding: 10px; text-align: center;">Size</th>
+                            <th style="padding: 10px; text-align: center;">Vectorized</th>
+                            <th style="padding: 10px; text-align: left;">Upload Date</th>
+                            <th style="padding: 10px; text-align: center;">Chunks</th>
+                            <th style="padding: 10px; text-align: center;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${documents.map(doc => `
+                        ${documents.map(doc => {
+                            // Format file size
+                            const formatSize = (bytes) => {
+                                if (!bytes || bytes === 0) return '-';
+                                const k = 1024;
+                                const sizes = ['B', 'KB', 'MB', 'GB'];
+                                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                                return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+                            };
+                            
+                            // Format date to EST
+                            const formatDate = (dateStr) => {
+                                if (!dateStr) return 'N/A';
+                                try {
+                                    const date = new Date(dateStr);
+                                    const options = {
+                                        timeZone: 'America/New_York',
+                                        year: 'numeric',
+                                        month: '2-digit',
+                                        day: '2-digit',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                        hour12: true
+                                    };
+                                    return new Intl.DateTimeFormat('en-US', options).format(date);
+                                } catch (e) {
+                                    return dateStr;
+                                }
+                            };
+                            
+                            // Determine indexing method
+                            const indexMethod = doc.conversionMethod || doc.status || 'Standard';
+                            const methodColor = indexMethod === 'OCR' ? '#9333ea' : 
+                                              indexMethod === 'Excel' ? '#16a34a' : 
+                                              indexMethod === 'indexed' ? '#3b82f6' : '#6b7280';
+                            
+                            return `
                             <tr style="border-bottom: 1px solid #eee;">
-                                <td style="padding: 12px;">
+                                <td style="padding: 10px;">
                                     <strong>${doc.title || doc.fileName || 'Untitled'}</strong>
                                     <br>
-                                    <small style="color: #666;">ID: ${doc.id}</small>
+                                    <small style="color: #666;">${doc.fileName || ''}</small>
+                                    <br>
+                                    <small style="color: #999; font-size: 11px;">ID: ${doc.id}</small>
                                 </td>
-                                <td style="padding: 12px;">${doc.department || 'N/A'}</td>
-                                <td style="padding: 12px;">${doc.documentType || 'N/A'}</td>
-                                <td style="padding: 12px;">${doc.uploadDate ? new Date(doc.uploadDate).toLocaleDateString() : 'N/A'}</td>
-                                <td style="padding: 12px; text-align: center;">
-                                    <button class="btn btn-danger" style="padding: 6px 12px; font-size: 12px;" 
+                                <td style="padding: 10px;">${doc.department || 'N/A'}</td>
+                                <td style="padding: 10px;">${doc.documentType || 'N/A'}</td>
+                                <td style="padding: 10px;">
+                                    <span style="padding: 2px 8px; background: ${methodColor}; color: white; border-radius: 4px; font-size: 11px;">
+                                        ${indexMethod}
+                                    </span>
+                                </td>
+                                <td style="padding: 10px; text-align: center;">${formatSize(doc.fileSize)}</td>
+                                <td style="padding: 10px; text-align: center;">
+                                    ${doc.vectorized ? 
+                                        '<span style="color: #16a34a; font-weight: bold;">✓</span>' : 
+                                        '<span style="color: #dc2626;">✗</span>'}
+                                </td>
+                                <td style="padding: 10px; font-size: 11px;">${formatDate(doc.uploadDate || doc.createdDate)}</td>
+                                <td style="padding: 10px; text-align: center;">
+                                    ${doc.chunkCount ? 
+                                        `<span style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${doc.chunkCount}</span>` : 
+                                        '-'}
+                                </td>
+                                <td style="padding: 10px; text-align: center;">
+                                    <button class="btn btn-danger" style="padding: 4px 10px; font-size: 11px;" 
                                             onclick="(function(e) { try { e.preventDefault(); e.stopPropagation(); deleteDocumentById('${doc.id}', e); } catch(err) { console.error('Delete button error:', err); alert('Error: ' + err.message); } })(event)">Delete</button>
                                 </td>
                             </tr>
-                        `).join('')}
+                            `;
+                        }).join('')}
                     </tbody>
                 </table>
                 <div style="margin-top: 20px; padding: 10px; background: #f9f9f9; border-radius: 4px;">
