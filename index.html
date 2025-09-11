@@ -1079,7 +1079,17 @@
             <div class="big-carousel-nav prev" id="carouselPrev">‹</div>
             <div class="big-carousel-nav next" id="carouselNext">›</div>
             <div class="big-carousel-3d" id="carousel3d">
-                <div class="big-personality-card active" data-personality="tax">
+                <div class="big-personality-card active" data-personality="sage">
+                    <div class="floating-character">
+                        <img src="robot.png" alt="SAX MegaMind" onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=emoji-fallback>🧠</div>';">
+                    </div>
+                    <div class="character-details">
+                        <div class="big-personality-name">SAX MegaMind</div>
+                        <div class="big-personality-role">General Business Assistant</div>
+                        <div class="big-personality-description">Expert in business operations, strategy, and general advisory services for all departments. Your go-to assistant for comprehensive business guidance.</div>
+                    </div>
+                </div>
+                <div class="big-personality-card" data-personality="tax">
                     <div class="floating-character">
                         <img src="robot-cpa.png" alt="SAX CPA" onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=emoji-fallback>📋</div>';">
                     </div>
@@ -1107,16 +1117,6 @@
                         <div class="big-personality-name">SAX Auditor</div>
                         <div class="big-personality-role">Audit & Compliance Expert</div>
                         <div class="big-personality-description">Focused on audit procedures, compliance requirements, and risk assessment protocols. Expert in audit standards and regulatory compliance.</div>
-                    </div>
-                </div>
-                <div class="big-personality-card" data-personality="sage">
-                    <div class="floating-character">
-                        <img src="robot.png" alt="SAX MegaMind" onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=emoji-fallback>🧠</div>';">
-                    </div>
-                    <div class="character-details">
-                        <div class="big-personality-name">SAX MegaMind</div>
-                        <div class="big-personality-role">General Business Assistant</div>
-                        <div class="big-personality-description">Expert in business operations, strategy, and general advisory services for all departments. Your go-to assistant for comprehensive business guidance.</div>
                     </div>
                 </div>
             </div>
@@ -1182,14 +1182,14 @@
             <div class="chat-header">
                 <div class="chat-header-content">
                     <div class="header-robot" id="currentPersonalityAvatar">
-                        <img src="robot-cpa.png" alt="SAX CPA" onerror="this.style.display='none'; this.parentNode.innerHTML='📋';">
+                        <img src="robot.png" alt="SAX MegaMind" onerror="this.style.display='none'; this.parentNode.innerHTML='🧠';">
                     </div>
                     <div class="header-text">
                         <h2 id="personalitySelector">
-                            <span id="currentPersonalityName">SAX CPA</span>
+                            <span id="currentPersonalityName">SAX MegaMind</span>
                             <span style="font-size: 14px;">▼</span>
                         </h2>
-                        <p id="personalityIndicator">Tax & Accounting Expert</p>
+                        <p id="personalityIndicator">General Business Assistant</p>
                     </div>
                 </div>
             </div>
@@ -1279,8 +1279,8 @@
         let isChatRunning = false;
         
         // AI Profile Management
-        let currentAIProfile = 'tax';  // Start with SAX CPA as default
-        let currentWebhook = 'megamind-tax';
+        let currentAIProfile = 'sage';  // Start with SAX MegaMind as default
+        let currentWebhook = 'megamind-chat';
         const aiProfiles = {
             tax: {
                 name: 'SAX CPA',
@@ -1895,10 +1895,10 @@
                 chatMessages.innerHTML = '';
                 sessionStorage.removeItem('megamind_sax_messages');
                 
-                // Reset to default personality (SAX CPA)
-                currentAIProfile = 'tax';
-                currentWebhook = 'megamind-tax';
-                const config = aiProfiles.tax;
+                // Reset to default personality (SAX MegaMind)
+                currentAIProfile = 'sage';
+                currentWebhook = 'megamind-chat';
+                const config = aiProfiles.sage;
                 
                 // Update UI
                 document.getElementById('currentPersonalityName').textContent = config.name;
@@ -1914,7 +1914,7 @@
                 }
                 
                 // Add welcome message
-                addMessage('bot', "Conversation reset! I'm back to SAX CPA mode. How can I help you with tax and accounting?");
+                addMessage('bot', "Conversation reset! I'm SAX MegaMind, ready to help with any business questions you have.");
             }
         });
 
