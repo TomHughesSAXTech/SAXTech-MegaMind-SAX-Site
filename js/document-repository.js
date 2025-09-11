@@ -9,14 +9,18 @@
     // Configuration
     const CONFIG = {
         azure: {
-            searchUrl: 'https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs',
-            searchApiKey: 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO',
-            searchApiVersion: '2023-11-01',
             storageAccount: 'saxtechmegamind',
             containerName: 'saxdocuments',
             functionApp: {
-                baseUrl: 'https://saxtechmegamindfunctions.azurewebsites.net/api',
-                key: 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw=='
+                baseUrl: 'https://saxmegaminddocuments.azurewebsites.net/api',
+                key: 'xvFEr2CW2PcT3s1vcOuDK8uVNrMpaMT5K7kRAKT1YJPxAzFuhE6qyg==',
+                endpoints: {
+                    search: '/documents/search',
+                    process: '/documents/process',
+                    generateSAS: '/generate-sas-token',
+                    deleteDocument: '/documents-delete',
+                    indexMaintenance: '/index/maintenance'
+                }
             }
         },
         refreshInterval: 30000, // Refresh stats every 30 seconds
@@ -82,6 +86,7 @@
     function init() {
         setupEventListeners();
         loadIndexStatistics();
+        loadDepartments();  // Load departments dynamically
         loadDocuments();
         
         // Set up auto-refresh for statistics
@@ -300,8 +305,6 @@
     // Document Loading
     async function loadDocuments() {
         try {
-            const searchUrl = `${CONFIG.azure.searchUrl}/search?api-version=${CONFIG.azure.searchApiVersion}`;
-            
             // Build query
             let query = {
                 search: state.searchTerm || '*',
@@ -315,11 +318,11 @@
                 query.filter = `department eq '${state.currentDepartment}'`;
             }
             
-            const response = await fetch(searchUrl, {
+            const response = await fetch(`${CONFIG.azure.functionApp.baseUrl}${CONFIG.azure.functionApp.endpoints.search}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'api-key': CONFIG.azure.searchApiKey
+                    'x-functions-key': CONFIG.azure.functionApp.key
                 },
                 body: JSON.stringify(query)
             });
@@ -559,32 +562,79 @@
         loadDocuments();
     }
 
-    // Statistics
-    async function loadIndexStatistics() {
+    // Load departments dynamically from Azure
+    async function loadDepartments() {
         try {
-            const searchUrl = `${CONFIG.azure.searchUrl}/search?api-version=${CONFIG.azure.searchApiVersion}`;
-            
-            // Get document count and latest update
-            const response = await fetch(searchUrl, {
+            const response = await fetch(`${CONFIG.azure.functionApp.baseUrl}/index/maintenance`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'api-key': CONFIG.azure.searchApiKey
+                    'x-functions-key': CONFIG.azure.functionApp.key
                 },
                 body: JSON.stringify({
-                    search: '*',
-                    count: true,
-                    top: 1,
-                    orderby: 'lastModified desc',
-                    select: 'lastModified'
+                    operation: 'list-departments'
+                })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.departments) {
+                    updateDepartmentFilter(data.departments);
+                }
+            }
+        } catch (error) {
+            console.error('Error loading departments:', error);
+        }
+    }
+    
+    // Update department filter with dynamic departments
+    function updateDepartmentFilter(departments) {
+        if (elements.departmentFilter) {
+            // Save current selection
+            const currentValue = elements.departmentFilter.value;
+            
+            // Clear existing options except the first (empty) one
+            while (elements.departmentFilter.options.length > 1) {
+                elements.departmentFilter.remove(1);
+            }
+            
+            // Add departments from Azure
+            departments.forEach(dept => {
+                if (dept && dept !== 'converted-documents' && dept !== 'original-documents') {
+                    const option = document.createElement('option');
+                    option.value = dept;
+                    option.textContent = dept.charAt(0).toUpperCase() + dept.slice(1);
+                    elements.departmentFilter.appendChild(option);
+                }
+            });
+            
+            // Restore selection if it still exists
+            if (currentValue && Array.from(elements.departmentFilter.options).some(opt => opt.value === currentValue)) {
+                elements.departmentFilter.value = currentValue;
+            }
+        }
+    }
+    
+    // Statistics
+    async function loadIndexStatistics() {
+        try {
+            // Use Azure Function to get statistics
+            const response = await fetch(`${CONFIG.azure.functionApp.baseUrl}${CONFIG.azure.functionApp.endpoints.indexMaintenance}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-functions-key': CONFIG.azure.functionApp.key
+                },
+                body: JSON.stringify({
+                    operation: 'stats'
                 })
             });
             
             if (response.ok) {
                 const data = await response.json();
                 
-                // Update document count
-                const totalDocs = data['@odata.count'] || 0;
+                // Update document count from stats
+                const totalDocs = data.stats?.totalDocuments || 0;
                 elements.totalDocCount.textContent = totalDocs.toLocaleString();
                 
                 // Estimate index size (approximate)
@@ -592,11 +642,10 @@
                 const totalSizeMB = (totalDocs * avgDocSize / 1024).toFixed(1);
                 elements.totalIndexSize.textContent = `${totalSizeMB} MB`;
                 
-                // Get last update time from the most recent document
-                if (data.value && data.value.length > 0 && data.value[0].lastModified) {
-                    const lastModified = new Date(data.value[0].lastModified);
-                    elements.lastIndexUpdate.textContent = formatDateTime(lastModified);
-                    state.lastIndexUpdate = lastModified;
+                // Get last update time from stats
+                if (data.stats?.lastUpdated) {
+                    elements.lastIndexUpdate.textContent = data.stats.lastUpdated;
+                    state.lastIndexUpdate = data.stats.lastUpdated;
                 } else {
                     elements.lastIndexUpdate.textContent = '--';
                 }

@@ -412,29 +412,36 @@
 
         async function refreshStats() {
             try {
+                // Use Azure Function to get stats
                 const response = await fetch(
-                    `${API_CONFIG.searchEndpoint}/indexes/${API_CONFIG.indexName}/docs/$count?api-version=2023-11-01`,
+                    `${API_CONFIG.functionUrl}/index/maintenance`,
                     {
+                        method: 'POST',
                         headers: {
-                            'api-key': API_CONFIG.searchApiKey,
-                            'Content-Type': 'application/json'
-                        }
+                            'Content-Type': 'application/json',
+                            'x-functions-key': API_CONFIG.functionKey
+                        },
+                        body: JSON.stringify({
+                            operation: 'stats'
+                        })
                     }
                 );
                 
                 if (response.ok) {
-                    const count = await response.text();
-                    document.getElementById('totalDocs').textContent = count;
-                    
-                    // Estimate size
-                    const sizeInMB = (parseInt(count) * 50 / 1024).toFixed(1);
-                    document.getElementById('indexSize').textContent = `${sizeInMB} MB`;
-                    
-                    // Set current time as last update
-                    const now = new Date().toLocaleTimeString();
-                    document.getElementById('lastUpdate').textContent = now;
-                    
-                    showAlert('success', 'Statistics refreshed successfully');
+                    const data = await response.json();
+                    if (data.success && data.stats) {
+                        document.getElementById('totalDocs').textContent = data.stats.totalDocuments || '0';
+                        
+                        // Calculate size
+                        const sizeInMB = ((data.stats.totalDocuments || 0) * 50 / 1024).toFixed(1);
+                        document.getElementById('indexSize').textContent = `${sizeInMB} MB`;
+                        
+                        // Set current time as last update
+                        const now = new Date().toLocaleTimeString();
+                        document.getElementById('lastUpdate').textContent = now;
+                        
+                        showAlert('success', 'Statistics refreshed successfully');
+                    }
                 } else {
                     throw new Error('Failed to fetch statistics');
                 }
@@ -453,32 +460,29 @@
             document.getElementById('results').innerHTML = '';
             
             try {
-                const searchBody = {
-                    search: query,
-                    top: parseInt(top),
-                    select: 'id,title,fileName,department,documentType,uploadDate,author,fileSize'
-                };
-                
-                if (filter) {
-                    searchBody.filter = filter;
-                }
-                
+                // Use Azure Function for search
                 const response = await fetch(
-                    `${API_CONFIG.searchEndpoint}/indexes/${API_CONFIG.indexName}/docs/search?api-version=2023-11-01`,
+                    `${API_CONFIG.functionUrl}/documents/search`,
                     {
                         method: 'POST',
                         headers: {
-                            'api-key': API_CONFIG.searchApiKey,
-                            'Content-Type': 'application/json'
+                            'Content-Type': 'application/json',
+                            'x-functions-key': API_CONFIG.functionKey
                         },
-                        body: JSON.stringify(searchBody)
+                        body: JSON.stringify({
+                            query: query,
+                            filter: filter,
+                            top: parseInt(top),
+                            select: ['id', 'title', 'fileName', 'department', 'documentType', 'uploadDate', 'author', 'fileSize']
+                        })
                     }
                 );
                 
                 if (response.ok) {
                     const data = await response.json();
-                    displayResults(data.value);
-                    showAlert('success', `Found ${data.value.length} documents`);
+                    const documents = data.results || data.value || [];
+                    displayResults(documents);
+                    showAlert('success', `Found ${documents.length} documents`);
                 } else {
                     throw new Error('Search failed');
                 }
@@ -545,28 +549,10 @@
                 );
                 
                 if (functionResponse.ok || functionResponse.status === 404) {
-                    // If function doesn't exist, try direct API
-                    if (functionResponse.status === 404) {
-                        const response = await fetch(
-                            `${API_CONFIG.searchEndpoint}/indexes/${API_CONFIG.indexName}/docs/index?api-version=2023-11-01`,
-                            {
-                                method: 'POST',
-                                headers: {
-                                    'api-key': API_CONFIG.searchApiKey,
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify({
-                                    value: [{
-                                        "@search.action": "delete",
-                                        "id": docId
-                                    }]
-                                })
-                            }
-                        );
-                        
-                        if (!response.ok) {
-                            throw new Error('Failed to delete document');
-                        }
+                    // Check response
+                    if (!functionResponse.ok && functionResponse.status !== 404) {
+                        const errorData = await functionResponse.json();
+                        throw new Error(errorData.message || 'Failed to delete document');
                     }
                     
                     showAlert('success', `Document ${docId} deleted successfully`);
@@ -602,25 +588,24 @@
             }
             
             try {
-                const deleteActions = ids.map(id => ({
-                    "@search.action": "delete",
-                    "id": id
-                }));
-                
+                // Use Azure Function for bulk delete
                 const response = await fetch(
-                    `${API_CONFIG.searchEndpoint}/indexes/${API_CONFIG.indexName}/docs/index?api-version=2023-11-01`,
+                    `${API_CONFIG.functionUrl}/documents-delete`,
                     {
                         method: 'POST',
                         headers: {
-                            'api-key': API_CONFIG.searchApiKey,
-                            'Content-Type': 'application/json'
+                            'Content-Type': 'application/json',
+                            'x-functions-key': API_CONFIG.functionKey
                         },
-                        body: JSON.stringify({ value: deleteActions })
+                        body: JSON.stringify({
+                            documentIds: ids
+                        })
                     }
                 );
                 
                 if (response.ok) {
-                    showAlert('success', `${ids.length} documents deleted successfully`);
+                    const result = await response.json();
+                    showAlert('success', result.summary || `${ids.length} documents deleted successfully`);
                     document.getElementById('bulkDeleteIds').value = '';
                     setTimeout(refreshStats, 500);
                 } else {
@@ -644,56 +629,33 @@
             }
             
             try {
-                // First get all document IDs
-                const searchResponse = await fetch(
-                    `${API_CONFIG.searchEndpoint}/indexes/${API_CONFIG.indexName}/docs/search?api-version=2023-11-01`,
+                // Use Azure Function to clear index
+                const response = await fetch(
+                    `${API_CONFIG.functionUrl}/index/maintenance`,
                     {
                         method: 'POST',
                         headers: {
-                            'api-key': API_CONFIG.searchApiKey,
-                            'Content-Type': 'application/json'
+                            'Content-Type': 'application/json',
+                            'x-functions-key': API_CONFIG.functionKey
                         },
                         body: JSON.stringify({
-                            search: '*',
-                            select: 'id',
-                            top: 1000
+                            operation: 'clear',
+                            confirm: true
                         })
                     }
                 );
                 
-                if (searchResponse.ok) {
-                    const data = await searchResponse.json();
-                    
-                    if (data.value && data.value.length > 0) {
-                        const deleteActions = data.value.map(doc => ({
-                            "@search.action": "delete",
-                            "id": doc.id
-                        }));
-                        
-                        const deleteResponse = await fetch(
-                            `${API_CONFIG.searchEndpoint}/indexes/${API_CONFIG.indexName}/docs/index?api-version=2023-11-01`,
-                            {
-                                method: 'POST',
-                                headers: {
-                                    'api-key': API_CONFIG.searchApiKey,
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify({ value: deleteActions })
-                            }
-                        );
-                        
-                        if (deleteResponse.ok) {
-                            showAlert('success', `Index cleared. ${data.value.length} documents deleted.`);
-                            document.getElementById('clearConfirm').value = '';
-                            setTimeout(refreshStats, 500);
-                        } else {
-                            throw new Error('Failed to clear index');
-                        }
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success) {
+                        showAlert('success', result.message || 'Index cleared successfully');
+                        document.getElementById('clearConfirm').value = '';
+                        setTimeout(refreshStats, 500);
                     } else {
-                        showAlert('warning', 'Index is already empty');
+                        showAlert('warning', result.message || 'Operation failed');
                     }
                 } else {
-                    throw new Error('Failed to fetch documents');
+                    throw new Error('Failed to clear index');
                 }
             } catch (error) {
                 showAlert('error', 'Clear index error: ' + error.message);

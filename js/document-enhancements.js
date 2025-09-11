@@ -32,12 +32,18 @@ class DocumentEnhancements {
      */
     async checkDuplicate(fileHash, fileName) {
         try {
-            const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
-            const response = await fetch(searchUrl, {
+            // Use Azure Function for search (assuming API_CONFIG is available)
+            const API_CONFIG = window.API_CONFIG || {
+                baseUrl: 'https://saxmegaminddocuments.azurewebsites.net/api',
+                functionKey: 'xvFEr2CW2PcT3s1vcOuDK8uVNrMpaMT5K7kRAKT1YJPxAzFuhE6qyg==',
+                endpoints: { search: '/documents/search' }
+            };
+            
+            const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
+                    'x-functions-key': API_CONFIG.functionKey
                 },
                 body: JSON.stringify({
                     search: fileHash,
@@ -413,12 +419,17 @@ class DocumentEnhancements {
      * Search all documents excluding L&D department
      */
     async searchAllExceptLD(searchTerm) {
-        const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
-        const response = await fetch(searchUrl, {
+        const API_CONFIG = window.API_CONFIG || {
+            baseUrl: 'https://saxmegaminddocuments.azurewebsites.net/api',
+            functionKey: 'xvFEr2CW2PcT3s1vcOuDK8uVNrMpaMT5K7kRAKT1YJPxAzFuhE6qyg==',
+            endpoints: { search: '/documents/search' }
+        };
+        
+        const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
+                'x-functions-key': API_CONFIG.functionKey
             },
             body: JSON.stringify({
                 search: searchTerm,
@@ -441,12 +452,17 @@ class DocumentEnhancements {
      * Search only L&D department documents
      */
     async searchLDOnly(searchTerm) {
-        const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
-        const response = await fetch(searchUrl, {
+        const API_CONFIG = window.API_CONFIG || {
+            baseUrl: 'https://saxmegaminddocuments.azurewebsites.net/api',
+            functionKey: 'xvFEr2CW2PcT3s1vcOuDK8uVNrMpaMT5K7kRAKT1YJPxAzFuhE6qyg==',
+            endpoints: { search: '/documents/search' }
+        };
+        
+        const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
+                'x-functions-key': API_CONFIG.functionKey
             },
             body: JSON.stringify({
                 search: searchTerm,
@@ -469,12 +485,17 @@ class DocumentEnhancements {
      * Search specific department
      */
     async searchByDepartment(searchTerm, department) {
-        const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
-        const response = await fetch(searchUrl, {
+        const API_CONFIG = window.API_CONFIG || {
+            baseUrl: 'https://saxmegaminddocuments.azurewebsites.net/api',
+            functionKey: 'xvFEr2CW2PcT3s1vcOuDK8uVNrMpaMT5K7kRAKT1YJPxAzFuhE6qyg==',
+            endpoints: { search: '/documents/search' }
+        };
+        
+        const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
+                'x-functions-key': API_CONFIG.functionKey
             },
             body: JSON.stringify({
                 search: searchTerm,

@@ -994,6 +994,9 @@
         // Load index statistics on page load
         loadIndexStatistics();
         
+        // Load departments from Azure
+        loadDepartmentsFromAzure();
+        
         // Auto-load all documents on page load
         setTimeout(() => {
             loadAllDocuments();
@@ -1127,13 +1130,12 @@
 
         async function fetchAllDocuments() {
             try {
-                // Query Azure AI Search for all documents
-                const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
-                const response = await fetch(searchUrl, {
+                // Query all documents using Azure Function
+                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
+                        'x-functions-key': API_CONFIG.functionKey
                     },
                     body: JSON.stringify({
                         search: '*',
@@ -1143,7 +1145,7 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Azure Search HTTP ${response.status}: ${response.statusText}`);
+                    throw new Error(`Search HTTP ${response.status}: ${response.statusText}`);
                 }
 
                 const searchResults = await response.json();
@@ -1501,13 +1503,12 @@
             }
             
             try {
-                // Search across all documents in Azure AI Search
-                const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
-                const response = await fetch(searchUrl, {
+                // Search across all documents using Azure Function
+                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
+                        'x-functions-key': API_CONFIG.functionKey
                     },
                     body: JSON.stringify({
                         search: searchTerm,
@@ -1619,20 +1620,26 @@
                     console.log('SAS token generation failed, trying fallback:', sasError);
                 }
                 
-                // First, try to get document details from Azure Search to find blob URL
-                const searchUrl = `https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/${docId}?api-version=2023-11-01`;
-                const response = await fetch(searchUrl, {
+                // First, try to get document details using Azure Function to find blob URL
+                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
+                    method: 'POST',
                     headers: {
-                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO',
-                        'Content-Type': 'application/json'
-                    }
+                        'Content-Type': 'application/json',
+                        'x-functions-key': API_CONFIG.functionKey
+                    },
+                    body: JSON.stringify({
+                        search: `id:${docId}`,
+                        select: 'id,blobUrl,fileUrl,storageUrl',
+                        top: 1
+                    })
                 });
                 
                 if (response.ok) {
-                    const doc = await response.json();
+                    const data = await response.json();
+                    const doc = data.value && data.value[0] ? data.value[0] : null;
                     
                     // Check if we have a blob URL
-                    if (doc.blobUrl || doc.fileUrl || doc.storageUrl) {
+                    if (doc && (doc.blobUrl || doc.fileUrl || doc.storageUrl)) {
                         const fileUrl = doc.blobUrl || doc.fileUrl || doc.storageUrl;
                         // Open the actual document in a new tab
                         window.open(fileUrl, '_blank');
@@ -1702,20 +1709,26 @@
                     console.log('SAS token generation failed, trying fallback:', sasError);
                 }
                 
-                // First, try to get document details from Azure Search to find blob URL
-                const searchUrl = `https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/${docId}?api-version=2023-11-01`;
-                const response = await fetch(searchUrl, {
+                // First, try to get document details using Azure Function to find blob URL
+                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
+                    method: 'POST',
                     headers: {
-                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO',
-                        'Content-Type': 'application/json'
-                    }
+                        'Content-Type': 'application/json',
+                        'x-functions-key': API_CONFIG.functionKey
+                    },
+                    body: JSON.stringify({
+                        search: `id:${docId}`,
+                        select: 'id,blobUrl,fileUrl,storageUrl',
+                        top: 1
+                    })
                 });
                 
                 if (response.ok) {
-                    const doc = await response.json();
+                    const data = await response.json();
+                    const doc = data.value && data.value[0] ? data.value[0] : null;
                     
                     // Check if we have a blob URL
-                    if (doc.blobUrl || doc.fileUrl || doc.storageUrl) {
+                    if (doc && (doc.blobUrl || doc.fileUrl || doc.storageUrl)) {
                         const fileUrl = doc.blobUrl || doc.fileUrl || doc.storageUrl;
                         
                         // Create a temporary link and trigger download
@@ -1846,29 +1859,110 @@
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
         
-        // Load index statistics
-        async function loadIndexStatistics() {
+        // Load departments from Azure Storage/Index
+        async function loadDepartmentsFromAzure() {
             try {
-                // Query Azure Search for total document count and latest document
-                const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
-                const response = await fetch(searchUrl, {
+                // Call the index maintenance function to get departments
+                const response = await fetch(`${API_CONFIG.baseUrl}/index/maintenance`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
+                        'x-functions-key': API_CONFIG.functionKey
                     },
                     body: JSON.stringify({
-                        search: '*',
-                        count: true,
-                        top: 1,
-                        orderby: 'lastModified desc',
-                        select: 'lastModified,uploadDate'
+                        operation: 'list-departments'
                     })
                 });
                 
                 if (response.ok) {
                     const data = await response.json();
-                    const totalDocs = data['@odata.count'] || 0;
+                    if (data.success && data.departments) {
+                        // Update department dropdowns
+                        updateDepartmentDropdowns(data.departments);
+                    }
+                } else {
+                    console.log('Could not load departments from Azure, using defaults');
+                }
+            } catch (error) {
+                console.error('Error loading departments:', error);
+                // Use default departments if Azure load fails
+            }
+        }
+        
+        // Update department dropdowns with dynamic data
+        function updateDepartmentDropdowns(departments) {
+            const departmentSelect = document.getElementById('department');
+            const departmentFilter = document.getElementById('departmentFilter');
+            
+            if (departmentSelect) {
+                // Save current selection
+                const currentValue = departmentSelect.value;
+                
+                // Clear existing options except the first (empty) one
+                while (departmentSelect.options.length > 1) {
+                    departmentSelect.remove(1);
+                }
+                
+                // Add departments from Azure
+                departments.forEach(dept => {
+                    if (dept && dept !== 'converted-documents' && dept !== 'original-documents') {
+                        const option = document.createElement('option');
+                        option.value = dept;
+                        option.textContent = dept.charAt(0).toUpperCase() + dept.slice(1);
+                        departmentSelect.appendChild(option);
+                    }
+                });
+                
+                // Restore selection if it still exists
+                if (currentValue && Array.from(departmentSelect.options).some(opt => opt.value === currentValue)) {
+                    departmentSelect.value = currentValue;
+                }
+            }
+            
+            if (departmentFilter) {
+                // Save current selection
+                const currentValue = departmentFilter.value;
+                
+                // Clear existing options except the first (All Departments)
+                while (departmentFilter.options.length > 1) {
+                    departmentFilter.remove(1);
+                }
+                
+                // Add departments from Azure
+                departments.forEach(dept => {
+                    if (dept && dept !== 'converted-documents' && dept !== 'original-documents') {
+                        const option = document.createElement('option');
+                        option.value = dept;
+                        option.textContent = dept.charAt(0).toUpperCase() + dept.slice(1);
+                        departmentFilter.appendChild(option);
+                    }
+                });
+                
+                // Restore selection if it still exists
+                if (currentValue && Array.from(departmentFilter.options).some(opt => opt.value === currentValue)) {
+                    departmentFilter.value = currentValue;
+                }
+            }
+        }
+        
+        // Load index statistics
+        async function loadIndexStatistics() {
+            try {
+                // Use Azure Function to get statistics
+                const response = await fetch(`${API_CONFIG.baseUrl}/index/maintenance`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-functions-key': API_CONFIG.functionKey
+                    },
+                    body: JSON.stringify({
+                        operation: 'stats'
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const totalDocs = data.stats?.totalDocuments || 0;
                     
                     // Update statistics in header
                     document.getElementById('totalDocCount').textContent = totalDocs.toLocaleString();
@@ -1878,18 +1972,9 @@
                     const totalSizeMB = (totalDocs * avgDocSize / 1024).toFixed(1);
                     document.getElementById('totalIndexSize').textContent = `${totalSizeMB} MB`;
                     
-                    // Get last update time from the most recent document
-                    if (data.value && data.value.length > 0) {
-                        const latestDoc = data.value[0];
-                        const lastModified = latestDoc.lastModified || latestDoc.uploadDate;
-                        if (lastModified) {
-                            const lastDate = new Date(lastModified);
-                            const dateStr = lastDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                            const timeStr = lastDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                            document.getElementById('lastIndexUpdate').textContent = `${dateStr} ${timeStr}`;
-                        } else {
-                            document.getElementById('lastIndexUpdate').textContent = '--';
-                        }
+                    // Get last update time from stats
+                    if (data.stats?.lastUpdated) {
+                        document.getElementById('lastIndexUpdate').textContent = data.stats.lastUpdated;
                     } else {
                         document.getElementById('lastIndexUpdate').textContent = '--';
                     }
@@ -1933,29 +2018,9 @@
                     if (functionResponse.status === 404) {
                         console.log('Delete function not found, attempting direct deletion');
                         
-                        // Try direct deletion from Azure Search index
-                        const searchUrl = `https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/index?api-version=2023-11-01`;
-                        const searchResponse = await fetch(searchUrl, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
-                            },
-                            body: JSON.stringify({
-                                value: [{
-                                    "@search.action": "delete",
-                                    "id": docId
-                                }]
-                            })
-                        });
-                        
-                        if (!searchResponse.ok) {
-                            const errorData = await searchResponse.text();
-                            if (errorData.includes('CORS')) {
-                                throw new Error('CORS error: Please configure an Azure Function for document deletion.');
-                            }
-                            throw new Error(`Delete failed: ${errorData}`);
-                        }
+                        // Function not found - this shouldn't happen in production
+                        console.warn('DocumentsDelete function not available');
+                        throw new Error('Delete function not available. Please contact support.');
                     }
                     
                     // Show success message with cleaner notification
@@ -2055,13 +2120,12 @@
 
         async function fetchExistingSOPs(department, sopType) {
             try {
-                // Query Azure AI Search directly
-                const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
-                const response = await fetch(searchUrl, {
+                // Query documents using Azure Function
+                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
+                        'x-functions-key': API_CONFIG.functionKey
                     },
                     body: JSON.stringify({
                         search: '*',
