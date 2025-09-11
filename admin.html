@@ -462,7 +462,7 @@
             try {
                 // Use Azure Function for search
                 const response = await fetch(
-                    `${API_CONFIG.functionUrl}/documents-search`,
+                    `${API_CONFIG.functionUrl}/documents/search`,
                     {
                         method: 'POST',
                         headers: {

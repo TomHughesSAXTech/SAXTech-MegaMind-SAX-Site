@@ -36,7 +36,7 @@ class DocumentEnhancements {
             const API_CONFIG = window.API_CONFIG || {
                 baseUrl: 'https://saxtechmegamindfunctions.azurewebsites.net/api',
                 functionKey: 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw==',
-                endpoints: { search: '/documents-search' }
+                endpoints: { search: '/documents/search' }
             };
             
             const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
@@ -422,7 +422,7 @@ class DocumentEnhancements {
         const API_CONFIG = window.API_CONFIG || {
             baseUrl: 'https://saxtechmegamindfunctions.azurewebsites.net/api',
             functionKey: 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw==',
-            endpoints: { search: '/documents-search' }
+            endpoints: { search: '/documents/search' }
         };
         
         const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
@@ -455,7 +455,7 @@ class DocumentEnhancements {
         const API_CONFIG = window.API_CONFIG || {
             baseUrl: 'https://saxtechmegamindfunctions.azurewebsites.net/api',
             functionKey: 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw==',
-            endpoints: { search: '/documents-search' }
+            endpoints: { search: '/documents/search' }
         };
         
         const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
@@ -488,7 +488,7 @@ class DocumentEnhancements {
         const API_CONFIG = window.API_CONFIG || {
             baseUrl: 'https://saxtechmegamindfunctions.azurewebsites.net/api',
             functionKey: 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw==',
-            endpoints: { search: '/documents-search' }
+            endpoints: { search: '/documents/search' }
         };
         
         const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {

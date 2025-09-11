@@ -15,7 +15,7 @@
                 baseUrl: 'https://saxtechmegamindfunctions.azurewebsites.net/api',
                 key: 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw==',
                 endpoints: {
-                    search: '/documents-search',
+                    search: '/documents/search',
                     process: '/documents-upload-json',
                     generateSAS: '/GenerateSASToken',
                     deleteDocument: '/documents-delete',
