@@ -866,6 +866,27 @@
         </main>
     </div>
 
+    <!-- Document Preview Modal -->
+    <div id="previewModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.8); z-index: 10001; align-items: center; justify-content: center;">
+        <div style="position: relative; width: 90%; height: 90%; max-width: 1200px; background: white; border-radius: 12px; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
+            <div style="display: flex; justify-content: between; align-items: center; padding: 16px 24px; border-bottom: 1px solid #e5e7eb;">
+                <h2 id="previewTitle" style="margin: 0; font-size: 18px; font-weight: 600; color: #1f2937; flex: 1;">Document Preview</h2>
+                <button onclick="closePreviewModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280; padding: 4px; line-height: 1;">×</button>
+            </div>
+            <div id="previewContent" style="flex: 1; overflow: auto; padding: 0; display: flex; align-items: center; justify-content: center;">
+                <!-- Preview content will be loaded here -->
+            </div>
+            <div style="padding: 12px 24px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px;">
+                <button onclick="downloadFromPreview()" style="padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">
+                    ⬇️ Download
+                </button>
+                <button onclick="closePreviewModal()" style="padding: 8px 16px; background: #f3f4f6; color: #374151; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Upload Status Modal -->
     <div class="upload-modal" id="uploadModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); z-index: 10000; align-items: center; justify-content: center;">
         <div class="modal-content" style="background: white; border-radius: 16px; padding: 32px; max-width: 480px; width: 90%; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
@@ -1637,7 +1658,8 @@
                     if (sasResponse.ok) {
                         const sasData = await sasResponse.json();
                         if (sasData.sasUrl || sasData.blobUrl) {
-                            window.open(sasData.sasUrl || sasData.blobUrl, '_blank');
+                            // Show document in preview modal
+                            showDocumentInModal(sasData.sasUrl || sasData.blobUrl, fileName, docId, actualDepartment);
                             return;
                         }
                     }
@@ -1813,10 +1835,155 @@
             }
         }
         
+        // Store current preview data for download button
+        let currentPreviewData = null;
+        
+        function showDocumentInModal(url, fileName, docId, department) {
+            const modal = document.getElementById('previewModal');
+            const title = document.getElementById('previewTitle');
+            const content = document.getElementById('previewContent');
+            
+            // Store data for download button
+            currentPreviewData = { docId, fileName, department };
+            
+            // Update title
+            title.textContent = `Preview: ${fileName}`;
+            
+            // Clear previous content
+            content.innerHTML = '';
+            
+            // Determine file type
+            const fileExt = fileName.split('.').pop().toLowerCase();
+            
+            if (fileExt === 'pdf') {
+                // For PDFs, use an iframe
+                const iframe = document.createElement('iframe');
+                iframe.src = url;
+                iframe.style.width = '100%';
+                iframe.style.height = '100%';
+                iframe.style.border = 'none';
+                content.appendChild(iframe);
+            } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg'].includes(fileExt)) {
+                // For images, display directly
+                const img = document.createElement('img');
+                img.src = url;
+                img.style.maxWidth = '100%';
+                img.style.maxHeight = '100%';
+                img.style.objectFit = 'contain';
+                content.appendChild(img);
+            } else if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(fileExt)) {
+                // For Office documents, use Office Online viewer (if public) or iframe
+                const iframe = document.createElement('iframe');
+                // Try to use Office Online viewer
+                const officeUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`;
+                iframe.src = url; // Fall back to direct URL since it's private
+                iframe.style.width = '100%';
+                iframe.style.height = '100%';
+                iframe.style.border = 'none';
+                content.appendChild(iframe);
+                
+                // Add a message for Office files
+                const message = document.createElement('div');
+                message.style.position = 'absolute';
+                message.style.top = '50%';
+                message.style.left = '50%';
+                message.style.transform = 'translate(-50%, -50%)';
+                message.style.background = 'rgba(255, 255, 255, 0.95)';
+                message.style.padding = '20px';
+                message.style.borderRadius = '8px';
+                message.style.textAlign = 'center';
+                message.innerHTML = `
+                    <p style="margin: 0 0 10px 0; color: #374151;">This document type may not display correctly in the preview.</p>
+                    <p style="margin: 0; color: #6b7280; font-size: 14px;">Click the Download button to open in ${getAppForFileType(fileExt)}.</p>
+                `;
+                content.appendChild(message);
+                
+                // Auto-hide message after 3 seconds
+                setTimeout(() => {
+                    if (message.parentNode) {
+                        message.style.transition = 'opacity 0.3s';
+                        message.style.opacity = '0';
+                        setTimeout(() => message.remove(), 300);
+                    }
+                }, 3000);
+            } else if (['txt', 'csv', 'json', 'xml', 'md'].includes(fileExt)) {
+                // For text files, fetch and display content
+                fetch(url)
+                    .then(response => response.text())
+                    .then(text => {
+                        const pre = document.createElement('pre');
+                        pre.style.padding = '20px';
+                        pre.style.margin = '0';
+                        pre.style.fontFamily = 'monospace';
+                        pre.style.fontSize = '14px';
+                        pre.style.lineHeight = '1.5';
+                        pre.style.whiteSpace = 'pre-wrap';
+                        pre.style.wordWrap = 'break-word';
+                        pre.textContent = text;
+                        content.appendChild(pre);
+                    })
+                    .catch(error => {
+                        content.innerHTML = `
+                            <div style="text-align: center; padding: 40px;">
+                                <p style="color: #dc2626; margin-bottom: 10px;">Unable to load preview</p>
+                                <p style="color: #6b7280; font-size: 14px;">Click Download to save the file locally.</p>
+                            </div>
+                        `;
+                    });
+            } else {
+                // For unknown types, show a message
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <div style="font-size: 48px; margin-bottom: 20px;">📄</div>
+                        <p style="color: #374151; margin-bottom: 10px; font-weight: 500;">${fileName}</p>
+                        <p style="color: #6b7280; font-size: 14px;">Preview not available for this file type.</p>
+                        <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">Click Download to save the file locally.</p>
+                    </div>
+                `;
+            }
+            
+            // Show modal
+            modal.style.display = 'flex';
+        }
+        
+        function closePreviewModal() {
+            const modal = document.getElementById('previewModal');
+            const content = document.getElementById('previewContent');
+            
+            // Clear content
+            content.innerHTML = '';
+            
+            // Hide modal
+            modal.style.display = 'none';
+            
+            // Clear stored data
+            currentPreviewData = null;
+        }
+        
+        function downloadFromPreview() {
+            if (currentPreviewData) {
+                downloadDocument(currentPreviewData.docId, currentPreviewData.fileName, currentPreviewData.department);
+            }
+        }
+        
+        function getAppForFileType(ext) {
+            const apps = {
+                'doc': 'Microsoft Word',
+                'docx': 'Microsoft Word',
+                'xls': 'Microsoft Excel',
+                'xlsx': 'Microsoft Excel',
+                'ppt': 'Microsoft PowerPoint',
+                'pptx': 'Microsoft PowerPoint',
+                'pdf': 'Adobe Acrobat',
+                'txt': 'Text Editor',
+                'csv': 'Excel or Text Editor'
+            };
+            return apps[ext] || 'the appropriate application';
+        }
+        
         function showPDFViewer(docId, title) {
-            // Future implementation for embedded PDF viewer
-            // This could open a modal with an iframe or use PDF.js
-            window.open(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.previewDocument}?id=${docId}`, '_blank');
+            // Legacy function - now handled by showDocumentInModal
+            console.log('Legacy showPDFViewer called');
         }
         
         // Helper function to get file type info with brand icons
