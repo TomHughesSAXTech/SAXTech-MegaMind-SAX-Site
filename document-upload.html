@@ -847,6 +847,20 @@
                         <input type="text" class="search-input" id="searchInput" placeholder="Search documents...">
                         <span class="search-icon">🔍</span>
                     </div>
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <select id="departmentFilter" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; background: white; cursor: pointer;">
+                            <option value="">All Departments</option>
+                            <option value="IT">IT</option>
+                            <option value="HR">Human Resources</option>
+                            <option value="Finance">Finance</option>
+                            <option value="Operations">Operations</option>
+                            <option value="Sales">Sales</option>
+                            <option value="Marketing">Marketing</option>
+                            <option value="Legal">Legal</option>
+                            <option value="Compliance">Compliance</option>
+                            <option value="General">General</option>
+                        </select>
+                    </div>
                     <div class="stats-panel">
                         <span id="documentCount">0 documents</span>
                         <span>•</span>
@@ -972,6 +986,15 @@
         fileInput.addEventListener('change', handleFileSelect);
         form.addEventListener('submit', handleFormSubmit);
         searchInput.addEventListener('input', handleSearch);
+        
+        // Add department filter listener
+        const departmentFilter = document.getElementById('departmentFilter');
+        if (departmentFilter) {
+            departmentFilter.addEventListener('change', function() {
+                currentDepartment = this.value;
+                loadDepartmentDocuments();
+            });
+        }
         
         // Load index statistics on page load
         loadIndexStatistics();
@@ -1173,11 +1196,13 @@
                     });
                     
                     // Get the most recent update date
-                    const dates = documents.filter(d => d.lastModified || d.createdDate)
-                                          .map(d => new Date(d.lastModified || d.createdDate));
+                    const dates = documents.filter(d => d.lastModified || d.uploadDate || d.createdDate)
+                                          .map(d => new Date(d.lastModified || d.uploadDate || d.createdDate));
                     if (dates.length > 0) {
                         const mostRecent = new Date(Math.max(...dates));
-                        lastUpdated = mostRecent.toLocaleDateString();
+                        const dateStr = mostRecent.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                        const timeStr = mostRecent.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                        lastUpdated = `${dateStr} ${timeStr}`;
                     }
                 }
                 
@@ -1570,6 +1595,33 @@
             console.log('Preview document:', docId, title);
             
             try {
+                // First try to generate SAS token for secure blob access
+                const department = currentDepartment || 'General';
+                try {
+                    const sasResponse = await fetch('/api/documents/generateSAS', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-functions-key': API_CONFIG.functionKey
+                        },
+                        body: JSON.stringify({
+                            fileName: title,
+                            department: department,
+                            containerName: 'saxdocuments',
+                            permissions: 'r',
+                            expiryMinutes: 60
+                        })
+                    });
+                    
+                    if (sasResponse.ok) {
+                        const sasData = await sasResponse.json();
+                        window.open(sasData.blobUrl, '_blank');
+                        return;
+                    }
+                } catch (sasError) {
+                    console.log('SAS token generation failed, trying fallback:', sasError);
+                }
+                
                 // First, try to get document details from Azure Search to find blob URL
                 const searchUrl = `https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/${docId}?api-version=2023-11-01`;
                 const response = await fetch(searchUrl, {
@@ -1617,6 +1669,42 @@
             console.log('Download document:', docId, title);
             
             try {
+                // First try to generate SAS token for secure blob access
+                const department = currentDepartment || 'General';
+                try {
+                    const sasResponse = await fetch('/api/documents/generateSAS', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-functions-key': API_CONFIG.functionKey
+                        },
+                        body: JSON.stringify({
+                            fileName: title,
+                            department: department,
+                            containerName: 'saxdocuments',
+                            permissions: 'r',
+                            expiryMinutes: 60
+                        })
+                    });
+                    
+                    if (sasResponse.ok) {
+                        const sasData = await sasResponse.json();
+                        
+                        // Create a temporary link and trigger download
+                        const link = document.createElement('a');
+                        link.href = sasData.blobUrl;
+                        link.download = title;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        
+                        console.log(`Downloading with SAS token: ${title}`);
+                        return;
+                    }
+                } catch (sasError) {
+                    console.log('SAS token generation failed, trying fallback:', sasError);
+                }
+                
                 // First, try to get document details from Azure Search to find blob URL
                 const searchUrl = `https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/${docId}?api-version=2023-11-01`;
                 const response = await fetch(searchUrl, {
@@ -1764,7 +1852,7 @@
         // Load index statistics
         async function loadIndexStatistics() {
             try {
-                // Query Azure Search for total document count
+                // Query Azure Search for total document count and latest document
                 const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
                 const response = await fetch(searchUrl, {
                     method: 'POST',
@@ -1775,7 +1863,9 @@
                     body: JSON.stringify({
                         search: '*',
                         count: true,
-                        top: 0
+                        top: 1,
+                        orderby: 'lastModified desc',
+                        select: 'lastModified,uploadDate'
                     })
                 });
                 
@@ -1791,10 +1881,21 @@
                     const totalSizeMB = (totalDocs * avgDocSize / 1024).toFixed(1);
                     document.getElementById('totalIndexSize').textContent = `${totalSizeMB} MB`;
                     
-                    // Set last update to now
-                    const now = new Date();
-                    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                    document.getElementById('lastIndexUpdate').textContent = timeStr;
+                    // Get last update time from the most recent document
+                    if (data.value && data.value.length > 0) {
+                        const latestDoc = data.value[0];
+                        const lastModified = latestDoc.lastModified || latestDoc.uploadDate;
+                        if (lastModified) {
+                            const lastDate = new Date(lastModified);
+                            const dateStr = lastDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                            const timeStr = lastDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                            document.getElementById('lastIndexUpdate').textContent = `${dateStr} ${timeStr}`;
+                        } else {
+                            document.getElementById('lastIndexUpdate').textContent = '--';
+                        }
+                    } else {
+                        document.getElementById('lastIndexUpdate').textContent = '--';
+                    }
                     
                     // Estimate vectorized count (for now, assume 80% are vectorized)
                     const vectorized = Math.floor(totalDocs * 0.8);
