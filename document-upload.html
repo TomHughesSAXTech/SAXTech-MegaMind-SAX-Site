@@ -1478,10 +1478,10 @@
                     ${doc.description ? `<div class="document-description" style="font-size: 11px; color: #94a3b8; line-height: 1.4;">${doc.description}</div>` : ''}
                 </div>
                 <div class="document-actions" style="display: flex; gap: 8px; align-items: center;">
-                    <button class="action-btn btn-preview" onclick="previewDocument('${doc.id}', '${displayName}', '${fileExt}', null, event)" style="padding: 6px 12px; background: white; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 12px; color: #374151;">
+                    <button class="action-btn btn-preview" onclick="previewDocument('${doc.id}', '${displayName}', '${fileExt}', null, event, '${doc.department || ''}')" style="padding: 6px 12px; background: white; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 12px; color: #374151;">
                         <span style="margin-right: 4px;">👁️</span> Preview
                     </button>
-                    <button class="action-btn btn-download" onclick="downloadDocument('${doc.id}', '${displayName}', event)" style="padding: 6px 12px; background: white; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 12px; color: #374151;">
+                    <button class="action-btn btn-download" onclick="downloadDocument('${doc.id}', '${displayName}', '${doc.department || ''}')" style="padding: 6px 12px; background: white; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 12px; color: #374151;">
                         <span style="margin-right: 4px;">⬇️</span> Download
                     </button>
                     <button class="btn-delete" onclick="deleteDocument('${doc.id}', '${doc.title || displayName}', event)" style="width: 32px; height: 32px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; color: #dc2626; display: flex; align-items: center; justify-content: center;" title="Delete document">
@@ -1511,11 +1511,9 @@
                         'x-functions-key': API_CONFIG.functionKey
                     },
                     body: JSON.stringify({
-                        search: searchTerm,
-                        searchMode: 'any',
-                        select: 'id,title,fileName,documentType,description,uploadDate,department',
+                        query: searchTerm,  // Changed from 'search' to 'query'
                         top: 50,
-                        orderby: 'uploadDate desc'
+                        enableVector: false
                     })
                 });
                 
@@ -1546,12 +1544,14 @@
                                 const docItem = createDocumentItem({
                                     id: doc.id,
                                     title: doc.title || doc.fileName,
+                                    fileName: doc.fileName,
                                     description: doc.description || '',
                                     lastModified: new Date(doc.uploadDate).toLocaleDateString(),
                                     type: (doc.documentType || 'DOC').substring(0, 3).toUpperCase(),
                                     author: 'SAX User',
                                     size: 'N/A',
-                                    version: '1.0'
+                                    version: '1.0',
+                                    department: doc.department
                                 });
                                 deptDiv.appendChild(docItem);
                             });
@@ -1583,18 +1583,42 @@
             }
         }
 
-        async function previewDocument(docId, fileName, fileType = 'pdf', fileSize = null, event = null) {
+        async function previewDocument(docId, fileName, fileType = 'pdf', fileSize = null, event = null, department = null) {
             // Prevent default action
             if (event) {
                 event.preventDefault();
                 event.stopPropagation();
             }
             
-            console.log('Preview document:', docId, fileName);
+            console.log('Preview document:', docId, fileName, 'Department:', department);
             
             try {
-                // First try to generate SAS token for secure blob access
-                const deptForPreview = currentDepartment || 'General';
+                // First, get the document details to find the correct department
+                let actualDepartment = department;
+                if (!actualDepartment) {
+                    const searchResponse = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-functions-key': API_CONFIG.functionKey
+                        },
+                        body: JSON.stringify({
+                            query: `id:${docId}`,
+                            top: 1
+                        })
+                    });
+                    
+                    if (searchResponse.ok) {
+                        const searchData = await searchResponse.json();
+                        if (searchData.value && searchData.value[0]) {
+                            actualDepartment = searchData.value[0].department;
+                        }
+                    }
+                }
+                
+                // Use the actual department or fall back to 'Operations' if still not found
+                const deptForPreview = actualDepartment || 'Operations';
+                
                 try {
                     const sasUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.generateSAS}?code=${API_CONFIG.functionKey}`;
                     const sasResponse = await fetch(sasUrl, {
@@ -1665,16 +1689,40 @@
             }
         }
         
-        async function downloadDocument(docId, fileName) {
+        async function downloadDocument(docId, fileName, department = null) {
             // Prevent default action
             event.preventDefault();
             event.stopPropagation();
             
-            console.log('Download document:', docId, fileName);
+            console.log('Download document:', docId, fileName, 'Department:', department);
             
             try {
-                // First try to generate SAS token for secure blob access
-                const deptForDownload = currentDepartment || 'General';
+                // First, get the document details to find the correct department
+                let actualDepartment = department;
+                if (!actualDepartment) {
+                    const searchResponse = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-functions-key': API_CONFIG.functionKey
+                        },
+                        body: JSON.stringify({
+                            query: `id:${docId}`,
+                            top: 1
+                        })
+                    });
+                    
+                    if (searchResponse.ok) {
+                        const searchData = await searchResponse.json();
+                        if (searchData.value && searchData.value[0]) {
+                            actualDepartment = searchData.value[0].department;
+                        }
+                    }
+                }
+                
+                // Use the actual department or fall back to 'Operations' if still not found
+                const deptForDownload = actualDepartment || 'Operations';
+                
                 try {
                     const sasUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.generateSAS}?code=${API_CONFIG.functionKey}`;
                     const sasResponse = await fetch(sasUrl, {
