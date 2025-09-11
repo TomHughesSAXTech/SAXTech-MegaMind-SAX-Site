@@ -662,6 +662,33 @@
 <body>
     <a href="/" class="back-to-chat" style="position: fixed; top: 20px; left: 20px; background: linear-gradient(135deg, #FFD700, #FFA500); color: #1a1a1a; padding: 10px 20px; border-radius: 25px; text-decoration: none; font-weight: 600; font-size: 14px; transition: all 0.3s ease; z-index: 1000; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">← Back to MegaMind</a>
     
+    <!-- Admin Console Button -->
+    <button onclick="openAdminConsole()" style="
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #DC2626, #B91C1C);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 25px;
+        border: 2px solid rgba(255,255,255,0.2);
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        z-index: 1000;
+        box-shadow: 0 4px 15px rgba(220, 38, 38, 0.3);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    ">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"></path>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+        Admin Console
+    </button>
+    
     <header class="header">
         <div class="header-content">
             <div class="logo-section">
@@ -2813,6 +2840,15 @@
                 submitBtn.textContent = 'Upload Document';
                 progressFill.style.width = '0%';
             }, 3000);
+        }
+        // Admin console password protection
+        function openAdminConsole() {
+            const password = prompt('Enter admin password to access the console:');
+            if (password === 'SAXAdmin2024') {
+                window.location.href = 'admin.html';
+            } else if (password !== null) {
+                alert('Incorrect password. Access denied.');
+            }
         }
     </script>
     <!-- Document Preview Module -->
