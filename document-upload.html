@@ -1062,17 +1062,17 @@
         }
 
         function loadDepartmentDocuments() {
-            const department = departmentSelect.value;
-            currentDepartment = department; // Track for preview/download
+            const selectedDept = departmentSelect.value;
+            currentDepartment = selectedDept; // Track for preview/download
             
-            if (!department) {
+            if (!selectedDept) {
                 // Load all documents if no department selected
                 loadAllDocuments();
                 return;
             }
 
             // Filter already loaded documents by department
-            filterDocumentsByDepartment(department);
+            filterDocumentsByDepartment(selectedDept);
         }
         
         function loadAllDocuments() {
@@ -1596,7 +1596,7 @@
             
             try {
                 // First try to generate SAS token for secure blob access
-                const department = currentDepartment || 'General';
+                const deptForPreview = currentDepartment || 'General';
                 try {
                     const sasResponse = await fetch('/api/documents/generateSAS', {
                         method: 'POST',
@@ -1606,7 +1606,7 @@
                         },
                         body: JSON.stringify({
                             fileName: title,
-                            department: department,
+                            department: deptForPreview,
                             containerName: 'saxdocuments',
                             permissions: 'r',
                             expiryMinutes: 60
@@ -1645,11 +1645,11 @@
                 
                 // If no blob URL found, try to construct one based on known patterns
                 // Azure Blob Storage URL pattern: https://{account}.blob.core.windows.net/{container}/{path}
-                const department = currentDepartment || 'General';
+                const deptForUrl = currentDepartment || 'General';
                 const fileName = title;
                 
                 // Try constructing blob URL
-                const blobUrl = `https://saxtechmegamind.blob.core.windows.net/saxdocuments/original-documents/${department.toLowerCase()}/${fileName}`;
+                const blobUrl = `https://saxtechmegamind.blob.core.windows.net/saxdocuments/original-documents/${deptForUrl.toLowerCase()}/${fileName}`;
                 
                 // Open in new tab - browser will handle if URL is valid
                 window.open(blobUrl, '_blank');
@@ -1670,7 +1670,7 @@
             
             try {
                 // First try to generate SAS token for secure blob access
-                const department = currentDepartment || 'General';
+                const deptForDownload = currentDepartment || 'General';
                 try {
                     const sasResponse = await fetch('/api/documents/generateSAS', {
                         method: 'POST',
@@ -1680,7 +1680,7 @@
                         },
                         body: JSON.stringify({
                             fileName: title,
-                            department: department,
+                            department: deptForDownload,
                             containerName: 'saxdocuments',
                             permissions: 'r',
                             expiryMinutes: 60
@@ -2040,13 +2040,13 @@
         }
 
         function loadExistingSOPs() {
-            const department = departmentSelect.value;
+            const dept = departmentSelect.value;
             const sopType = sopTypeSelect.value;
             const updateType = updateTypeSelect.value;
 
-            if (updateType === 'update' && department && sopType) {
+            if (updateType === 'update' && dept && sopType) {
                 // Call Azure Function to get existing SOPs for this department/type
-                fetchExistingSOPs(department, sopType)
+                fetchExistingSOPs(dept, sopType)
                     .then(sops => {
                         displaySOPs(sops);
                     })
@@ -2445,7 +2445,7 @@
         }
 
         function validateForm() {
-            const department = departmentSelect.value;
+            const dept = departmentSelect.value;
             const sopType = sopTypeSelect.value;
             const updateType = updateTypeSelect.value;
             const file = fileInput.files[0];
@@ -2462,7 +2462,7 @@
                 return false;
             }
 
-            if (!department) {
+            if (!dept) {
                 alert('Please select a department.');
                 departmentSelect.focus();
                 return false;
