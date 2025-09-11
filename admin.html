@@ -395,19 +395,34 @@
         };
 
         function showAlert(type, message) {
+            console.log(`ShowAlert called: type=${type}, message=${message}`);
+            
             const alerts = ['successAlert', 'errorAlert', 'warningAlert'];
             alerts.forEach(id => {
-                document.getElementById(id).classList.remove('show');
+                const elem = document.getElementById(id);
+                if (elem) {
+                    elem.classList.remove('show');
+                } else {
+                    console.error(`Alert element not found: ${id}`);
+                }
             });
             
             const alertId = type + 'Alert';
             const alert = document.getElementById(alertId);
-            alert.textContent = message;
-            alert.classList.add('show');
-            
-            setTimeout(() => {
-                alert.classList.remove('show');
-            }, 5000);
+            if (alert) {
+                alert.textContent = message;
+                alert.classList.add('show');
+                console.log(`Alert shown: ${alertId}`);
+                
+                setTimeout(() => {
+                    alert.classList.remove('show');
+                    console.log(`Alert hidden: ${alertId}`);
+                }, 5000);
+            } else {
+                console.error(`Alert element not found: ${alertId}`);
+                // Fallback to browser alert if elements are missing
+                alert(message);
+            }
         }
 
         async function refreshStats() {
@@ -589,17 +604,46 @@
                 );
                 
                 console.log('Delete response status:', functionResponse.status);
+                console.log('Response OK:', functionResponse.ok);
                 
                 if (functionResponse.ok) {
-                    const result = await functionResponse.json();
-                    showAlert('success', result.message || `Document ${docId} deleted successfully`);
-                    document.getElementById('deleteDocId').value = '';
+                    console.log('Parsing JSON response...');
+                    let result;
+                    try {
+                        const responseText = await functionResponse.text();
+                        console.log('Response text:', responseText);
+                        if (responseText) {
+                            result = JSON.parse(responseText);
+                            console.log('Parsed result:', result);
+                        } else {
+                            result = { message: 'Document deleted successfully' };
+                            console.log('Empty response, using default message');
+                        }
+                    } catch (parseError) {
+                        console.error('Error parsing response:', parseError);
+                        result = { message: `Document ${docId} deleted successfully` };
+                    }
                     
+                    console.log('Showing success alert...');
+                    showAlert('success', result.message || `Document ${docId} deleted successfully`);
+                    
+                    // Clear the delete input if it exists
+                    const deleteInput = document.getElementById('deleteDocId');
+                    if (deleteInput) {
+                        deleteInput.value = '';
+                        console.log('Cleared delete input field');
+                    }
+                    
+                    console.log('Scheduling stats refresh...');
                     // Refresh stats
-                    setTimeout(refreshStats, 500);
+                    setTimeout(() => {
+                        console.log('Refreshing stats...');
+                        refreshStats();
+                    }, 500);
                     
                     // Refresh search results if visible
                     if (document.getElementById('resultsContainer').style.display === 'block') {
+                        console.log('Refreshing search results...');
                         queryIndex();
                     }
                 } else {
