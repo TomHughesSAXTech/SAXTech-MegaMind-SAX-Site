@@ -273,6 +273,95 @@
             background: white;
             transform: translateX(-5px);
         }
+        
+        .department-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            margin-bottom: 8px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s;
+        }
+        
+        .department-item:hover {
+            background: #e8e9ea;
+            border-color: #667eea;
+        }
+        
+        .department-item.editing {
+            background: #fff3cd;
+            border-color: #ffc107;
+        }
+        
+        .department-name {
+            font-weight: 500;
+            color: #333;
+            flex: 1;
+        }
+        
+        .department-input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #667eea;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .department-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        
+        .btn-edit {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-edit:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+        }
+        
+        .btn-save {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-save:hover {
+            background: #218838;
+        }
+        
+        .btn-cancel {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-cancel:hover {
+            background: #5a6268;
+        }
+        
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-delete:hover {
+            background: #c82333;
+            transform: translateY(-1px);
+        }
     </style>
 </head>
 <body>
@@ -372,6 +461,29 @@
                     Trigger a full reindex of all documents from blob storage.
                 </p>
                 <button class="btn btn-warning" onclick="reindexDocuments()">Start Reindexing</button>
+            </div>
+            
+            <!-- Department Management -->
+            <div class="admin-card" style="grid-column: span 2;">
+                <h2>🏢 Department Management</h2>
+                <p style="color: #666; font-size: 13px; margin-bottom: 15px;">
+                    Manage departments available for document categorization.
+                </p>
+                
+                <!-- Add New Department -->
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <input type="text" id="newDepartmentName" placeholder="Enter new department name" 
+                           style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
+                    <button class="btn btn-primary" onclick="addDepartment()">Add Department</button>
+                </div>
+                
+                <!-- Department List -->
+                <div id="departmentList" style="max-height: 300px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; padding: 10px;">
+                    <div class="loading" id="deptLoading">
+                        <div class="spinner"></div>
+                        <p style="margin-top: 10px; color: #666;">Loading departments...</p>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -760,8 +872,162 @@
             // TODO: Implement reindexing through Azure Function
         }
 
-        // Load stats on page load
-        window.addEventListener('load', refreshStats);
+        // Department Management Functions
+        let departments = [];
+        
+        function loadDepartments() {
+            // Load departments from localStorage
+            const savedDepts = localStorage.getItem('megamind_departments');
+            if (savedDepts) {
+                departments = JSON.parse(savedDepts);
+            } else {
+                // Default departments
+                departments = [
+                    { id: 1, name: 'IT' },
+                    { id: 2, name: 'HR' },
+                    { id: 3, name: 'Finance' },
+                    { id: 4, name: 'Operations' },
+                    { id: 5, name: 'Sales' },
+                    { id: 6, name: 'Marketing' },
+                    { id: 7, name: 'Legal' },
+                    { id: 8, name: 'Executive' },
+                    { id: 9, name: 'Customer Service' },
+                    { id: 10, name: 'R&D' }
+                ];
+                saveDepartments();
+            }
+            displayDepartments();
+        }
+        
+        function saveDepartments() {
+            localStorage.setItem('megamind_departments', JSON.stringify(departments));
+        }
+        
+        function displayDepartments() {
+            const listDiv = document.getElementById('departmentList');
+            
+            if (departments.length === 0) {
+                listDiv.innerHTML = '<p style="color: #666; text-align: center;">No departments configured</p>';
+                return;
+            }
+            
+            listDiv.innerHTML = departments.map(dept => `
+                <div class="department-item" id="dept-${dept.id}">
+                    <span class="department-name" id="dept-name-${dept.id}">${dept.name}</span>
+                    <div class="department-actions">
+                        <button class="btn-small btn-edit" onclick="editDepartment(${dept.id})">Edit</button>
+                        <button class="btn-small btn-delete" onclick="deleteDepartment(${dept.id})">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function addDepartment() {
+            const input = document.getElementById('newDepartmentName');
+            const name = input.value.trim();
+            
+            if (!name) {
+                showAlert('warning', 'Please enter a department name');
+                return;
+            }
+            
+            // Check for duplicates
+            if (departments.some(d => d.name.toLowerCase() === name.toLowerCase())) {
+                showAlert('warning', 'Department already exists');
+                return;
+            }
+            
+            // Add new department
+            const newDept = {
+                id: Math.max(...departments.map(d => d.id), 0) + 1,
+                name: name
+            };
+            
+            departments.push(newDept);
+            saveDepartments();
+            displayDepartments();
+            
+            input.value = '';
+            showAlert('success', `Department "${name}" added successfully`);
+        }
+        
+        function editDepartment(id) {
+            const dept = departments.find(d => d.id === id);
+            if (!dept) return;
+            
+            const itemDiv = document.getElementById(`dept-${id}`);
+            itemDiv.classList.add('editing');
+            
+            itemDiv.innerHTML = `
+                <input type="text" class="department-input" id="edit-input-${id}" value="${dept.name}">
+                <div class="department-actions">
+                    <button class="btn-small btn-save" onclick="saveDepartmentEdit(${id})">Save</button>
+                    <button class="btn-small btn-cancel" onclick="cancelDepartmentEdit(${id})">Cancel</button>
+                </div>
+            `;
+            
+            // Focus on input and select text
+            const input = document.getElementById(`edit-input-${id}`);
+            input.focus();
+            input.select();
+            
+            // Allow Enter key to save
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    saveDepartmentEdit(id);
+                }
+            });
+        }
+        
+        function saveDepartmentEdit(id) {
+            const input = document.getElementById(`edit-input-${id}`);
+            const newName = input.value.trim();
+            
+            if (!newName) {
+                showAlert('warning', 'Department name cannot be empty');
+                return;
+            }
+            
+            // Check for duplicates (excluding current department)
+            if (departments.some(d => d.id !== id && d.name.toLowerCase() === newName.toLowerCase())) {
+                showAlert('warning', 'Department name already exists');
+                return;
+            }
+            
+            // Update department
+            const dept = departments.find(d => d.id === id);
+            if (dept) {
+                const oldName = dept.name;
+                dept.name = newName;
+                saveDepartments();
+                displayDepartments();
+                showAlert('success', `Department renamed from "${oldName}" to "${newName}"`);
+            }
+        }
+        
+        function cancelDepartmentEdit(id) {
+            displayDepartments();
+        }
+        
+        function deleteDepartment(id) {
+            const dept = departments.find(d => d.id === id);
+            if (!dept) return;
+            
+            if (!confirm(`Are you sure you want to delete the "${dept.name}" department?`)) {
+                return;
+            }
+            
+            departments = departments.filter(d => d.id !== id);
+            saveDepartments();
+            displayDepartments();
+            showAlert('success', `Department "${dept.name}" deleted successfully`);
+        }
+        
+        // Load stats and departments on page load
+        window.addEventListener('load', () => {
+            refreshStats();
+            loadDepartments();
+        });
     </script>
 </body>
 </html>

@@ -1242,12 +1242,12 @@
                     
                     // Get the most recent update date
                     const dates = documents.filter(d => d.lastModified || d.uploadDate || d.createdDate)
-                                          .map(d => new Date(d.lastModified || d.uploadDate || d.createdDate));
+                                          .map(d => d.lastModified || d.uploadDate || d.createdDate);
                     if (dates.length > 0) {
-                        const mostRecent = new Date(Math.max(...dates));
-                        const dateStr = mostRecent.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                        const timeStr = mostRecent.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                        lastUpdated = `${dateStr} ${timeStr}`;
+                        // Find the most recent date string
+                        const mostRecentStr = dates.sort((a, b) => new Date(b) - new Date(a))[0];
+                        // Format to EST
+                        lastUpdated = formatDateToEST(mostRecentStr);
                     }
                 }
                 
@@ -1451,9 +1451,9 @@
             // Format file size
             const fileSize = doc.size ? formatFileSize(doc.size) : '';
             
-            // Format dates
-            const uploadDate = doc.uploadDate ? new Date(doc.uploadDate).toLocaleDateString() : null;
-            const modifiedDate = doc.lastModified ? new Date(doc.lastModified).toLocaleDateString() : uploadDate || '';
+            // Format dates to EST
+            const uploadDate = doc.uploadDate ? formatDateToEST(doc.uploadDate) : null;
+            const modifiedDate = doc.lastModified ? formatDateToEST(doc.lastModified) : uploadDate || '';
             
             // Build metadata items
             const metaItems = [];
@@ -2089,6 +2089,39 @@
                 gradient: 'linear-gradient(135deg, #767676 0%, #616161 100%)',
                 name: 'Document'
             };
+        }
+        
+        // Helper function to format date to EST timezone
+        function formatDateToEST(dateString) {
+            if (!dateString) return '--';
+            
+            try {
+                const date = new Date(dateString);
+                
+                // Format to EST/EDT (Eastern Time)
+                const options = {
+                    timeZone: 'America/New_York',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true
+                };
+                
+                const formatter = new Intl.DateTimeFormat('en-US', options);
+                const formatted = formatter.format(date);
+                
+                // Add EST/EDT label
+                const isDST = date.getMonth() >= 2 && date.getMonth() <= 10; // Rough DST check
+                const timezone = isDST ? 'EDT' : 'EST';
+                
+                return `${formatted} ${timezone}`;
+            } catch (error) {
+                console.error('Error formatting date:', error);
+                return dateString; // Return original if formatting fails
+            }
         }
         
         // Helper function to format file size

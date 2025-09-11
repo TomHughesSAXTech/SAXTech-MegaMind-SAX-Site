@@ -1047,31 +1047,12 @@
     </style>
 </head>
 <body>
-    <!-- Document Portal Button with Enhanced Design -->
-    <button id="documentPortalBtn" class="document-portal-btn hidden" onclick="openDocumentPortal()" style="
-        background: linear-gradient(135deg, #3B82F6, #2563EB);
-        border: 2px solid rgba(255,255,255,0.2);
-        box-shadow: 0 8px 32px rgba(59, 130, 246, 0.4);
-        backdrop-filter: blur(10px);
-        padding: 12px 24px;
-        font-size: 15px;
-        letter-spacing: 0.5px;
-    ">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-            <polyline points="14 2 14 8 20 8"></polyline>
-            <line x1="16" y1="13" x2="8" y2="13"></line>
-            <line x1="16" y1="17" x2="8" y2="17"></line>
-            <polyline points="10 9 9 9 8 9"></polyline>
-        </svg>
-        <span style="font-weight: 600;">Document Management</span>
-    </button>
 
     <!-- Authentication overlay -->
     <div id="authOverlay" class="auth-overlay hidden">
         <div class="auth-card">
             <div class="robot-logo">
-                <img src="robot-cpa.png" alt="MegaMind Robot" class="robot-image">
+                <img src="robot.png" alt="MegaMind Robot" class="robot-image">
                 <div class="robot-shadow"></div>
             </div>
             <h1>MegaMind SAX</h1>
@@ -1091,6 +1072,34 @@
             </div>
             <div id="adminBadge" class="admin-badge hidden">Admin</div>
             <button id="signOutBtn" class="sign-out-btn">Sign Out</button>
+        </div>
+        <!-- Document Portal Button in Profile -->
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
+            <button onclick="openDocumentPortal()" style="
+                width: 100%;
+                background: linear-gradient(135deg, #3B82F6, #2563EB);
+                border: 1px solid rgba(255,255,255,0.2);
+                color: white;
+                padding: 10px 16px;
+                border-radius: 12px;
+                font-size: 14px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+            " onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(59, 130, 246, 0.3)'" 
+               onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                </svg>
+                Document Management
+            </button>
         </div>
     </div>
 
@@ -1462,10 +1471,6 @@
             if (authOverlay) authOverlay.classList.remove('hidden');
             if (userProfileDiv) userProfileDiv.classList.add('hidden');
             if (mainApp) mainApp.classList.add('hidden');
-            
-            // Hide any other elements that might be visible
-            const docPortalBtn = document.getElementById('documentPortalBtn');
-            if (docPortalBtn) docPortalBtn.classList.add('hidden');
         }
 
         // Show main application
@@ -1474,9 +1479,6 @@
             if (authOverlay) authOverlay.classList.add('hidden');
             if (userProfileDiv) userProfileDiv.classList.remove('hidden');
             if (mainApp) mainApp.classList.remove('hidden');
-            
-            const docPortalBtn = document.getElementById('documentPortalBtn');
-            if (docPortalBtn) docPortalBtn.classList.remove('hidden');
             
             // Clear chat messages display first
             chatMessages.innerHTML = '';
@@ -1580,20 +1582,20 @@
             }
         });
 
-        // Sign out
-        signOutBtn.addEventListener('click', async () => {
-            try {
-                await msalInstance.logoutPopup({
-                    account: currentAccount,
-                    postLogoutRedirectUri: window.location.origin
-                });
-            } catch (error) {
-                console.error('Logout error:', error);
-                msalInstance.logoutRedirect({
-                    account: currentAccount,
-                    postLogoutRedirectUri: window.location.origin
-                });
-            }
+        // Sign out (local only - doesn't sign out of Microsoft 365)
+        signOutBtn.addEventListener('click', () => {
+            // Clear local session
+            msalInstance.clearCache();
+            currentAccount = null;
+            userProfile = null;
+            
+            // Clear session storage
+            sessionStorage.clear();
+            
+            // Reset UI
+            showAuthOverlay();
+            
+            console.log('Signed out locally');
         });
 
         // 3D Carousel functionality
