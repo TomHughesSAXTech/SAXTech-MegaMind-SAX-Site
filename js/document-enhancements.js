@@ -689,8 +689,6 @@ if (document.readyState === 'loading') {
     // Don't load from localStorage - departments come from blob storage
     window.documentEnhancements.addDepartmentFilter();
 }
-    window.documentEnhancements.addDepartmentFilter();
-}
 
 // Export for use in other modules
 window.DocumentEnhancements = DocumentEnhancements;
