@@ -535,7 +535,7 @@
             try {
                 // Try Azure Function first
                 const functionResponse = await fetch(
-                    `${API_CONFIG.functionUrl}/documents-delete`,
+                    `${API_CONFIG.functionUrl}/documents/delete`,
                     {
                         method: 'POST',
                         headers: {
@@ -590,7 +590,7 @@
             try {
                 // Use Azure Function for bulk delete
                 const response = await fetch(
-                    `${API_CONFIG.functionUrl}/documents-delete`,
+                    `${API_CONFIG.functionUrl}/documents/delete`,
                     {
                         method: 'POST',
                         headers: {

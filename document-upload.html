@@ -920,14 +920,14 @@
             baseUrl: 'https://saxtechmegamindfunctions.azurewebsites.net/api',
             functionKey: 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw==', // Function key for authentication
             endpoints: {
-                listDocuments: '/documents-list',
-                uploadDocument: '/documents-upload-json',
-                deleteDocument: '/documents-delete',
-                downloadDocument: '/documents-download',
-                previewDocument: '/documents-view',
+                listDocuments: '/documents/list',
+                uploadDocument: '/documents/upload-json',
+                deleteDocument: '/documents/delete',  // Fixed route with slash
+                downloadDocument: '/documents/download',
+                previewDocument: '/documents/view',
                 search: '/documents/search',  // Correct route with slash
                 generateSAS: '/GenerateSASToken',
-                process: '/documents-upload-json',
+                process: '/documents/upload-json',
                 indexMaintenance: '/index/maintenance'  // Correct route with slash
             },
             blobStorage: {
@@ -1176,6 +1176,7 @@
                         departments[deptName][folderName].push({
                             id: doc.id,
                             title: doc.title || doc.fileName,
+                            fileName: doc.fileName,  // Always store the actual filename
                             description: doc.description || '',
                             lastModified: doc.lastModified || doc.createdDate,
                             uploadDate: doc.createdDate,
@@ -1189,7 +1190,7 @@
                             status: doc.status,
                             keywords: doc.keywords,
                             tags: doc.tags,
-                            indexed: doc.status === 'indexed' || doc.status === 'completed'
+                            indexed: doc.status === 'indexed' || doc.status === 'completed' || doc.status === 'Active'
                         });
                         totalDocuments++;
                     });
@@ -1480,13 +1481,13 @@
                     ${doc.description ? `<div class="document-description" style="font-size: 11px; color: #94a3b8; line-height: 1.4;">${doc.description}</div>` : ''}
                 </div>
                 <div class="document-actions" style="display: flex; gap: 8px; align-items: center;">
-                    <button class="action-btn btn-preview" onclick="previewDocument('${doc.id}', '${doc.title}', '${fileExt}')" style="padding: 6px 12px; background: white; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 12px; color: #374151;">
+                    <button class="action-btn btn-preview" onclick="previewDocument('${doc.id}', '${displayName}', '${fileExt}')" style="padding: 6px 12px; background: white; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 12px; color: #374151;">
                         <span style="margin-right: 4px;">👁️</span> Preview
                     </button>
-                    <button class="action-btn btn-download" onclick="downloadDocument('${doc.id}', '${doc.title}')" style="padding: 6px 12px; background: white; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 12px; color: #374151;">
+                    <button class="action-btn btn-download" onclick="downloadDocument('${doc.id}', '${displayName}')" style="padding: 6px 12px; background: white; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 12px; color: #374151;">
                         <span style="margin-right: 4px;">⬇️</span> Download
                     </button>
-                    <button class="btn-delete" onclick="deleteDocument('${doc.id}', '${doc.title}')" style="width: 32px; height: 32px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; color: #dc2626; display: flex; align-items: center; justify-content: center;" title="Delete document">
+                    <button class="btn-delete" onclick="deleteDocument('${doc.id}', '${doc.title || displayName}')" style="width: 32px; height: 32px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; color: #dc2626; display: flex; align-items: center; justify-content: center;" title="Delete document">
                         <span style="font-size: 16px;">🗑️</span>
                     </button>
                 </div>
@@ -1585,12 +1586,12 @@
             }
         }
 
-        async function previewDocument(docId, title, fileType = 'pdf', fileSize = null) {
+        async function previewDocument(docId, fileName, fileType = 'pdf', fileSize = null) {
             // Prevent default action
             event.preventDefault();
             event.stopPropagation();
             
-            console.log('Preview document:', docId, title);
+            console.log('Preview document:', docId, fileName);
             
             try {
                 // First try to generate SAS token for secure blob access
@@ -1603,9 +1604,9 @@
                             'x-functions-key': API_CONFIG.functionKey
                         },
                         body: JSON.stringify({
-                            fileName: title,
+                            fileName: fileName,  // Use actual filename
                             department: deptForPreview,
-                            blobPath: `${deptForPreview}/${title}`,  // Correct path without original-documents
+                            blobPath: `${deptForPreview}/${fileName}`,  // Use actual filename in path
                             containerName: 'saxdocuments',
                             expiryMinutes: 60
                         })
@@ -1652,10 +1653,9 @@
                 // If no blob URL found, try to construct one based on known patterns
                 // Azure Blob Storage URL pattern: https://{account}.blob.core.windows.net/{container}/{path}
                 const deptForUrl = currentDepartment || 'General';
-                const fileName = title;
                 
-                // Try constructing blob URL
-                const blobUrl = `https://saxtechmegamind.blob.core.windows.net/saxdocuments/${deptForUrl}/${fileName}`;  // Correct path without original-documents
+                // Try constructing blob URL with actual filename
+                const blobUrl = `https://saxtechmegamind.blob.core.windows.net/saxdocuments/${deptForUrl}/${fileName}`;  // Use actual filename
                 
                 // Open in new tab - browser will handle if URL is valid
                 window.open(blobUrl, '_blank');
@@ -1663,16 +1663,16 @@
             } catch (error) {
                 console.error('Preview error:', error);
                 // Fallback: show alert with document info
-                alert(`Document Preview\n\nTitle: ${title}\nType: ${fileType.toUpperCase()}\nID: ${docId}\n\nNote: Unable to open document preview. Please try the Download button.`);
+                alert(`Document Preview\n\nFile: ${fileName}\nType: ${fileType.toUpperCase()}\nID: ${docId}\n\nNote: Unable to open document preview. Please try the Download button.`);
             }
         }
         
-        async function downloadDocument(docId, title) {
+        async function downloadDocument(docId, fileName) {
             // Prevent default action
             event.preventDefault();
             event.stopPropagation();
             
-            console.log('Download document:', docId, title);
+            console.log('Download document:', docId, fileName);
             
             try {
                 // First try to generate SAS token for secure blob access
@@ -1685,9 +1685,9 @@
                             'x-functions-key': API_CONFIG.functionKey
                         },
                         body: JSON.stringify({
-                            fileName: title,
+                            fileName: fileName,  // Use actual filename
                             department: deptForDownload,
-                            blobPath: `${deptForDownload}/${title}`,  // Correct path without original-documents
+                            blobPath: `${deptForDownload}/${fileName}`,  // Use actual filename in path
                             containerName: 'saxdocuments',
                             expiryMinutes: 60
                         })
@@ -1699,12 +1699,12 @@
                         // Create a temporary link and trigger download
                         const link = document.createElement('a');
                         link.href = sasData.sasUrl || sasData.blobUrl;
-                        link.download = title;
+                        link.download = fileName;  // Use actual filename for download
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
                         
-                        console.log(`Downloading with SAS token: ${title}`);
+                        console.log(`Downloading with SAS token: ${fileName}`);
                         return;
                     }
                 } catch (sasError) {
@@ -1736,13 +1736,13 @@
                         // Create a temporary link and trigger download
                         const link = document.createElement('a');
                         link.href = fileUrl;
-                        link.download = title;
+                        link.download = fileName;  // Use actual filename for download
                         link.target = '_blank';
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
                         
-                        console.log(`Downloading from blob: ${title}`);
+                        console.log(`Downloading from blob: ${fileName}`);
                         return;
                     }
                 }
@@ -1754,17 +1754,17 @@
                 // Create a temporary link and trigger download
                 const link = document.createElement('a');
                 link.href = urlWithAuth;
-                link.download = title;
+                link.download = fileName;  // Use actual filename for download
                 link.target = '_blank';
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
                 
-                console.log(`Downloading via function: ${title}`);
+                console.log(`Downloading via function: ${fileName}`);
                 
             } catch (error) {
                 console.error('Download error:', error);
-                alert(`Unable to download document "${title}". Please try again later.`);
+                alert(`Unable to download document "${fileName}". Please try again later.`);
             }
         }
         

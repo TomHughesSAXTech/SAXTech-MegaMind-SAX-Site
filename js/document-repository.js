@@ -16,9 +16,9 @@
                 key: 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw==',
                 endpoints: {
                     search: '/documents/search',
-                    process: '/documents-upload-json',
+                    process: '/documents/upload-json',  // Fixed endpoint
                     generateSAS: '/GenerateSASToken',
-                    deleteDocument: '/documents-delete',
+                    deleteDocument: '/documents/delete',  // Fixed endpoint
                     indexMaintenance: '/index/maintenance'
                 }
             }
