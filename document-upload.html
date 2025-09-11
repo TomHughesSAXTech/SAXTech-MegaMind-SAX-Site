@@ -1041,8 +1041,8 @@
         // Load index statistics on page load
         loadIndexStatistics();
         
-        // Don't load departments from Azure - just use hardcoded ones
-        // loadDepartmentsFromAzure();
+        // Load departments from localStorage (managed in admin.html)
+        loadDepartmentsFromLocalStorage();
         
         // Auto-load all documents on page load
         setTimeout(() => {
@@ -2133,6 +2133,19 @@
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
         
+        // Load departments from localStorage (shared with admin page)
+        function loadDepartmentsFromLocalStorage() {
+            const savedDepts = localStorage.getItem('megamind_departments');
+            if (savedDepts) {
+                try {
+                    const departments = JSON.parse(savedDepts);
+                    updateDepartmentDropdowns(departments.map(d => d.name));
+                } catch (error) {
+                    console.error('Error parsing departments:', error);
+                }
+            }
+        }
+        
         // Load departments from Azure Storage/Index
         async function loadDepartmentsFromAzure() {
             try {
@@ -2173,17 +2186,15 @@
                 // Save current selection
                 const currentValue = departmentSelect.value;
                 
-                // Clear existing options except the first (empty) one
-                while (departmentSelect.options.length > 1) {
-                    departmentSelect.remove(1);
-                }
+                // Clear ALL existing options
+                departmentSelect.innerHTML = '<option value="">Select Department</option>';
                 
-                // Add departments from Azure
+                // Add departments from localStorage
                 departments.forEach(dept => {
                     if (dept && dept !== 'converted-documents' && dept !== 'original-documents') {
                         const option = document.createElement('option');
                         option.value = dept;
-                        option.textContent = dept.charAt(0).toUpperCase() + dept.slice(1);
+                        option.textContent = dept;
                         departmentSelect.appendChild(option);
                     }
                 });
@@ -2198,17 +2209,15 @@
                 // Save current selection
                 const currentValue = departmentFilter.value;
                 
-                // Clear existing options except the first (All Departments)
-                while (departmentFilter.options.length > 1) {
-                    departmentFilter.remove(1);
-                }
+                // Clear ALL existing options
+                departmentFilter.innerHTML = '<option value="">All Departments</option>';
                 
-                // Add departments from Azure
+                // Add departments from localStorage
                 departments.forEach(dept => {
                     if (dept && dept !== 'converted-documents' && dept !== 'original-documents') {
                         const option = document.createElement('option');
                         option.value = dept;
-                        option.textContent = dept.charAt(0).toUpperCase() + dept.slice(1);
+                        option.textContent = dept;
                         departmentFilter.appendChild(option);
                     }
                 });

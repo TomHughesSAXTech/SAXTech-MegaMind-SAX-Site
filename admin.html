@@ -537,10 +537,43 @@
             }
         }
 
+        // Helper function to format date to EST timezone
+        function formatDateToEST(dateString) {
+            if (!dateString) return '--';
+            
+            try {
+                const date = new Date(dateString);
+                
+                // Format to EST/EDT (Eastern Time)
+                const options = {
+                    timeZone: 'America/New_York',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true
+                };
+                
+                const formatter = new Intl.DateTimeFormat('en-US', options);
+                const formatted = formatter.format(date);
+                
+                // Add EST/EDT label
+                const isDST = date.getMonth() >= 2 && date.getMonth() <= 10; // Rough DST check
+                const timezone = isDST ? 'EDT' : 'EST';
+                
+                return `${formatted} ${timezone}`;
+            } catch (error) {
+                console.error('Error formatting date:', error);
+                return dateString; // Return original if formatting fails
+            }
+        }
+
         async function refreshStats() {
             try {
-                // Use Azure Function to get stats
-                const response = await fetch(
+                // First try to get document count from index maintenance
+                const statsResponse = await fetch(
                     `${API_CONFIG.functionUrl}/index/maintenance`,
                     {
                         method: 'POST',
@@ -554,26 +587,72 @@
                     }
                 );
                 
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.success && data.stats) {
-                        document.getElementById('totalDocs').textContent = data.stats.totalDocuments || '0';
+                let totalDocs = 0;
+                if (statsResponse.ok) {
+                    const statsData = await statsResponse.json();
+                    if (statsData.success && statsData.stats) {
+                        totalDocs = statsData.stats.totalDocuments || 0;
+                        document.getElementById('totalDocs').textContent = totalDocs;
                         
                         // Calculate size
-                        const sizeInMB = ((data.stats.totalDocuments || 0) * 50 / 1024).toFixed(1);
+                        const sizeInMB = (totalDocs * 50 / 1024).toFixed(1);
                         document.getElementById('indexSize').textContent = `${sizeInMB} MB`;
-                        
-                        // Set current time as last update
-                        const now = new Date().toLocaleTimeString();
-                        document.getElementById('lastUpdate').textContent = now;
-                        
-                        showAlert('success', 'Statistics refreshed successfully');
                     }
+                }
+                
+                // Now query for the most recent document to get actual last update time
+                const searchResponse = await fetch(
+                    `${API_CONFIG.functionUrl}/documents/search`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-functions-key': API_CONFIG.functionKey
+                        },
+                        body: JSON.stringify({
+                            query: '*',
+                            top: 10,
+                            orderby: 'uploadDate desc',
+                            select: 'uploadDate,createdDate,lastModified'
+                        })
+                    }
+                );
+                
+                if (searchResponse.ok) {
+                    const searchData = await searchResponse.json();
+                    const documents = searchData.value || searchData.results || [];
+                    
+                    if (documents && documents.length > 0) {
+                        // Find the most recent date from the documents
+                        let mostRecentDate = null;
+                        documents.forEach(doc => {
+                            const dates = [doc.uploadDate, doc.createdDate, doc.lastModified].filter(d => d);
+                            dates.forEach(dateStr => {
+                                const date = new Date(dateStr);
+                                if (!mostRecentDate || date > mostRecentDate) {
+                                    mostRecentDate = date;
+                                }
+                            });
+                        });
+                        
+                        if (mostRecentDate) {
+                            // Format to EST
+                            const formatted = formatDateToEST(mostRecentDate.toISOString());
+                            document.getElementById('lastUpdate').textContent = formatted;
+                        } else {
+                            document.getElementById('lastUpdate').textContent = '--';
+                        }
+                    } else {
+                        document.getElementById('lastUpdate').textContent = 'No documents';
+                    }
+                    
+                    showAlert('success', 'Statistics refreshed successfully');
                 } else {
-                    throw new Error('Failed to fetch statistics');
+                    throw new Error('Failed to fetch recent documents');
                 }
             } catch (error) {
                 showAlert('error', 'Error fetching statistics: ' + error.message);
+                document.getElementById('lastUpdate').textContent = 'Error';
             }
         }
 
