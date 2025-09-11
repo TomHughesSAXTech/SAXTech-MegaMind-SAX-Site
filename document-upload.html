@@ -1137,9 +1137,9 @@
                         'x-functions-key': API_CONFIG.functionKey
                     },
                     body: JSON.stringify({
-                        search: '*',
-                        select: 'id,title,fileName,documentType,description,createdDate,lastModified,department,fileSize,version,contentHash,author,status,keywords,tags',
-                        top: 1000
+                        query: '*',  // Changed from 'search' to 'query'
+                        top: 1000,
+                        enableVector: false  // Disable vector search
                     })
                 });
 
@@ -1596,16 +1596,15 @@
                 // First try to generate SAS token for secure blob access
                 const deptForPreview = currentDepartment || 'General';
                 try {
-                    const sasResponse = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.generateSAS}`, {
+                    const sasUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.generateSAS}?code=${API_CONFIG.functionKey}`;
+                    const sasResponse = await fetch(sasUrl, {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json',
-                            'x-functions-key': API_CONFIG.functionKey
+                            'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
                             fileName: fileName,  // Use actual filename
                             department: deptForPreview,
-                            blobPath: `${deptForPreview}/${fileName}`,  // Use actual filename in path
                             containerName: 'saxdocuments',
                             expiryMinutes: 60
                         })
@@ -1677,16 +1676,15 @@
                 // First try to generate SAS token for secure blob access
                 const deptForDownload = currentDepartment || 'General';
                 try {
-                    const sasResponse = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.generateSAS}`, {
+                    const sasUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.generateSAS}?code=${API_CONFIG.functionKey}`;
+                    const sasResponse = await fetch(sasUrl, {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json',
-                            'x-functions-key': API_CONFIG.functionKey
+                            'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
                             fileName: fileName,  // Use actual filename
                             department: deptForDownload,
-                            blobPath: `${deptForDownload}/${fileName}`,  // Use actual filename in path
                             containerName: 'saxdocuments',
                             expiryMinutes: 60
                         })

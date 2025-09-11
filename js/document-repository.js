@@ -514,17 +514,16 @@
     async function generateSASToken(fileName, department) {
         try {
             // Call Azure Function to generate SAS token
-            const response = await fetch(`${CONFIG.azure.functionApp.baseUrl}/GenerateSASToken`, {
+            const url = `${CONFIG.azure.functionApp.baseUrl}/GenerateSASToken?code=${CONFIG.azure.functionApp.key}`;
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'x-functions-key': CONFIG.azure.functionApp.key
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     fileName: fileName,
                     department: department,
                     containerName: CONFIG.azure.containerName,
-                    blobPath: `${department}/${fileName}`,  // Correct path without original-documents
                     expiryMinutes: 60 // Token valid for 1 hour
                 })
             });
