@@ -471,9 +471,10 @@
                         },
                         body: JSON.stringify({
                             query: query,
+                            search: query,  // Add both query and search for compatibility
                             filter: filter,
                             top: parseInt(top),
-                            select: ['id', 'title', 'fileName', 'department', 'documentType', 'uploadDate', 'author', 'fileSize']
+                            select: 'id,title,fileName,department,documentType,uploadDate,author,fileSize'  // Use comma-separated string
                         })
                     }
                 );
@@ -526,7 +527,7 @@
                                 <td style="padding: 12px;">${doc.uploadDate ? new Date(doc.uploadDate).toLocaleDateString() : 'N/A'}</td>
                                 <td style="padding: 12px; text-align: center;">
                                     <button class="btn btn-danger" style="padding: 6px 12px; font-size: 12px;" 
-                                            onclick="deleteDocumentById('${doc.id}', event)">Delete</button>
+                                            onclick="(function(e) { try { e.preventDefault(); e.stopPropagation(); deleteDocumentById('${doc.id}', e); } catch(err) { console.error('Delete button error:', err); alert('Error: ' + err.message); } })(event)">Delete</button>
                                 </td>
                             </tr>
                         `).join('')}
@@ -554,6 +555,12 @@
         }
 
         async function deleteDocumentById(docId, event) {
+            console.log('=== DELETE FUNCTION CALLED ===');
+            console.log('Document ID:', docId);
+            console.log('Event object:', event);
+            console.log('API URL:', `${API_CONFIG.functionUrl}/documents/delete`);
+            console.log('API Key present:', !!API_CONFIG.functionKey);
+            
             // Prevent any default action or bubbling
             if (event) {
                 event.preventDefault();
@@ -561,29 +568,31 @@
             }
             
             try {
+                const deleteUrl = `${API_CONFIG.functionUrl}/documents/delete`;
+                const requestBody = JSON.stringify({ documentIds: [docId] });
+                
+                console.log('Delete URL:', deleteUrl);
+                console.log('Request body:', requestBody);
+                console.log('Sending delete request...');
+                
                 // Try Azure Function first
                 const functionResponse = await fetch(
-                    `${API_CONFIG.functionUrl}/documents/delete`,
+                    deleteUrl,
                     {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'x-functions-key': API_CONFIG.functionKey
                         },
-                        body: JSON.stringify({
-                            documentIds: [docId]
-                        })
+                        body: requestBody
                     }
                 );
                 
-                if (functionResponse.ok || functionResponse.status === 404) {
-                    // Check response
-                    if (!functionResponse.ok && functionResponse.status !== 404) {
-                        const errorData = await functionResponse.json();
-                        throw new Error(errorData.message || 'Failed to delete document');
-                    }
-                    
-                    showAlert('success', `Document ${docId} deleted successfully`);
+                console.log('Delete response status:', functionResponse.status);
+                
+                if (functionResponse.ok) {
+                    const result = await functionResponse.json();
+                    showAlert('success', result.message || `Document ${docId} deleted successfully`);
                     document.getElementById('deleteDocId').value = '';
                     
                     // Refresh stats
@@ -594,7 +603,15 @@
                         queryIndex();
                     }
                 } else {
-                    throw new Error('Delete operation failed');
+                    const errorText = await functionResponse.text();
+                    let errorMessage = 'Delete operation failed';
+                    try {
+                        const errorData = JSON.parse(errorText);
+                        errorMessage = errorData.message || errorMessage;
+                    } catch (e) {
+                        errorMessage = errorText || errorMessage;
+                    }
+                    throw new Error(errorMessage);
                 }
             } catch (error) {
                 showAlert('error', 'Delete error: ' + error.message);
