@@ -5,10 +5,17 @@
 // Extract user profile and context from webhook payload
 const userProfile = $input.item.json.userProfile || {};
 const userContext = $input.item.json.userContext || {};
-const message = $input.item.json.message || $input.item.json.body?.message || '';
+// Check multiple possible message fields
+const message = $input.item.json.message || 
+                $input.item.json.body?.message || 
+                $input.item.json.query || 
+                $input.item.json.text || 
+                $input.item.json.input || '';
 const sessionId = $input.item.json.sessionId || 'session_' + Date.now();
-const selectedVoice = $input.item.json.voice || $input.item.json.selectedVoice || 'sarah';
-const enableTTS = $input.item.json.enableTTS !== false;
+// Default to 'sarah' for ElevenLabs (not 'alloy' which is OpenAI)
+const rawVoice = $input.item.json.voice || $input.item.json.selectedVoice || 'sarah';
+// Map 'alloy' to 'sarah' if it somehow gets through
+const selectedVoice = rawVoice.toLowerCase() === 'alloy' ? 'sarah' : rawVoice;
 const isPreview = $input.item.json.preview === true;
 const attachments = $input.item.json.attachments || [];
 
@@ -19,6 +26,30 @@ let userPreferences = {};
 
 // Check if we have a rich user profile from MSAL
 if (userProfile.name || userProfile.displayName) {
+  // Auto-detect department from job title if not provided
+  if (!userProfile.department && userProfile.jobTitle) {
+    const jobTitle = userProfile.jobTitle.toLowerCase();
+    if (jobTitle.includes('it') || jobTitle.includes('technology') || jobTitle.includes('tech')) {
+      userProfile.department = 'Information Technology';
+    } else if (jobTitle.includes('finance') || jobTitle.includes('cfo')) {
+      userProfile.department = 'Finance';
+    } else if (jobTitle.includes('tax') || jobTitle.includes('cpa')) {
+      userProfile.department = 'Tax';
+    } else if (jobTitle.includes('audit')) {
+      userProfile.department = 'Audit & Attestation';
+    } else if (jobTitle.includes('hr') || jobTitle.includes('human')) {
+      userProfile.department = 'Human Resources';
+    } else if (jobTitle.includes('sales')) {
+      userProfile.department = 'Sales';
+    } else if (jobTitle.includes('marketing')) {
+      userProfile.department = 'Marketing';
+    } else if (jobTitle.includes('operations') || jobTitle.includes('director')) {
+      userProfile.department = 'Operations';
+    } else {
+      userProfile.department = 'General';
+    }
+  }
+  
   // Build detailed user context for AI
   personalizedContext = `USER PROFILE:
 - Name: ${userProfile.name || userProfile.displayName}
