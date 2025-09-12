@@ -1351,7 +1351,8 @@
         const speakerIcon = document.getElementById('speakerIcon');
         const statusText = document.getElementById('statusText');
         const voiceSelect = document.getElementById('voiceSelect');
-        const fileBtn = document.getElementById('fileBtn');
+        const conversationState = document.getElementById('conversationState');
+        let previewAudio = null;
         const fileInput = document.getElementById('fileInput');
         const conversationState = document.getElementById('conversationState');
         const resetBtn = document.getElementById('resetBtn');
@@ -2353,6 +2354,96 @@
                 stopListening();
             } else {
                 startListening();
+            }
+        });
+        
+        // Voice preview function
+        async function previewVoice(voiceName) {
+            // Stop any existing preview
+            if (previewAudio) {
+                previewAudio.pause();
+                previewAudio = null;
+            }
+            
+            // Preview text for each voice
+            const previewTexts = {
+                'Charlotte': "Hello! I'm Charlotte, your friendly AI assistant.",
+                'Bill': "Hey there! Bill here, ready to help you out.",
+                'Chris': "Hi! I'm Chris, let's work together.",
+                'Brian': "Hello! Brian at your service.",
+                'Daniel': "Greetings! I'm Daniel, how can I assist?",
+                'George': "Hello there! George here to help.",
+                'Liam': "Hi! I'm Liam, what can I do for you?",
+                'Matilda': "Hello! I'm Matilda, nice to meet you.",
+                'Rachel': "Hi there! Rachel here, ready to assist."
+            };
+            
+            const previewText = previewTexts[voiceName] || `Hello! I'm ${voiceName}, your AI assistant.`;
+            
+            // Show loading state
+            statusText.textContent = 'Loading voice preview...';
+            
+            try {
+                // Send preview request to the n8n workflow
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: previewText,
+                        voice: voiceName,
+                        preview: true  // Flag to indicate this is just a preview
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    
+                    // Play the preview audio if available
+                    if (result.audioBase64 || result.audioData) {
+                        const audioData = result.audioBase64 || result.audioData;
+                        let audioSrc = audioData;
+                        
+                        if (!audioData.startsWith('data:')) {
+                            audioSrc = 'data:audio/mpeg;base64,' + audioData.replace(/\s/g, '');
+                        }
+                        
+                        previewAudio = new Audio(audioSrc);
+                        
+                        previewAudio.onended = () => {
+                            statusText.textContent = `Voice changed to ${voiceName}`;
+                            previewAudio = null;
+                        };
+                        
+                        previewAudio.onerror = () => {
+                            statusText.textContent = `Voice changed to ${voiceName}`;
+                            previewAudio = null;
+                        };
+                        
+                        previewAudio.play().catch(error => {
+                            console.error('Error playing preview:', error);
+                            statusText.textContent = `Voice changed to ${voiceName}`;
+                        });
+                        
+                        statusText.textContent = `Playing ${voiceName} preview...`;
+                    } else {
+                        statusText.textContent = `Voice changed to ${voiceName}`;
+                    }
+                } else {
+                    statusText.textContent = `Voice changed to ${voiceName}`;
+                }
+            } catch (error) {
+                console.error('Error loading voice preview:', error);
+                statusText.textContent = `Voice changed to ${voiceName}`;
+            }
+        }
+        
+        // Add voice preview on selection change
+        voiceSelect.addEventListener('change', (e) => {
+            const selectedVoice = e.target.value;
+            if (selectedVoice) {
+                previewVoice(selectedVoice);
             }
         });
         
