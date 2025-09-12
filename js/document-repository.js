@@ -461,15 +461,66 @@
                 }
                 
             } else if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(fileExt)) {
-                // For Office documents, open directly in browser using SAS token
+                // For Office documents, try to display in iframe
                 const sasToken = await generateSASToken(fileName, department);
                 if (sasToken) {
                     const blobUrl = constructBlobUrl(fileName, department, sasToken);
                     
-                    // Open Office documents directly in a new tab
-                    window.open(blobUrl, '_blank');
-                    closePreviewModal();
-                    showNotification(`Opening ${fileName} in a new tab...`, 'success');
+                    if (previewContent) {
+                        // Try to display in iframe - browser will either display or download
+                        previewContent.innerHTML = `
+                            <iframe 
+                                class="preview-iframe" 
+                                src="${blobUrl}"
+                                style="width: 100%; height: 100%; border: none; background: white;"
+                                onload="this.style.opacity='1';"
+                                onerror="this.parentElement.innerHTML='<div style=\'text-align:center;padding:40px;\'><div style=\'font-size:48px;margin-bottom:20px;\'>📄</div><h3 style=\'margin-bottom:10px;\'>${fileName}</h3><p style=\'color:#6b7280;margin-bottom:20px;\'>This document will download to your computer.</p><button onclick=\'window.open(\"${blobUrl}\", \"_blank\")\'  style=\'padding:10px 20px;background:#3b82f6;color:white;border:none;border-radius:6px;cursor:pointer;\'>Open/Download</button></div>';">
+                            </iframe>
+                            <div style="
+                                position: absolute;
+                                bottom: 20px;
+                                left: 50%;
+                                transform: translateX(-50%);
+                                background: rgba(0, 0, 0, 0.8);
+                                color: white;
+                                padding: 8px 16px;
+                                border-radius: 6px;
+                                font-size: 12px;
+                                z-index: 1000;
+                            ">
+                                If document doesn't display, 
+                                <button onclick="window.open('${blobUrl}', '_blank')" style="
+                                    background: #3b82f6;
+                                    color: white;
+                                    border: none;
+                                    padding: 2px 8px;
+                                    border-radius: 4px;
+                                    margin: 0 4px;
+                                    cursor: pointer;
+                                ">Open in New Tab</button>
+                                or
+                                <button onclick="downloadFromPreview()" style="
+                                    background: #10b981;
+                                    color: white;
+                                    border: none;
+                                    padding: 2px 8px;
+                                    border-radius: 4px;
+                                    margin: 0 4px;
+                                    cursor: pointer;
+                                ">Download</button>
+                            </div>
+                        `;
+                        
+                        // Auto-hide the helper message after 5 seconds
+                        setTimeout(() => {
+                            const helperMsg = previewContent.querySelector('div[style*="position: absolute"]');
+                            if (helperMsg) {
+                                helperMsg.style.transition = 'opacity 0.5s';
+                                helperMsg.style.opacity = '0';
+                                setTimeout(() => helperMsg.remove(), 500);
+                            }
+                        }, 5000);
+                    }
                 } else {
                     throw new Error('Could not generate SAS token');
                 }
