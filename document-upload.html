@@ -2430,35 +2430,37 @@
                 console.log(`Attempting to delete document: ${docId} (${title})`);
                 console.log(`Department: ${department}, FileName: ${fileName}`);
                 
-                // Try to call n8n webhook to delete from blob storage first
+                // Try to delete blob from storage using our new direct Azure Function
                 if (department && fileName) {
                     try {
-                        console.log('Attempting to delete blob via n8n webhook');
-                        const n8nDeletePayload = {
-                            operation: 'delete',
-                            documentId: docId,
-                            department: department,
-                            fileName: fileName,
-                            containerName: 'saxdocuments',
-                            blobPath: `${department}/${fileName}`
-                        };
+                        console.log('Attempting direct blob deletion via Azure Function');
+                        const deleteBlobUrl = `${API_CONFIG.baseUrl}/DeleteBlob?code=${API_CONFIG.functionKey}`;
                         
-                        // Try n8n webhook for blob deletion
-                        const n8nResponse = await fetch('https://workflows.saxtechnology.com/webhook/megamind/delete', {
+                        const blobResponse = await fetch(deleteBlobUrl, {
                             method: 'POST',
                             headers: {
-                                'Content-Type': 'application/json'
+                                'Content-Type': 'application/json',
+                                'x-functions-key': API_CONFIG.functionKey
                             },
-                            body: JSON.stringify(n8nDeletePayload)
+                            body: JSON.stringify({
+                                fileName: fileName,
+                                department: department,
+                                containerName: 'saxdocuments'
+                            })
                         });
                         
-                        if (n8nResponse.ok) {
-                            console.log('Blob deleted via n8n webhook');
+                        if (blobResponse.ok) {
+                            const blobResult = await blobResponse.json();
+                            console.log('Direct blob deletion result:', blobResult);
+                            if (blobResult.deletedPaths && blobResult.deletedPaths.length > 0) {
+                                console.log('Blob(s) deleted successfully:', blobResult.deletedPaths);
+                            }
                         } else {
-                            console.log('n8n webhook deletion failed, will try Azure Function');
+                            console.warn('Direct blob deletion failed, but continuing with index deletion');
                         }
-                    } catch (n8nError) {
-                        console.log('n8n webhook not available:', n8nError);
+                    } catch (blobError) {
+                        console.error('Error during blob deletion:', blobError);
+                        // Continue with index deletion even if blob deletion fails
                     }
                 }
                 
@@ -2490,12 +2492,15 @@
                     const result = await functionResponse.json();
                     console.log('Delete result:', result);
                     
-                    // Check if all deletions were successful
-                    if (result.results && result.results.length > 0) {
+                    // Check if deletion was successful
+                    if (result.success && result.totalDeleted > 0) {
+                        console.log('Document successfully deleted from index');
+                    } else if (result.results && result.results.length > 0) {
+                        // Only check individual results if overall success is false
                         const failed = result.results.filter(r => !r.success);
-                        if (failed.length > 0) {
+                        if (failed.length > 0 && !result.success) {
                             console.warn('Some deletions failed:', failed);
-                            throw new Error(`Failed to completely delete document: ${failed[0].message || 'Unknown error'}`);
+                            throw new Error(`Failed to delete document: ${failed[0].message || 'Unknown error'}`);
                         }
                     }
                     
