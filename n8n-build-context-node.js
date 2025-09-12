@@ -282,10 +282,11 @@ const voiceConfig = {
 };
 
 // Adjust voice settings based on department/role
+const deptForVoice = (userProfile.department || '').toLowerCase();
 if (userPermissions.isExecutive) {
   voiceConfig.voiceSettings.style = 0.3;      // More formal
   voiceConfig.voiceSettings.stability = 0.85; // Very consistent
-} else if (dept.includes('sales') || dept.includes('marketing')) {
+} else if (deptForVoice.includes('sales') || deptForVoice.includes('marketing')) {
   voiceConfig.voiceSettings.style = 0.7;      // More expressive
   voiceConfig.voiceSettings.stability = 0.65; // More dynamic
 }
