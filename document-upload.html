@@ -948,10 +948,11 @@
 
     <!-- Upload Status Modal -->
     <div class="upload-modal" id="uploadModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); z-index: 10000; align-items: center; justify-content: center;">
-        <div class="modal-content" style="background: white; border-radius: 16px; padding: 32px; max-width: 480px; width: 90%; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+        <div class="modal-content" style="background: white; border-radius: 16px; padding: 32px; max-width: 480px; width: 90%; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); position: relative;">
+            <button onclick="closeUploadModal()" style="position: absolute; top: 16px; right: 16px; background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280; padding: 4px; line-height: 1; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: all 0.2s;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'">&times;</button>
             <div class="modal-header" style="text-align: center; margin-bottom: 24px;">
-                <div class="modal-title" style="font-size: 20px; font-weight: 600; color: #1e293b; margin-bottom: 8px;">Processing Document</div>
-                <div class="modal-subtitle" style="font-size: 14px; color: #64748b;">Please wait while we process your document</div>
+                <div class="modal-title" id="modalTitle" style="font-size: 20px; font-weight: 600; color: #1e293b; margin-bottom: 8px;">Processing Document</div>
+                <div class="modal-subtitle" id="modalSubtitle" style="font-size: 14px; color: #64748b;">Please wait while we process your document</div>
             </div>
             <div class="upload-steps">
                 <div class="upload-step" id="step-hash" style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #e2e8f0; opacity: 0.5; transition: all 0.3s;">
@@ -987,6 +988,10 @@
             </div>
             <div class="modal-progress" style="height: 4px; background: #f1f5f9; border-radius: 2px; overflow: hidden; margin: 24px 0;">
                 <div class="modal-progress-fill" id="modalProgressFill" style="height: 100%; background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%); border-radius: 2px; transition: width 0.3s ease-out; width: 0%;"></div>
+            </div>
+            <div id="uploadCompleteActions" style="display: none; text-align: center; margin-top: 20px;">
+                <button onclick="window.location.reload()" style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; margin-right: 10px;">Refresh Page</button>
+                <button onclick="closeUploadModal()" style="padding: 10px 20px; background: #f3f4f6; color: #374151; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">Close</button>
             </div>
         </div>
     </div>
@@ -1112,6 +1117,8 @@
             ];
             
             const progressFill = document.getElementById('modalProgressFill');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalSubtitle = document.getElementById('modalSubtitle');
             
             for (let i = 0; i < steps.length; i++) {
                 const step = document.getElementById(steps[i].id);
@@ -1134,6 +1141,13 @@
                 step.querySelector('.step-status').textContent = '✓';
                 step.querySelector('.step-status').style.color = '#10b981';
             }
+            
+            // Update modal to show completion
+            modalTitle.textContent = 'Upload Complete!';
+            modalSubtitle.textContent = 'Your document has been successfully processed';
+            
+            // Show action buttons
+            document.getElementById('uploadCompleteActions').style.display = 'block';
         }
         
         function closeUploadModal() {
@@ -1474,7 +1488,7 @@
 
         function createDocumentItem(doc) {
             const docDiv = document.createElement('div');
-            docDiv.className = 'document-item';
+            // Don't use document-item class to avoid CSS conflicts
             docDiv.setAttribute('data-search', `${doc.title} ${doc.description || ''} ${doc.author || ''}`.toLowerCase());
             docDiv.setAttribute('data-department', doc.department || '');
             
@@ -1546,23 +1560,25 @@
             // Use enhanced icon function if available, fallback to existing
             const enhancedIcon = window.getFileTypeIcon ? window.getFileTypeIcon(displayName) : typeInfo;
             
-            // Create document card with better layout
+            // Create document card with title above
+            docDiv.style.cssText = 'border: 1px solid #e5e7eb; border-radius: 8px; background: #fafafa; padding: 12px; margin-bottom: 12px;';
             docDiv.innerHTML = `
-                <div class="doc-type-icon" style="position: relative; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0; background: ${enhancedIcon.gradient || typeInfo.gradient};">
-                    ${enhancedIcon.svg || (typeof typeInfo.icon === 'string' && typeInfo.icon.includes('<svg') ? typeInfo.icon : `<span style="color: white; font-size: 24px;">${typeInfo.icon}</span>`)}
-                    ${doc.indexed ? '<div class="indexed-badge" style="position: absolute; top: -4px; right: -4px; width: 16px; height: 16px; background: #10b981; border: 2px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: bold;">✓</div>' : ''}
-                </div>
-                <div class="document-info" style="flex: 1; min-width: 0; padding: 0 10px;">
-                    <div class="document-title">${doc.title || 'Untitled Document'}</div>
-                    <div class="document-filename" style="font-size: 12px; color: #64748b; margin-top: 4px;">
-                        <strong>File:</strong> ${displayName}
+                <div class="document-title" style="font-weight: 600; color: #1e293b; font-size: 16px; margin-bottom: 12px; line-height: 1.5; word-wrap: break-word;">${doc.title || 'Untitled Document'}</div>
+                <div style="display: flex; gap: 12px; align-items: flex-start;">
+                    <div class="doc-type-icon" style="position: relative; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0; background: ${enhancedIcon.gradient || typeInfo.gradient};">
+                        ${enhancedIcon.svg || (typeof typeInfo.icon === 'string' && typeInfo.icon.includes('<svg') ? typeInfo.icon : `<span style="color: white; font-size: 24px;">${typeInfo.icon}</span>`)}
+                        ${doc.indexed ? '<div class="indexed-badge" style="position: absolute; top: -4px; right: -4px; width: 16px; height: 16px; background: #10b981; border: 2px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: bold;">✓</div>' : ''}
                     </div>
-                    <div class="document-meta" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; font-size: 11px;">
-                        ${metaItems.join('')}
+                    <div class="document-info" style="flex: 1; min-width: 0; padding: 0 10px;">
+                        <div class="document-filename" style="font-size: 12px; color: #64748b; margin-bottom: 4px;">
+                            <strong>File:</strong> ${displayName}
+                        </div>
+                        <div class="document-meta" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; font-size: 11px;">
+                            ${metaItems.join('')}
+                        </div>
+                        ${doc.description ? `<div class="document-description" style="font-size: 11px; color: #94a3b8; line-height: 1.4;">${doc.description}</div>` : ''}
                     </div>
-                    ${doc.description ? `<div class="document-description" style="font-size: 11px; color: #94a3b8; line-height: 1.4; margin-top: 4px;">${doc.description}</div>` : ''}
-                </div>
-                <div class="document-actions" style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
+                    <div class="document-actions" style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
                     <button class="action-btn btn-preview" onclick="previewDocument('${doc.id}', '${displayName}', '${fileExt}', null, event, '${doc.department || ''}')" style="padding: 6px 12px; background: white; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 12px; color: #374151;">
                         <span style="margin-right: 4px;">👁️</span> Preview
                     </button>
@@ -1572,6 +1588,7 @@
                     <button class="btn-delete" onclick="deleteDocument('${doc.id}', '${doc.title || displayName}', event)" style="width: 32px; height: 32px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; color: #dc2626; display: flex; align-items: center; justify-content: center;" title="Delete document">
                         <span style="font-size: 16px;">🗑️</span>
                     </button>
+                </div>
                 </div>
             `;
             
@@ -2669,18 +2686,19 @@
             uploadDocument(formData)
                 .then(response => {
                     completeUpload();
-                    // Close the upload modal after success
-                    setTimeout(() => {
-                        closeUploadModal();
-                    }, 2000);
-                    // Refresh the document explorer if a department is selected
-                    if (departmentSelect.value) {
-                        loadDepartmentDocuments();
-                    }
+                    // Don't close the modal automatically - let user decide
+                    // Modal will show completion status with buttons to refresh or close
                 })
                 .catch(error => {
                     console.error('Upload failed:', error);
-                    closeUploadModal();
+                    // Update modal to show error
+                    const modalTitle = document.getElementById('modalTitle');
+                    const modalSubtitle = document.getElementById('modalSubtitle');
+                    modalTitle.textContent = 'Upload Failed';
+                    modalTitle.style.color = '#dc2626';
+                    modalSubtitle.textContent = error.message || 'An error occurred during upload';
+                    modalSubtitle.style.color = '#dc2626';
+                    document.getElementById('uploadCompleteActions').style.display = 'block';
                     handleUploadError(error);
                 });
         }
