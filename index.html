@@ -1730,7 +1730,7 @@
             
             const bubbleDiv = document.createElement('div');
             bubbleDiv.className = 'message-bubble';
-            bubbleDiv.textContent = text;
+            bubbleDiv.innerHTML = text;
             
             messageDiv.appendChild(avatarDiv);
             messageDiv.appendChild(bubbleDiv);
@@ -2423,7 +2423,7 @@
             const webhookUrl = `https://workflows.saxtechnology.com/webhook/${currentWebhook || 'megamind-chat'}`;
             
             try {
-                // Send preview request to the n8n workflow
+                // Send preview request to the n8n workflow - simplify by sending as normal message
                 const response = await fetch(webhookUrl, {
                     method: 'POST',
                     headers: {
@@ -2433,8 +2433,7 @@
                         message: previewText,
                         voice: voiceName,
                         selectedVoice: voiceName,
-                        enableTTS: true,
-                        preview: true  // Flag to indicate this is just a preview
+                        enableTTS: true  // Ensure TTS is enabled
                     })
                 });
                 
@@ -2443,15 +2442,28 @@
                     
                     // Check for audio data in various possible fields
                     let audioData = null;
-                    if (result.audioBase64 && typeof result.audioBase64 === 'string' && result.audioBase64.length > 100) {
+                    
+                    // Log what we received for debugging
+                    console.log('Preview response:', result);
+                    
+                    if (result.audioBase64 && typeof result.audioBase64 === 'string') {
                         audioData = result.audioBase64;
-                    } else if (result.audioData && typeof result.audioData === 'string' && result.audioData.length > 100) {
+                        console.log('Found audioBase64, length:', audioData.length);
+                    } else if (result.audioData && typeof result.audioData === 'string') {
                         audioData = result.audioData;
-                    } else if (result.audioUrl && result.audioUrl.includes('base64,')) {
-                        // Extract base64 from data URL
-                        const base64Match = result.audioUrl.match(/base64,(.+)/);
-                        if (base64Match && base64Match[1]) {
-                            audioData = base64Match[1];
+                        console.log('Found audioData, length:', audioData.length);
+                    } else if (result.audioUrl && typeof result.audioUrl === 'string') {
+                        if (result.audioUrl.includes('base64,')) {
+                            // Extract base64 from data URL
+                            const base64Match = result.audioUrl.match(/base64,(.+)/);
+                            if (base64Match && base64Match[1]) {
+                                audioData = base64Match[1];
+                                console.log('Extracted base64 from audioUrl, length:', audioData.length);
+                            }
+                        } else {
+                            // It might be the entire data URL
+                            audioData = result.audioUrl;
+                            console.log('Using audioUrl directly');
                         }
                     }
                     
@@ -2461,10 +2473,8 @@
                             audioData = audioData.replace(/\s/g, '');
                             const audioSrc = audioData.startsWith('data:') ? audioData : `data:audio/mpeg;base64,${audioData}`;
                             
-                            // Validate base64 data
-                            if (audioData.length < 100) {
-                                throw new Error('Audio data too short');
-                            }
+                            // Don't validate length too strictly - let the browser handle it
+                            console.log('Attempting to play audio, data length:', audioSrc.length);
                             
                             previewAudio = new Audio(audioSrc);
                             
