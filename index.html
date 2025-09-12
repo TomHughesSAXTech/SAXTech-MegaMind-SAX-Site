@@ -1142,17 +1142,27 @@
                     <div class="voice-selector">
                         <label for="voiceSelect">AI Voice</label>
                         <select id="voiceSelect">
+                            <option value="sarah">Sarah (Soft American Female)</option>
                             <option value="rachel">Rachel (Professional Female)</option>
-                            <option value="clyde">Clyde (Professional Male)</option>
+                            <option value="adam">Adam (News Narrator)</option>
+                            <option value="emily">Emily (British Female)</option>
+                            <option value="bella">Bella (Soft Female)</option>
                             <option value="domi">Domi (Young Female)</option>
                             <option value="nicole">Nicole (Whispery Female)</option>
                             <option value="fin">Fin (Irish Male)</option>
-                            <option value="sarah">Sarah (Soft American Female)</option>
                             <option value="antoni">Antoni (Well-Rounded Male)</option>
                             <option value="thomas">Thomas (Calm Male)</option>
                             <option value="charlie">Charlie (Casual Male)</option>
                             <option value="george">George (British Male)</option>
                         </select>
+                    </div>
+                    
+                    <!-- Conversation mode toggle -->
+                    <div class="voice-selector" style="margin-top: 15px;">
+                        <label>
+                            <input type="checkbox" id="continuousModeToggle" style="margin-right: 8px;">
+                            Continuous Conversation Mode
+                        </label>
                     </div>
                     
                     <!-- Speaker icon and status -->
@@ -1271,7 +1281,7 @@
         let mediaRecorder = null;
         let audioChunks = [];
         let attachedFiles = [];
-        let conversationMode = true;
+        let conversationMode = false;  // Start with manual mode, enable after first interaction
         let isInConversation = false;
         let silenceTimer = null;
         let audioContext = null;
@@ -1282,6 +1292,11 @@
         let currentCarouselRotation = 0;
         let isChatRunning = false;
         let abortController = null;  // For cancelling fetch requests
+        let recognition = null;  // Speech recognition instance
+        let isListening = false;
+        let continuousMode = false;  // For continuous conversation
+        let autoRestartTimer = null;
+        let volumeAnimationFrame = null;
         
         // AI Profile Management
         let currentAIProfile = 'sage';  // Start with SAX MegaMind as default
@@ -1774,6 +1789,7 @@
                     sessionId: sessionId,
                     profile: currentAIProfile,
                     voice: voiceSelect.value,
+                    enableTTS: true,  // Always enable TTS for voice responses
                     attachments: attachedFiles.map(f => ({
                         name: f.name,
                         type: f.type,
@@ -1816,7 +1832,17 @@
                                 console.error('n8n error:', result);
                                 addMessage('bot', `Configuration error: ${result.errorMessage}`);
                             } else {
-                                addMessage('bot', result.response || 'I received your message but couldn\'t generate a response.', result.audioData);
+                                // Handle response with audio
+                                const responseText = result.response || 'I received your message but couldn\'t generate a response.';
+                                const audioData = result.audioBase64 || result.audioData;
+                                
+                                addMessage('bot', responseText, audioData);
+                                
+                                // If we have audio, play it and handle continuous mode
+                                if (audioData && continuousMode) {
+                                    // Will auto-restart listening after audio ends
+                                    console.log('Continuous mode enabled, will restart listening after speech');
+                                }
                             }
                         } catch (jsonError) {
                             console.error('Invalid JSON response:', jsonError);
@@ -1856,22 +1882,87 @@
         function playAudio(audioData) {
             try {
                 isAISpeaking = true;
-                currentAudio = new Audio('data:audio/mp3;base64,' + audioData);
-                currentAudio.play();
                 
-                // Visual feedback
+                // Support both base64 and data URL formats
+                let audioSrc = audioData;
+                if (!audioData.startsWith('data:')) {
+                    audioSrc = 'data:audio/mpeg;base64,' + audioData;
+                }
+                
+                currentAudio = new Audio(audioSrc);
+                
+                // Visual feedback while AI is speaking
                 speakerIcon.classList.add('active');
-                statusText.textContent = 'Speaking...';
+                statusText.textContent = 'AI Speaking...';
                 statusText.classList.add('active');
+                conversationState.textContent = 'AI Speaking';
+                conversationState.className = 'conversation-state';
+                
+                // Animate volume bars while speaking
+                const bars = document.querySelectorAll('.volume-bar');
+                const animateSpeaking = () => {
+                    bars.forEach((bar, index) => {
+                        setTimeout(() => {
+                            bar.classList.add('active');
+                            setTimeout(() => bar.classList.remove('active'), 100);
+                        }, index * 50);
+                    });
+                };
+                const speakingInterval = setInterval(animateSpeaking, 300);
                 
                 currentAudio.onended = () => {
                     isAISpeaking = false;
+                    clearInterval(speakingInterval);
                     speakerIcon.classList.remove('active');
                     statusText.classList.remove('active');
-                    statusText.textContent = 'Tap speaker to continue';
+                    
+                    // Clear volume bars
+                    bars.forEach(bar => bar.classList.remove('active'));
+                    
+                    // Check if continuous mode is enabled
+                    if (continuousMode) {
+                        statusText.textContent = 'Ready to listen again...';
+                        conversationState.textContent = 'Auto-listening in 1s';
+                        
+                        // Auto-restart listening after a short delay
+                        autoRestartTimer = setTimeout(() => {
+                            console.log('Auto-restarting listening in continuous mode');
+                            startListening();
+                        }, 1000);  // 1 second delay before listening again
+                    } else {
+                        statusText.textContent = 'Tap speaker to continue';
+                        conversationState.textContent = 'Ready to listen';
+                        conversationState.className = 'conversation-state';
+                    }
                 };
+                
+                currentAudio.onerror = (error) => {
+                    console.error('Audio playback error:', error);
+                    isAISpeaking = false;
+                    clearInterval(speakingInterval);
+                    speakerIcon.classList.remove('active');
+                    statusText.textContent = 'Audio playback failed';
+                    bars.forEach(bar => bar.classList.remove('active'));
+                    
+                    // Still try to continue listening if in continuous mode
+                    if (continuousMode) {
+                        setTimeout(() => startListening(), 1000);
+                    }
+                };
+                
+                currentAudio.play().catch(error => {
+                    console.error('Error playing audio:', error);
+                    isAISpeaking = false;
+                    clearInterval(speakingInterval);
+                    
+                    // Try to continue conversation even if audio fails
+                    if (continuousMode) {
+                        setTimeout(() => startListening(), 1000);
+                    }
+                });
+                
             } catch (error) {
-                console.error('Error playing audio:', error);
+                console.error('Error setting up audio:', error);
                 isAISpeaking = false;
             }
         }
@@ -1922,16 +2013,167 @@
             }
         }
 
-        // Process voice input
+        // Initialize speech recognition
+        function initializeSpeechRecognition() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = true;
+                recognition.lang = 'en-US';
+                recognition.maxAlternatives = 1;
+                
+                let finalTranscript = '';
+                let interimTranscript = '';
+                
+                recognition.onstart = () => {
+                    console.log('Speech recognition started');
+                    isListening = true;
+                    speakerIcon.classList.add('listening');
+                    statusText.textContent = 'Listening...';
+                    statusText.classList.add('listening');
+                    conversationState.textContent = 'Listening';
+                    conversationState.className = 'conversation-state listening';
+                    animateVolumeBars();
+                };
+                
+                recognition.onresult = (event) => {
+                    interimTranscript = '';
+                    
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        const transcript = event.results[i][0].transcript;
+                        if (event.results[i].isFinal) {
+                            finalTranscript += transcript + ' ';
+                            // Update input field with final text
+                            messageInput.value = finalTranscript.trim();
+                        } else {
+                            interimTranscript += transcript;
+                            // Show interim results in input field
+                            messageInput.value = finalTranscript + interimTranscript;
+                        }
+                    }
+                    
+                    // Reset silence timer on speech
+                    if (silenceTimer) {
+                        clearTimeout(silenceTimer);
+                    }
+                    
+                    // Set timer to detect end of speech
+                    silenceTimer = setTimeout(() => {
+                        if (finalTranscript.trim()) {
+                            recognition.stop();
+                        }
+                    }, 2000);  // 2 seconds of silence = end of speech
+                };
+                
+                recognition.onend = () => {
+                    console.log('Speech recognition ended');
+                    isListening = false;
+                    stopVolumeAnimation();
+                    
+                    if (finalTranscript.trim()) {
+                        // Send the message
+                        messageInput.value = finalTranscript.trim();
+                        sendMessage();
+                        finalTranscript = '';
+                    } else {
+                        // No speech detected
+                        speakerIcon.classList.remove('listening');
+                        statusText.textContent = 'No speech detected. Tap to try again';
+                        statusText.classList.remove('listening');
+                        conversationState.textContent = 'Ready to listen';
+                        conversationState.className = 'conversation-state';
+                    }
+                };
+                
+                recognition.onerror = (event) => {
+                    console.error('Speech recognition error:', event.error);
+                    isListening = false;
+                    stopVolumeAnimation();
+                    speakerIcon.classList.remove('listening');
+                    statusText.textContent = 'Error: ' + event.error;
+                    statusText.classList.remove('listening');
+                    
+                    if (event.error === 'no-speech') {
+                        statusText.textContent = 'No speech detected. Tap to try again';
+                    } else if (event.error === 'audio-capture') {
+                        statusText.textContent = 'Microphone not available';
+                    } else if (event.error === 'not-allowed') {
+                        statusText.textContent = 'Microphone permission denied';
+                    }
+                    
+                    conversationState.textContent = 'Ready to listen';
+                    conversationState.className = 'conversation-state';
+                };
+            } else {
+                console.error('Speech recognition not supported');
+                alert('Speech recognition is not supported in your browser. Please use Chrome or Edge.');
+            }
+        }
+        
+        // Start listening
+        function startListening() {
+            if (!recognition) {
+                initializeSpeechRecognition();
+            }
+            
+            if (recognition && !isListening && !isAISpeaking) {
+                try {
+                    recognition.start();
+                } catch (error) {
+                    console.error('Error starting recognition:', error);
+                    // If already started, stop and restart
+                    try {
+                        recognition.stop();
+                        setTimeout(() => recognition.start(), 100);
+                    } catch (e) {
+                        console.error('Could not restart recognition:', e);
+                    }
+                }
+            }
+        }
+        
+        // Stop listening
+        function stopListening() {
+            if (recognition && isListening) {
+                recognition.stop();
+            }
+        }
+        
+        // Animate volume bars
+        function animateVolumeBars() {
+            const bars = document.querySelectorAll('.volume-bar');
+            const animate = () => {
+                bars.forEach((bar, index) => {
+                    const active = Math.random() > 0.5;
+                    if (active) {
+                        bar.classList.add('active');
+                    } else {
+                        bar.classList.remove('active');
+                    }
+                });
+                
+                if (isListening) {
+                    volumeAnimationFrame = requestAnimationFrame(animate);
+                }
+            };
+            animate();
+        }
+        
+        // Stop volume animation
+        function stopVolumeAnimation() {
+            if (volumeAnimationFrame) {
+                cancelAnimationFrame(volumeAnimationFrame);
+            }
+            document.querySelectorAll('.volume-bar').forEach(bar => {
+                bar.classList.remove('active');
+            });
+        }
+        
+        // Process voice input (deprecated - now using Web Speech API)
         async function processVoiceInput(audioBlob) {
             console.log('Processing voice input...');
-            // Here you would send the audio to a speech-to-text service
-            // For now, we'll simulate it
-            setTimeout(() => {
-                const simulatedText = "This is a simulated voice input";
-                messageInput.value = simulatedText;
-                sendMessage();
-            }, 1000);
+            // This function is now deprecated as we use Web Speech API
         }
 
         // Event listeners
@@ -1959,18 +2201,27 @@
         });
         
         voiceBtn.addEventListener('click', () => {
-            if (isRecording) {
-                stopRecording();
+            if (isListening) {
+                stopListening();
             } else {
-                startRecording();
+                startListening();
             }
         });
         
         speakerIcon.addEventListener('click', () => {
-            if (isRecording) {
-                stopRecording();
+            if (isAISpeaking) {
+                // Stop current audio if AI is speaking
+                if (currentAudio) {
+                    currentAudio.pause();
+                    currentAudio = null;
+                }
+                isAISpeaking = false;
+                speakerIcon.classList.remove('active');
+                statusText.textContent = 'Stopped. Tap to listen';
+            } else if (isListening) {
+                stopListening();
             } else {
-                startRecording();
+                startListening();
             }
         });
         
@@ -2018,8 +2269,29 @@
             }
         });
 
+        // Continuous mode toggle
+        document.getElementById('continuousModeToggle').addEventListener('change', (e) => {
+            continuousMode = e.target.checked;
+            if (continuousMode) {
+                statusText.textContent = 'Continuous mode enabled - Tap speaker to start';
+                conversationState.textContent = 'Continuous mode ON';
+            } else {
+                statusText.textContent = 'Tap speaker to start conversation';
+                conversationState.textContent = 'Ready to listen';
+                
+                // Cancel any pending auto-restart
+                if (autoRestartTimer) {
+                    clearTimeout(autoRestartTimer);
+                    autoRestartTimer = null;
+                }
+            }
+        });
+        
         // Initialize on page load
-        window.addEventListener('load', initialize);
+        window.addEventListener('load', () => {
+            initialize();
+            initializeSpeechRecognition();
+        });
         
         // Document Portal Password Protection
         function openDocumentPortal() {
