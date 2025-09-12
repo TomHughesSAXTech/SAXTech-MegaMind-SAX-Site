@@ -692,6 +692,7 @@
             100% { transform: rotate(360deg); }
         }
     </style>
+    <script src="js/multipart-upload.js"></script>
 </head>
 <body>
     <a href="/" class="back-to-chat" style="position: fixed; top: 20px; left: 20px; background: linear-gradient(135deg, #FFD700, #FFA500); color: #1a1a1a; padding: 10px 20px; border-radius: 25px; text-decoration: none; font-weight: 600; font-size: 14px; transition: all 0.3s ease; z-index: 1000; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">← Back to MegaMind</a>
@@ -2749,8 +2750,8 @@
                 formData.append('existingDocId', selectedSOPIdInput.value);
             }
 
-            // Upload to Azure Function
-            uploadDocument(formData)
+            // Upload to Azure Function (with multipart support for large files)
+            uploadDocumentMultipart(formData)
                 .then(response => {
                     completeUpload();
                     // Don't close the modal automatically - let user decide
