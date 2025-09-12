@@ -1515,28 +1515,59 @@
             try {
                 let tokenResponse;
                 try {
-                    // Try silent token acquisition first
+                    // Try silent token acquisition first with extended scopes
                     tokenResponse = await msalInstance.acquireTokenSilent({
-                        scopes: ["User.Read"],
+                        scopes: ["User.Read", "User.ReadBasic.All", "Directory.Read.All"],
                         account: currentAccount
                     });
                 } catch (silentError) {
                     // If silent fails, try interactive
                     console.log('Silent token acquisition failed, trying interactive...');
                     tokenResponse = await msalInstance.acquireTokenPopup({
-                        scopes: ["User.Read"],
+                        scopes: ["User.Read", "User.ReadBasic.All", "Directory.Read.All"],
                         account: currentAccount
                     });
                 }
                 
-                const response = await fetch('https://graph.microsoft.com/v1.0/me', {
+                // Get full user profile from Microsoft Graph
+                const response = await fetch('https://graph.microsoft.com/v1.0/me?$select=id,displayName,givenName,surname,mail,userPrincipalName,jobTitle,department,officeLocation,companyName,businessPhones,mobilePhone,city,state,country,manager', {
                     headers: {
                         'Authorization': `Bearer ${tokenResponse.accessToken}`
                     }
                 });
                 
                 userProfile = await response.json();
-                console.log('User profile loaded:', userProfile);
+                
+                // Try to get manager info if available
+                try {
+                    const managerResponse = await fetch('https://graph.microsoft.com/v1.0/me/manager', {
+                        headers: {
+                            'Authorization': `Bearer ${tokenResponse.accessToken}`
+                        }
+                    });
+                    if (managerResponse.ok) {
+                        userProfile.manager = await managerResponse.json();
+                    }
+                } catch (e) {
+                    console.log('Could not fetch manager info:', e);
+                }
+                
+                // Store the access token for later use
+                userProfile.accessToken = tokenResponse.accessToken;
+                
+                // Extract claims from ID token for additional context
+                if (currentAccount && currentAccount.idTokenClaims) {
+                    userProfile.claims = {
+                        oid: currentAccount.idTokenClaims.oid,
+                        tid: currentAccount.idTokenClaims.tid,
+                        groups: currentAccount.idTokenClaims.groups || [],
+                        roles: currentAccount.idTokenClaims.roles || [],
+                        wids: currentAccount.idTokenClaims.wids || [],
+                        upn: currentAccount.idTokenClaims.upn || currentAccount.idTokenClaims.preferred_username
+                    };
+                }
+                
+                console.log('User profile loaded with extended context:', userProfile);
                 
                 // Update UI with user info
                 if (userName) userName.textContent = userProfile.displayName || 'User';
@@ -1792,7 +1823,7 @@
                 // Create abort controller for this request
                 abortController = new AbortController();
                 
-                // Prepare payload
+                // Prepare comprehensive payload with full user context
                 const payload = {
                     message: message,
                     sessionId: sessionId,
@@ -1804,6 +1835,58 @@
                         type: f.type,
                         size: f.size
                     })),
+                    // Send enriched user profile for personalization
+                    userProfile: {
+                        // Basic info
+                        name: userProfile?.displayName || 'User',
+                        givenName: userProfile?.givenName || '',
+                        surname: userProfile?.surname || '',
+                        email: userProfile?.mail || currentAccount?.username,
+                        userPrincipalName: userProfile?.userPrincipalName || currentAccount?.username,
+                        
+                        // Job info for role-based responses
+                        jobTitle: userProfile?.jobTitle || '',
+                        department: userProfile?.department || '',
+                        companyName: userProfile?.companyName || 'SAX Advisory Group',
+                        officeLocation: userProfile?.officeLocation || '',
+                        
+                        // Contact info
+                        businessPhones: userProfile?.businessPhones || [],
+                        mobilePhone: userProfile?.mobilePhone || '',
+                        
+                        // Location for timezone/regional context
+                        city: userProfile?.city || '',
+                        state: userProfile?.state || '',
+                        country: userProfile?.country || '',
+                        
+                        // Organizational hierarchy
+                        manager: userProfile?.manager ? {
+                            name: userProfile.manager.displayName,
+                            email: userProfile.manager.mail,
+                            jobTitle: userProfile.manager.jobTitle
+                        } : null,
+                        
+                        // Security context from claims
+                        objectId: userProfile?.claims?.oid || userProfile?.id || '',
+                        tenantId: userProfile?.claims?.tid || '',
+                        groups: userProfile?.claims?.groups || [],
+                        roles: userProfile?.claims?.roles || [],
+                        
+                        // Timestamp for context
+                        requestTime: new Date().toISOString(),
+                        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                    },
+                    // Additional context that can help personalization
+                    userContext: {
+                        browser: navigator.userAgent,
+                        language: navigator.language,
+                        platform: navigator.platform,
+                        screenResolution: `${window.screen.width}x${window.screen.height}`,
+                        sessionDuration: Date.now() - (window.sessionStartTime || Date.now()),
+                        previousMessages: sessionStorage.getItem('megamind_sax_messages') ? 
+                            JSON.parse(sessionStorage.getItem('megamind_sax_messages')).length : 0
+                    },
+                    // Backward compatibility
                     user: {
                         name: userProfile?.displayName || 'User',
                         email: userProfile?.mail || currentAccount?.username
@@ -2401,20 +2484,8 @@
                 previewAudio = null;
             }
             
-            // Preview text for each voice
-            const previewTexts = {
-                'Charlotte': "Hello! I'm Charlotte, your friendly AI assistant.",
-                'Bill': "Hey there! Bill here, ready to help you out.",
-                'Chris': "Hi! I'm Chris, let's work together.",
-                'Brian': "Hello! Brian at your service.",
-                'Daniel': "Greetings! I'm Daniel, how can I assist?",
-                'George': "Hello there! George here to help.",
-                'Liam': "Hi! I'm Liam, what can I do for you?",
-                'Matilda': "Hello! I'm Matilda, nice to meet you.",
-                'Rachel': "Hi there! Rachel here, ready to assist."
-            };
-            
-            const previewText = previewTexts[voiceName] || `Hello! I'm ${voiceName}, your AI assistant.`;
+            // Use the same preview text for all voices
+            const previewText = "Hi, I'm MegaMind, your SAX AI Assistant";
             
             // Show loading state
             statusText.textContent = 'Loading voice preview...';
@@ -2423,18 +2494,23 @@
             const webhookUrl = `https://workflows.saxtechnology.com/webhook/${currentWebhook || 'megamind-chat'}`;
             
             try {
-                // Send preview request to the n8n workflow - simplify by sending as normal message
+                // Send preview request to the n8n workflow - ensure voice is passed correctly
+                const requestData = {
+                    message: previewText,
+                    voice: voiceName.toLowerCase(),  // Ensure lowercase for consistency
+                    selectedVoice: voiceName.toLowerCase(),
+                    enableTTS: true,  // Ensure TTS is enabled
+                    sessionId: 'preview_' + Date.now()  // Unique session for preview
+                };
+                
+                console.log('Sending preview request:', requestData);
+                
                 const response = await fetch(webhookUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        message: previewText,
-                        voice: voiceName,
-                        selectedVoice: voiceName,
-                        enableTTS: true  // Ensure TTS is enabled
-                    })
+                    body: JSON.stringify(requestData)
                 });
                 
                 if (response.ok) {
@@ -2594,10 +2670,13 @@
             }
         });
 
+        // Track session start time for context
+        window.sessionStartTime = Date.now();
+        
         // Initialize on page load
-        window.addEventListener('load', () => {
-            initialize();
-            initializeSpeechRecognition();
+        window.addEventListener('load', async () => {
+            console.log('Page loaded, initializing MSAL...');
+            initializeMSAL();
         });
         
         // Document Portal Password Protection
