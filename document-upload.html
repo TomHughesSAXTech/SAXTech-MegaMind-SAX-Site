@@ -2430,40 +2430,59 @@
                 console.log(`Attempting to delete document: ${docId} (${title})`);
                 console.log(`Department: ${department}, FileName: ${fileName}`);
                 
-                // First, try the single document delete endpoint with the document ID
-                const singleDeleteUrl = `${API_CONFIG.baseUrl}/documents/delete/${docId}?code=${API_CONFIG.functionKey}`;
-                console.log('Trying single delete URL:', singleDeleteUrl);
-                
-                let functionResponse = await fetch(singleDeleteUrl, {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json'
+                // Try to call n8n webhook to delete from blob storage first
+                if (department && fileName) {
+                    try {
+                        console.log('Attempting to delete blob via n8n webhook');
+                        const n8nDeletePayload = {
+                            operation: 'delete',
+                            documentId: docId,
+                            department: department,
+                            fileName: fileName,
+                            containerName: 'saxdocuments',
+                            blobPath: `${department}/${fileName}`
+                        };
+                        
+                        // Try n8n webhook for blob deletion
+                        const n8nResponse = await fetch('https://workflows.saxtechnology.com/webhook/megamind/delete', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(n8nDeletePayload)
+                        });
+                        
+                        if (n8nResponse.ok) {
+                            console.log('Blob deleted via n8n webhook');
+                        } else {
+                            console.log('n8n webhook deletion failed, will try Azure Function');
+                        }
+                    } catch (n8nError) {
+                        console.log('n8n webhook not available:', n8nError);
                     }
-                });
-                
-                // If single delete doesn't work, try batch delete
-                if (!functionResponse.ok && functionResponse.status === 404) {
-                    console.log('Single delete endpoint not found, trying batch delete');
-                    const batchDeleteUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.deleteDocument}`;
-                    console.log('Batch delete URL:', batchDeleteUrl);
-                    
-                    functionResponse = await fetch(batchDeleteUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'x-functions-key': API_CONFIG.functionKey
-                        },
-                        body: JSON.stringify({
-                            documentIds: [docId],
-                            // Include additional info to help with blob deletion
-                            documents: [{
-                                id: docId,
-                                department: department,
-                                fileName: fileName
-                            }]
-                        })
-                    });
                 }
+                
+                // Now delete from search index using Azure Function
+                const batchDeleteUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.deleteDocument}`;
+                console.log('Deleting from search index:', batchDeleteUrl);
+                
+                const functionResponse = await fetch(batchDeleteUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-functions-key': API_CONFIG.functionKey
+                    },
+                    body: JSON.stringify({
+                        documentIds: [docId],
+                        // Include additional info for Azure Function blob deletion fallback
+                        documents: [{
+                            id: docId,
+                            department: department || '',
+                            fileName: fileName || '',
+                            blobPath: department && fileName ? `${department}/${fileName}` : ''
+                        }]
+                    })
+                });
                 
                 console.log('Delete response status:', functionResponse.status);
                 
@@ -2494,18 +2513,13 @@
                         z-index: 10000;
                         animation: slideIn 0.3s ease-out;
                     `;
-                    successDiv.innerHTML = `✓ Document "${title}" deleted from repository and storage`;
+                    successDiv.innerHTML = `✓ Document "${title}" deleted successfully. Refreshing...`;
                     document.body.appendChild(successDiv);
                     
+                    // Refresh the entire page after a short delay to ensure everything is updated
                     setTimeout(() => {
-                        successDiv.remove();
-                    }, 3000);
-                    
-                    // Refresh the document list after a short delay
-                    setTimeout(() => {
-                        loadDepartmentDocuments();
-                        loadIndexStatistics();
-                    }, 500);
+                        window.location.reload();
+                    }, 1500);
                 } else {
                     const errorData = await functionResponse.text();
                     console.error('Delete failed with response:', errorData);

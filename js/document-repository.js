@@ -368,6 +368,7 @@
     function createDocumentCard(doc) {
         const card = document.createElement('div');
         card.className = 'document-card';
+        card.setAttribute('data-doc-id', doc.id);
         
         // Determine file type and icon
         const fileExt = getFileExtension(doc.fileName || doc.title);
@@ -402,7 +403,7 @@
                 <button class="action-btn" onclick="documentRepository.downloadDocument('${doc.id}', '${doc.title || doc.fileName}', '${doc.department}')">
                     <span>⬇️</span> Download
                 </button>
-                <button class="btn-delete" onclick="documentRepository.deleteDocument('${doc.id}', '${doc.title || doc.fileName}')">
+                <button class="btn-delete" onclick="documentRepository.deleteDocument('${doc.id}', '${doc.title || doc.fileName}', '${doc.department}')">
                     <span>🗑️</span>
                 </button>
             </div>
@@ -470,13 +471,43 @@
         }
     }
 
-    async function deleteDocument(docId, fileName) {
+    async function deleteDocument(docId, fileName, department) {
         if (!confirm(`Are you sure you want to delete "${fileName}"?\n\nThis action cannot be undone.`)) {
             return;
         }
         
         try {
-            // Use correct delete endpoint URL format
+            console.log(`Starting deletion: ${fileName} from ${department} department`);
+            
+            // First, delete the blob from storage using the new direct function
+            try {
+                const deleteBlobUrl = `${CONFIG.azure.functionApp.baseUrl}/DeleteBlob?code=${CONFIG.azure.functionApp.key}`;
+                
+                const blobResponse = await fetch(deleteBlobUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-functions-key': CONFIG.azure.functionApp.key
+                    },
+                    body: JSON.stringify({
+                        fileName: fileName,
+                        department: department || 'IT', // Default to IT if department not provided
+                        containerName: CONFIG.azure.containerName || 'saxdocuments'
+                    })
+                });
+                
+                if (blobResponse.ok) {
+                    const blobResult = await blobResponse.json();
+                    console.log('Blob deletion result:', blobResult);
+                } else {
+                    console.warn('Blob deletion failed, continuing with index deletion');
+                }
+            } catch (blobError) {
+                console.error('Error deleting blob:', blobError);
+                // Continue with index deletion even if blob deletion fails
+            }
+            
+            // Then delete from search index
             const deleteUrl = `${CONFIG.azure.functionApp.baseUrl}/documents/delete/${docId}?code=${CONFIG.azure.functionApp.key}`;
             
             const response = await fetch(deleteUrl, {
@@ -491,7 +522,13 @@
                 if (result.success) {
                     showNotification(`Document "${fileName}" deleted successfully`, 'success');
                     
-                    // Reload documents
+                    // Remove the document card from the UI immediately
+                    const documentCard = document.querySelector(`[data-doc-id="${docId}"]`);
+                    if (documentCard) {
+                        documentCard.remove();
+                    }
+                    
+                    // Reload documents and statistics
                     setTimeout(() => {
                         loadDocuments();
                         loadIndexStatistics();
