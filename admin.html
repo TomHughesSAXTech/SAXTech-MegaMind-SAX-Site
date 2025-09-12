@@ -680,7 +680,7 @@
                             search: query,  // Add both query and search for compatibility
                             filter: filter,
                             top: parseInt(top),
-                            select: 'id,title,fileName,department,documentType,uploadDate,createdDate,author,fileSize,status,vectorized,chunkCount,conversionMethod,contentHash'  // Extended fields
+                            select: 'id,title,fileName,department,documentType,uploadDate,createdDate,author,fileSize,status,vectorized,chunkCount,conversionMethod,contentHash,contentLength,metadata'  // Extended fields including contentLength
                         })
                     }
                 );
@@ -688,6 +688,15 @@
                 if (response.ok) {
                     const data = await response.json();
                     const documents = data.results || data.value || [];
+                    
+                    // Debug: Log the first document to see available fields
+                    if (documents.length > 0) {
+                        console.log('=== DOCUMENT STRUCTURE DEBUG ===');
+                        console.log('First document:', documents[0]);
+                        console.log('Available fields:', Object.keys(documents[0]));
+                        console.log('================================');
+                    }
+                    
                     displayResults(documents);
                     showAlert('success', `Found ${documents.length} documents`);
                 } else {
@@ -755,11 +764,44 @@
                                 }
                             };
                             
-                            // Determine indexing method
-                            const indexMethod = doc.conversionMethod || doc.status || 'Standard';
+                            // Determine indexing method based on file type and processing
+                            let indexMethod = 'Standard';
+                            
+                            // First check if there's OCR text indicating OCR processing
+                            if (doc.ocrText && doc.ocrText.trim().length > 0) {
+                                indexMethod = 'OCR';
+                            } else if (doc.conversionMethod) {
+                                indexMethod = doc.conversionMethod;
+                            } else if (doc.fileName) {
+                                // Infer method from file extension
+                                const ext = doc.fileName.toLowerCase().split('.').pop();
+                                if (['jpg', 'jpeg', 'png', 'gif', 'bmp'].includes(ext)) {
+                                    indexMethod = 'OCR';
+                                } else if (['xlsx', 'xls', 'csv'].includes(ext)) {
+                                    indexMethod = 'Excel';
+                                } else if (['pdf'].includes(ext)) {
+                                    indexMethod = 'PDF Extract';
+                                } else if (['docx', 'doc'].includes(ext)) {
+                                    indexMethod = 'Word Extract';
+                                } else if (['txt', 'md'].includes(ext)) {
+                                    indexMethod = 'Text';
+                                }
+                            }
+                            
+                            // Status override for Active documents
+                            if (doc.status === 'Active' || doc.status === 'indexed') {
+                                if (indexMethod === 'Standard') {
+                                    indexMethod = 'Indexed';
+                                }
+                            }
+                            
                             const methodColor = indexMethod === 'OCR' ? '#9333ea' : 
                                               indexMethod === 'Excel' ? '#16a34a' : 
-                                              indexMethod === 'indexed' ? '#3b82f6' : '#6b7280';
+                                              indexMethod === 'PDF Extract' ? '#0891b2' :
+                                              indexMethod === 'Word Extract' ? '#0369a1' :
+                                              indexMethod === 'Text' ? '#059669' :
+                                              indexMethod === 'Indexed' ? '#3b82f6' :
+                                              indexMethod === 'Active' ? '#3b82f6' : '#6b7280';
                             
                             return `
                             <tr style="border-bottom: 1px solid #eee;">
@@ -779,15 +821,19 @@
                                 </td>
                                 <td style="padding: 10px; text-align: center;">${formatSize(doc.fileSize)}</td>
                                 <td style="padding: 10px; text-align: center;">
-                                    ${doc.vectorized ? 
+                                    ${(doc.vectorized === true || doc.status === 'indexed' || doc.status === 'Active' || (doc.content && doc.content.length > 0)) ? 
                                         '<span style="color: #16a34a; font-weight: bold;">✓</span>' : 
                                         '<span style="color: #dc2626;">✗</span>'}
                                 </td>
                                 <td style="padding: 10px; font-size: 11px;">${formatDate(doc.uploadDate || doc.createdDate)}</td>
                                 <td style="padding: 10px; text-align: center;">
                                     ${doc.chunkCount ? 
-                                        `<span style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${doc.chunkCount}</span>` : 
-                                        '-'}
+                                        `<span style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${doc.chunkCount} chunks</span>` : 
+                                        doc.contentLength ? 
+                                        `<span style="background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${doc.contentLength.toLocaleString()} chars</span>` :
+                                        doc.content && doc.content.length > 0 ?
+                                        `<span style="background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${doc.content.length.toLocaleString()} chars</span>` :
+                                        '<span style="color: #999;">-</span>'}
                                 </td>
                                 <td style="padding: 10px; text-align: center;">
                                     <button class="btn btn-danger" style="padding: 4px 10px; font-size: 11px;" 
