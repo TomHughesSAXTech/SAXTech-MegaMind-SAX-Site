@@ -418,13 +418,12 @@
         }
 
         .document-item {
-            display: grid;
-            grid-template-columns: auto 1fr auto;
+            display: flex;
             gap: 12px;
             padding: 12px;
             border: 1px solid #e5e7eb;
             border-radius: 6px;
-            align-items: start;
+            align-items: flex-start;
             transition: all 0.2s ease;
             background: #fafafa;
         }
@@ -459,15 +458,16 @@
         }
 
         .document-title {
-            font-weight: 500;
+            font-weight: 600;
             color: #1e293b;
-            font-size: 13px;
-            margin-bottom: 4px;
+            font-size: 14px;
+            margin-bottom: 6px;
             line-height: 1.5;
             display: block;
             overflow: visible;
-            word-break: break-word;
-            word-wrap: break-word;
+            word-break: normal;
+            word-wrap: normal;
+            white-space: normal;
         }
 
         .document-meta {
@@ -1546,24 +1546,23 @@
             // Use enhanced icon function if available, fallback to existing
             const enhancedIcon = window.getFileTypeIcon ? window.getFileTypeIcon(displayName) : typeInfo;
             
+            // Create document card with better layout
             docDiv.innerHTML = `
-                <div class="doc-type-icon" style="position: relative; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0; background: ${enhancedIcon.gradient || typeInfo.gradient};">
-                    ${enhancedIcon.svg || (typeof typeInfo.icon === 'string' && typeInfo.icon.includes('<svg') ? typeInfo.icon : `<span style="color: white; font-size: 28px;">${typeInfo.icon}</span>`)}
+                <div class="doc-type-icon" style="position: relative; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0; background: ${enhancedIcon.gradient || typeInfo.gradient};">
+                    ${enhancedIcon.svg || (typeof typeInfo.icon === 'string' && typeInfo.icon.includes('<svg') ? typeInfo.icon : `<span style="color: white; font-size: 24px;">${typeInfo.icon}</span>`)}
                     ${doc.indexed ? '<div class="indexed-badge" style="position: absolute; top: -4px; right: -4px; width: 16px; height: 16px; background: #10b981; border: 2px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: bold;">✓</div>' : ''}
                 </div>
-                <div class="document-info" style="flex: 1; min-width: 0;">
-                <div class="document-title" style="font-weight: 600; color: #1e293b; margin-bottom: 6px; font-size: 14px; line-height: 1.5; word-wrap: break-word; overflow-wrap: break-word;" title="${doc.title || displayName}">
-                    ${doc.title || 'Untitled Document'}
-                </div>
-                    <div class="document-filename" style="font-size: 12px; color: #64748b; margin-bottom: 4px;">
+                <div class="document-info" style="flex: 1; min-width: 0; padding: 0 10px;">
+                    <div class="document-title">${doc.title || 'Untitled Document'}</div>
+                    <div class="document-filename" style="font-size: 12px; color: #64748b; margin-top: 4px;">
                         <strong>File:</strong> ${displayName}
                     </div>
-                    <div class="document-meta" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; font-size: 11px;">
-                        ${formattedMeta.join('')}
+                    <div class="document-meta" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; font-size: 11px;">
+                        ${metaItems.join('')}
                     </div>
-                    ${doc.description ? `<div class="document-description" style="font-size: 11px; color: #94a3b8; line-height: 1.4;">${doc.description}</div>` : ''}
+                    ${doc.description ? `<div class="document-description" style="font-size: 11px; color: #94a3b8; line-height: 1.4; margin-top: 4px;">${doc.description}</div>` : ''}
                 </div>
-                <div class="document-actions" style="display: flex; gap: 8px; align-items: center;">
+                <div class="document-actions" style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
                     <button class="action-btn btn-preview" onclick="previewDocument('${doc.id}', '${displayName}', '${fileExt}', null, event, '${doc.department || ''}')" style="padding: 6px 12px; background: white; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 12px; color: #374151;">
                         <span style="margin-right: 4px;">👁️</span> Preview
                     </button>
