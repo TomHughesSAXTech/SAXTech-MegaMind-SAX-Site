@@ -1,0 +1,92 @@
+<!-- Example 1: Response to "Who am I?" -->
+<div class="sax-response">
+    <div class="greeting">
+        <p>Good afternoon, Tom! Let me pull up your complete profile.</p>
+    </div>
+    <h3>👤 Your SAX Advisory Group Profile</h3>
+    <div class="employee-card">
+        <table class="employee-info">
+            <tr><td><strong>Name:</strong></td><td>Tom Hughes</td></tr>
+            <tr><td><strong>Title:</strong></td><td>Director of IT Operations</td></tr>
+            <tr><td><strong>Department:</strong></td><td>IT</td></tr>
+            <tr><td><strong>Company:</strong></td><td>SAX Advisory Group</td></tr>
+            <tr><td><strong>Email:</strong></td><td><a href="mailto:thughes@saxadvisorygroup.com">thughes@saxadvisorygroup.com</a></td></tr>
+            <tr><td><strong>Phone:</strong></td><td>973-554-6199</td></tr>
+            <tr><td><strong>Manager:</strong></td><td>Rob Owen (Chief Information Officer)</td></tr>
+            <tr><td><strong>Location:</strong></td><td>North Carolina</td></tr>
+        </table>
+    </div>
+    <div class="permissions-section">
+        <h4>Your System Permissions:</h4>
+        <ul>
+            <li>✅ Create and manage user accounts</li>
+            <li>✅ Reset passwords and security administration</li>
+            <li>✅ Modify system policies</li>
+            <li>✅ Team management capabilities</li>
+            <li>✅ Executive access privileges</li>
+        </ul>
+    </div>
+    <div class="source-section">
+        <p><small><em>Source: MSAL Authentication Context</em></small></p>
+    </div>
+</div>
+
+<!-- Example 2: General Question -->
+<div class="sax-response">
+    <div class="greeting">
+        <p>Hi Tom! Great question from our IT Director.</p>
+    </div>
+    <h3>🔧 Azure Infrastructure Status</h3>
+    <div class="answer-section">
+        <p>I've checked our Azure environment and here's the current status...</p>
+    </div>
+    <div class="details-section">
+        <h4>Technical Details:</h4>
+        <ul>
+            <li>All critical VMs are running normally</li>
+            <li>No active security alerts in Azure Security Center</li>
+            <li>Resource utilization is at 67% (within normal range)</li>
+            <li>Latest backup completed successfully at 2:00 AM EST</li>
+        </ul>
+    </div>
+    <div class="tech-section">
+        <h4>PowerShell Quick Check:</h4>
+        <pre><code>Get-AzVM -Status | Where-Object {$_.PowerState -eq "VM running"}</code></pre>
+    </div>
+    <div class="source-section">
+        <p><small><em>Source: Azure Resource Manager API</em></small></p>
+    </div>
+</div>
+
+<!-- Example 3: Morning Greeting -->
+<div class="sax-response">
+    <div class="greeting">
+        <p>Good morning, Tom! Hope you're having a great start to your day in North Carolina.</p>
+    </div>
+    <h3>📋 Today's IT Operations Overview</h3>
+    <div class="answer-section">
+        <p>Here's what's on the radar for IT Operations today...</p>
+    </div>
+</div>
+
+<!-- Example 4: Returning User (previousMessages > 0) -->
+<div class="sax-response">
+    <div class="greeting">
+        <p>Welcome back, Tom! Continuing from our earlier discussion...</p>
+    </div>
+    <h3>🔄 Follow-up Information</h3>
+    <div class="answer-section">
+        <p>Building on what we covered, here's the additional detail you requested...</p>
+    </div>
+</div>
+
+<!-- Example 5: Time-Aware Greeting -->
+<div class="sax-response">
+    <div class="greeting">
+        <p>Good evening, Tom! Still working late, I see. How can I assist you?</p>
+    </div>
+    <h3>🌙 After-Hours Support</h3>
+    <div class="answer-section">
+        <p>I'm here to help with any urgent IT matters...</p>
+    </div>
+</div>

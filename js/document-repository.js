@@ -417,32 +417,237 @@
         try {
             showPreviewModal(fileName);
             
-            // Generate SAS token for blob access
-            const sasToken = await generateSASToken(fileName, department);
+            const fileExt = getFileExtension(fileName).toLowerCase();
+            const previewContent = document.getElementById('previewContent');
             
-            if (sasToken) {
-                const blobUrl = constructBlobUrl(fileName, department, sasToken);
+            // Store current preview data for download button
+            window.currentPreviewData = {
+                docId: docId,
+                fileName: fileName,
+                department: department
+            };
+            
+            // For private blob storage, we need to handle previews differently
+            // Use Azure Function to proxy the document content
+            const proxyUrl = `${CONFIG.azure.functionApp.baseUrl}/GetDocument?code=${CONFIG.azure.functionApp.key}`;
+            
+            // Create form data for the request
+            const requestBody = {
+                fileName: fileName,
+                department: department || 'IT',
+                containerName: CONFIG.azure.containerName || 'saxdocuments'
+            };
+            
+            if (['pdf'].includes(fileExt)) {
+                // For PDFs, create an iframe that loads through our proxy
+                const sasToken = await generateSASToken(fileName, department);
+                if (sasToken) {
+                    const blobUrl = constructBlobUrl(fileName, department, sasToken);
+                    
+                    // Use the blob URL directly in an iframe
+                    if (previewContent) {
+                        previewContent.innerHTML = `
+                            <iframe 
+                                class="preview-iframe" 
+                                src="${blobUrl}"
+                                style="width: 100%; height: 100%; border: none; background: white;"
+                                onload="this.style.opacity='1';"
+                                onerror="this.parentElement.innerHTML='<div style=\'text-align:center;padding:40px;\'><p>Unable to load PDF preview.</p><button onclick=\'downloadFromPreview()\' style=\'padding:10px 20px;background:#3b82f6;color:white;border:none;border-radius:6px;cursor:pointer;\'>Download Instead</button></div>';">
+                            </iframe>
+                        `;
+                    }
+                } else {
+                    throw new Error('Could not generate SAS token');
+                }
                 
-                // Create iframe for preview
-                const iframe = document.createElement('iframe');
-                iframe.className = 'preview-iframe';
-                iframe.src = blobUrl;
+            } else if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(fileExt)) {
+                // For Office documents, download and offer to open locally
+                const sasToken = await generateSASToken(fileName, department);
+                if (sasToken) {
+                    const blobUrl = constructBlobUrl(fileName, department, sasToken);
+                    
+                    if (previewContent) {
+                        previewContent.innerHTML = `
+                            <div style="text-align: center; padding: 60px 20px;">
+                                <div style="font-size: 64px; margin-bottom: 20px;">📄</div>
+                                <h3 style="margin-bottom: 10px; color: #1f2937;">${fileName}</h3>
+                                <p style="color: #6b7280; margin-bottom: 30px;">Office documents cannot be previewed directly due to security settings.</p>
+                                <div style="display: flex; gap: 12px; justify-content: center;">
+                                    <button onclick="window.open('${blobUrl}', '_blank')" style="
+                                        padding: 12px 24px;
+                                        background: #3b82f6;
+                                        color: white;
+                                        border: none;
+                                        border-radius: 6px;
+                                        cursor: pointer;
+                                        font-size: 14px;
+                                        font-weight: 500;
+                                    ">⬇️ Download</button>
+                                    <button onclick="closePreviewModal()" style="
+                                        padding: 12px 24px;
+                                        background: #f3f4f6;
+                                        color: #374151;
+                                        border: none;
+                                        border-radius: 6px;
+                                        cursor: pointer;
+                                        font-size: 14px;
+                                        font-weight: 500;
+                                    ">Close</button>
+                                </div>
+                            </div>
+                        `;
+                    }
+                } else {
+                    throw new Error('Could not generate SAS token');
+                }
                 
-                elements.previewBody.innerHTML = '';
-                elements.previewBody.appendChild(iframe);
+            } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg'].includes(fileExt)) {
+                // For images, use SAS token URL directly
+                const sasToken = await generateSASToken(fileName, department);
+                if (sasToken) {
+                    const blobUrl = constructBlobUrl(fileName, department, sasToken);
+                    
+                    if (previewContent) {
+                        previewContent.innerHTML = `
+                            <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; overflow: auto; background: #f9fafb;">
+                                <img 
+                                    src="${blobUrl}" 
+                                    style="max-width: 90%; max-height: 90%; object-fit: contain; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" 
+                                    alt="${fileName}"
+                                    onerror="this.parentElement.innerHTML='<p>Unable to load image.</p>';">
+                            </div>
+                        `;
+                    }
+                } else {
+                    throw new Error('Could not generate SAS token');
+                }
+                
+            } else if (['txt', 'json', 'xml', 'csv', 'log', 'md'].includes(fileExt)) {
+                // For text files, fetch content using SAS token
+                const sasToken = await generateSASToken(fileName, department);
+                if (sasToken) {
+                    const blobUrl = constructBlobUrl(fileName, department, sasToken);
+                    
+                    try {
+                        const response = await fetch(blobUrl);
+                        if (!response.ok) throw new Error('Failed to fetch document');
+                        
+                        const text = await response.text();
+                        let formattedContent = text;
+                        
+                        // Format JSON files
+                        if (fileExt === 'json') {
+                            try {
+                                const jsonObj = JSON.parse(text);
+                                formattedContent = JSON.stringify(jsonObj, null, 2);
+                            } catch (e) {
+                                // Keep original if not valid JSON
+                            }
+                        }
+                        
+                        if (previewContent) {
+                            previewContent.innerHTML = `
+                                <div style="width: 100%; height: 100%; overflow: auto; background: #f5f5f5; padding: 20px; box-sizing: border-box;">
+                                    <pre style="
+                                        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+                                        font-size: 13px;
+                                        line-height: 1.6;
+                                        color: #1f2937;
+                                        white-space: pre-wrap;
+                                        word-wrap: break-word;
+                                        margin: 0;
+                                        background: white;
+                                        padding: 20px;
+                                        border-radius: 8px;
+                                        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                                    ">${escapeHtml(formattedContent)}</pre>
+                                </div>
+                            `;
+                        }
+                    } catch (error) {
+                        console.error('Error loading text content:', error);
+                        if (previewContent) {
+                            previewContent.innerHTML = `
+                                <div style="text-align: center; padding: 40px;">
+                                    <p style="color: #ef4444; margin-bottom: 20px;">Unable to load document content</p>
+                                    <button onclick="downloadFromPreview()" style="
+                                        padding: 10px 20px;
+                                        background: #3b82f6;
+                                        color: white;
+                                        border: none;
+                                        border-radius: 6px;
+                                        cursor: pointer;
+                                    ">Download Instead</button>
+                                </div>
+                            `;
+                        }
+                    }
+                } else {
+                    throw new Error('Could not generate SAS token');
+                }
+                
             } else {
-                // Fallback to Azure Function
-                const previewUrl = `${CONFIG.azure.functionApp.baseUrl}/documents/preview?id=${docId}&code=${CONFIG.azure.functionApp.key}`;
-                window.open(previewUrl, '_blank');
-                closePreviewModal();
+                // For unsupported file types, provide download option
+                const sasToken = await generateSASToken(fileName, department);
+                const blobUrl = sasToken ? constructBlobUrl(fileName, department, sasToken) : '#';
+                
+                if (previewContent) {
+                    previewContent.innerHTML = `
+                        <div style="text-align: center; padding: 60px 20px;">
+                            <div style="font-size: 64px; margin-bottom: 20px;">📄</div>
+                            <h3 style="margin-bottom: 10px; color: #1f2937;">${fileName}</h3>
+                            <p style="color: #6b7280; margin-bottom: 20px;">Preview not available for ${fileExt.toUpperCase()} files</p>
+                            <button onclick="downloadFromPreview()" style="
+                                padding: 12px 24px;
+                                background: #3b82f6;
+                                color: white;
+                                border: none;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                font-size: 14px;
+                                font-weight: 500;
+                            ">⬇️ Download File</button>
+                        </div>
+                    `;
+                }
             }
+            
         } catch (error) {
             console.error('Preview error:', error);
-            showNotification('Unable to preview document', 'error');
-            closePreviewModal();
+            const previewContent = document.getElementById('previewContent');
+            if (previewContent) {
+                previewContent.innerHTML = `
+                    <div style="text-align: center; padding: 60px 20px;">
+                        <div style="font-size: 48px; margin-bottom: 20px; color: #ef4444;">⚠️</div>
+                        <h3 style="margin-bottom: 10px; color: #1f2937;">Unable to Preview Document</h3>
+                        <p style="color: #6b7280; margin-bottom: 30px;">${error.message || 'An error occurred while loading the preview'}</p>
+                        <div style="display: flex; gap: 12px; justify-content: center;">
+                            <button onclick="downloadFromPreview()" style="
+                                padding: 12px 24px;
+                                background: #3b82f6;
+                                color: white;
+                                border: none;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                font-size: 14px;
+                                font-weight: 500;
+                            ">Try Download</button>
+                            <button onclick="closePreviewModal()" style="
+                                padding: 12px 24px;
+                                background: #f3f4f6;
+                                color: #374151;
+                                border: none;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                font-size: 14px;
+                                font-weight: 500;
+                            ">Close</button>
+                        </div>
+                    </div>
+                `;
+            }
         }
     }
-
     async function downloadDocument(docId, fileName, department) {
         try {
             // Generate SAS token for blob access
@@ -693,14 +898,27 @@
 
     // Modal Management
     function showPreviewModal(title) {
-        elements.previewTitle.textContent = title || 'Document Preview';
-        elements.previewBody.innerHTML = '<div class="spinner"></div>';
-        elements.previewModal.classList.add('active');
+        const modal = document.getElementById('previewModal');
+        const titleElement = document.getElementById('previewTitle');
+        const bodyElement = document.getElementById('previewContent');
+        
+        if (titleElement) titleElement.textContent = title || 'Document Preview';
+        if (bodyElement) bodyElement.innerHTML = '<div class="spinner" style="margin: 40px auto; width: 40px; height: 40px; border: 3px solid #f3f3f3; border-top: 3px solid #3b82f6; border-radius: 50%; animation: spin 1s linear infinite;"></div>';
+        if (modal) {
+            modal.classList.add('active');
+            modal.style.display = 'flex'; // Ensure display is set
+        }
     }
 
     function closePreviewModal() {
-        elements.previewModal.classList.remove('active');
-        elements.previewBody.innerHTML = '';
+        const modal = document.getElementById('previewModal');
+        const bodyElement = document.getElementById('previewContent');
+        
+        if (modal) {
+            modal.classList.remove('active');
+            modal.style.display = 'none';
+        }
+        if (bodyElement) bodyElement.innerHTML = '';
     }
 
     // Utility Functions
@@ -714,6 +932,17 @@
         if (!fileName) return 'unknown';
         const parts = fileName.split('.');
         return parts.length > 1 ? parts.pop().toLowerCase() : 'unknown';
+    }
+
+    function escapeHtml(text) {
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
     }
 
     function getIconClass(ext) {
@@ -851,6 +1080,19 @@
             loadIndexStatistics();
         }
     };
+    
+    // Global helper functions for modal buttons
+    window.downloadFromPreview = function() {
+        if (window.currentPreviewData) {
+            downloadDocument(
+                window.currentPreviewData.docId,
+                window.currentPreviewData.fileName,
+                window.currentPreviewData.department
+            );
+        }
+    };
+    
+    window.closePreviewModal = closePreviewModal;
 
     // Initialize when DOM is ready
     if (document.readyState === 'loading') {
