@@ -152,6 +152,16 @@ const contextData = {
 };
 
 // Return array with json wrapper for Code node
+// Ensure sessionId is at root level for memory node
 return [{
-  json: contextData
+  json: {
+    ...contextData,
+    // Ensure sessionId is accessible for Simple Memory
+    sessionId: sessionId,
+    // Alternative field names some memory nodes expect
+    chat_session_id: sessionId,
+    session_id: sessionId,
+    // User identifier for memory
+    userId: userProfile.email || userProfile.userPrincipalName || 'unknown'
+  }
 }];

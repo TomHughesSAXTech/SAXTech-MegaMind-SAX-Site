@@ -9,7 +9,7 @@
     // Configuration
     const CONFIG = {
         azure: {
-            storageAccount: 'saxtechmegamind',
+            storageAccount: 'saxtechmegamind',  // Added storage account name
             containerName: 'saxdocuments',
             functionApp: {
                 baseUrl: 'https://saxtechmegamindfunctions.azurewebsites.net/api',
@@ -439,20 +439,20 @@
             };
             
             if (['pdf'].includes(fileExt)) {
-                // For PDFs, create an iframe that loads through our proxy
+                // For PDFs, generate SAS token and display in iframe
                 const sasToken = await generateSASToken(fileName, department);
                 if (sasToken) {
                     const blobUrl = constructBlobUrl(fileName, department, sasToken);
+                    console.log('PDF Preview URL:', blobUrl); // Debug log
                     
-                    // Use the blob URL directly in an iframe
                     if (previewContent) {
                         previewContent.innerHTML = `
                             <iframe 
                                 class="preview-iframe" 
                                 src="${blobUrl}"
                                 style="width: 100%; height: 100%; border: none; background: white;"
-                                onload="this.style.opacity='1';"
-                                onerror="this.parentElement.innerHTML='<div style=\'text-align:center;padding:40px;\'><p>Unable to load PDF preview.</p><button onclick=\'downloadFromPreview()\' style=\'padding:10px 20px;background:#3b82f6;color:white;border:none;border-radius:6px;cursor:pointer;\'>Download Instead</button></div>';">
+                                onload="console.log('PDF loaded successfully');"
+                                onerror="console.error('PDF failed to load'); this.parentElement.innerHTML='<div style=\'text-align:center;padding:40px;\'><p>Unable to load PDF preview.</p><button onclick=\'downloadFromPreview()\' style=\'padding:10px 20px;background:#3b82f6;color:white;border:none;border-radius:6px;cursor:pointer;\'>Download Instead</button></div>';">
                             </iframe>
                         `;
                     }
