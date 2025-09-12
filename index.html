@@ -1180,9 +1180,21 @@
                     </div>
                     
                     <!-- Conversation state indicator -->
-                    <div class="conversation-indicator">
-                        <span class="conversation-state" id="conversationState">Ready to listen</span>
-                    </div>
+                <div class="conversation-indicator">
+                    <span id="conversationState" class="conversation-state">Continuous Mode Active</span>
+                    <button id="stopConversationBtn" class="stop-conversation-btn" style="
+                        margin-left: 10px;
+                        padding: 6px 12px;
+                        background: rgba(255, 100, 100, 0.2);
+                        border: 1px solid rgba(255, 100, 100, 0.4);
+                        border-radius: 15px;
+                        color: rgba(255, 100, 100, 0.9);
+                        font-size: 11px;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                    " onmouseover="this.style.background='rgba(255, 100, 100, 0.3)'" 
+                       onmouseout="this.style.background='rgba(255, 100, 100, 0.2)'">Stop Conversation</button>
+                </div>
                 </div>
             </div>
         </div>
@@ -1354,8 +1366,8 @@
         const conversationState = document.getElementById('conversationState');
         let previewAudio = null;
         const fileInput = document.getElementById('fileInput');
-        const conversationState = document.getElementById('conversationState');
         const resetBtn = document.getElementById('resetBtn');
+        let conversationStopped = false;  // Track if conversation is manually stopped
 
         // Initialize carousel visibility
         function initializeCarousel() {
@@ -1980,13 +1992,15 @@
                     statusText.textContent = 'Ready to listen again...';
                     conversationState.textContent = 'Auto-listening in 1s';
                     
-                    // Auto-restart listening after a short delay
-                    autoRestartTimer = setTimeout(() => {
-                        console.log('Auto-restarting listening in continuous mode');
-                        if (!recognitionActive && !isAISpeaking) {
-                            startListening();
-                        }
-                    }, 1000);  // 1 second delay before listening again
+                    // Auto-restart listening after a short delay if not stopped
+                    if (!conversationStopped) {
+                        autoRestartTimer = setTimeout(() => {
+                            console.log('Auto-restarting listening in continuous mode');
+                            if (!recognitionActive && !isAISpeaking && !conversationStopped) {
+                                startListening();
+                            }
+                        }, 1000);  // 1 second delay before listening again
+                    }
                 };
                 
                 currentAudio.onerror = (error) => {
@@ -2204,6 +2218,12 @@
         
         // Start listening
         function startListening() {
+            // Check if conversation is stopped
+            if (conversationStopped) {
+                console.log('Conversation is stopped, not starting listening');
+                return;
+            }
+            
             if (!recognition) {
                 initializeSpeechRecognition();
             }
@@ -2340,16 +2360,34 @@
         });
         
         speakerIcon.addEventListener('click', () => {
+            // If conversation was stopped, restart it
+            if (conversationStopped) {
+                conversationStopped = false;
+                const stopBtn = document.getElementById('stopConversationBtn');
+                if (stopBtn) {
+                    stopBtn.textContent = 'Stop Conversation';
+                    stopBtn.disabled = false;
+                    stopBtn.style.opacity = '1';
+                }
+                conversationState.textContent = 'Continuous Mode Active';
+                conversationState.style.color = '';
+                statusText.textContent = 'Restarting conversation...';
+                setTimeout(() => startListening(), 500);
+                return;
+            }
+            
             if (isAISpeaking) {
                 // Stop current audio if AI is speaking
                 stopAudio();
                 statusText.textContent = 'Stopped. Tap to listen';
-                // Restart listening after a short delay
-                setTimeout(() => {
-                    if (!recognitionActive && !isAISpeaking) {
-                        startListening();
-                    }
-                }, 500);
+                // Restart listening after a short delay if not stopped
+                if (!conversationStopped) {
+                    setTimeout(() => {
+                        if (!recognitionActive && !isAISpeaking) {
+                            startListening();
+                        }
+                    }, 500);
+                }
             } else if (isListening) {
                 stopListening();
             } else {
@@ -2446,6 +2484,39 @@
                 previewVoice(selectedVoice);
             }
         });
+        
+        // Stop conversation button
+        const stopConversationBtn = document.getElementById('stopConversationBtn');
+        if (stopConversationBtn) {
+            stopConversationBtn.addEventListener('click', () => {
+                conversationStopped = true;
+                
+                // Stop everything
+                stopAudio();
+                stopListening();
+                
+                // Clear any timers
+                if (autoRestartTimer) {
+                    clearTimeout(autoRestartTimer);
+                    autoRestartTimer = null;
+                }
+                if (silenceTimer) {
+                    clearTimeout(silenceTimer);
+                    silenceTimer = null;
+                }
+                
+                // Update UI
+                statusText.textContent = 'Conversation Stopped';
+                conversationState.textContent = 'Stopped - Click speaker to restart';
+                conversationState.style.color = 'rgba(255, 100, 100, 0.8)';
+                speakerIcon.classList.remove('active', 'listening');
+                stopConversationBtn.textContent = 'Conversation Stopped';
+                stopConversationBtn.disabled = true;
+                stopConversationBtn.style.opacity = '0.5';
+                
+                console.log('Conversation manually stopped');
+            });
+        }
         
         fileBtn.addEventListener('click', () => {
             fileInput.click();
