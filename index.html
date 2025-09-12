@@ -2690,8 +2690,8 @@
         
         // Initialize on page load
         window.addEventListener('load', async () => {
-            console.log('Page loaded, initializing MSAL...');
-            initializeMSAL();
+            console.log('Page loaded, initializing application...');
+            await initialize();  // Call the main initialize function, not just initializeMSAL
         });
         
         // Document Portal Password Protection

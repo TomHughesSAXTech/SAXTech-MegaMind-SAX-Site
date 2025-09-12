@@ -3,7 +3,8 @@
 // It processes user profile data from MSAL and prepares context for AI and ElevenLabs
 
 // Extract user profile and context from webhook payload
-const userProfile = $input.item.json.userProfile || {};
+// Handle both 'user' and 'userProfile' field names for flexibility
+const userProfile = $input.item.json.userProfile || $input.item.json.user || {};
 const userContext = $input.item.json.userContext || {};
 // Check multiple possible message fields
 const message = $input.item.json.message || 
@@ -18,6 +19,8 @@ const rawVoice = $input.item.json.voice || $input.item.json.selectedVoice || 'sa
 const selectedVoice = rawVoice.toLowerCase() === 'alloy' ? 'sarah' : rawVoice;
 const isPreview = $input.item.json.preview === true;
 const attachments = $input.item.json.attachments || [];
+// Enable TTS by default unless explicitly disabled
+const enableTTS = $input.item.json.enableTTS !== false;
 
 // Build comprehensive personalized context based on user profile
 let personalizedContext = '';
@@ -52,7 +55,7 @@ if (userProfile.name || userProfile.displayName) {
   
   // Build detailed user context for AI
   personalizedContext = `USER PROFILE:
-- Name: ${userProfile.name || userProfile.displayName}
+- Name: ${userProfile.name || userProfile.displayName || 'Unknown'}
 - Email: ${userProfile.email || userProfile.userPrincipalName || 'user@saxtechnology.com'}
 - Job Title: ${userProfile.jobTitle || 'Employee'}
 - Department: ${userProfile.department || 'General'}
@@ -314,7 +317,7 @@ const voiceConfig = {
 
 // Adjust voice settings based on department/role
 const deptForVoice = (userProfile.department || '').toLowerCase();
-if (userPermissions.isExecutive) {
+if (userPermissions && userPermissions.isExecutive) {
   voiceConfig.voiceSettings.style = 0.3;      // More formal
   voiceConfig.voiceSettings.stability = 0.85; // Very consistent
 } else if (deptForVoice.includes('sales') || deptForVoice.includes('marketing')) {
