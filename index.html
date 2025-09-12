@@ -1179,17 +1179,16 @@
                         <div class="volume-bar"></div>
                     </div>
                     
-                    <!-- Conversation state indicator -->
+                <!-- Conversation state indicator -->
                 <div class="conversation-indicator">
-                    <span id="conversationState" class="conversation-state">Continuous Mode Active</span>
+                    <span id="conversationState" class="conversation-state" style="display: none;"></span>
                     <button id="stopConversationBtn" class="stop-conversation-btn" style="
-                        margin-left: 10px;
-                        padding: 6px 12px;
+                        padding: 8px 16px;
                         background: rgba(255, 100, 100, 0.2);
                         border: 1px solid rgba(255, 100, 100, 0.4);
-                        border-radius: 15px;
+                        border-radius: 20px;
                         color: rgba(255, 100, 100, 0.9);
-                        font-size: 11px;
+                        font-size: 12px;
                         cursor: pointer;
                         transition: all 0.3s ease;
                     " onmouseover="this.style.background='rgba(255, 100, 100, 0.3)'" 
@@ -1965,8 +1964,8 @@
                 speakerIcon.classList.add('active');
                 statusText.textContent = 'AI Speaking...';
                 statusText.classList.add('active');
-                conversationState.textContent = 'AI Speaking';
-                conversationState.className = 'conversation-state';
+                // Don't show conversation state text
+                conversationState.style.display = 'none';
                 
                 // Show subtle volume bars while AI is speaking
                 const bars = document.querySelectorAll('.volume-bar');
@@ -1990,7 +1989,7 @@
                     
                     // Always in continuous mode now
                     statusText.textContent = 'Ready to listen again...';
-                    conversationState.textContent = 'Auto-listening in 1s';
+                    // Don't show conversation state text
                     
                     // Auto-restart listening after a short delay if not stopped
                     if (!conversationStopped) {
@@ -2115,8 +2114,8 @@
                     speakerIcon.classList.add('listening');
                     statusText.textContent = 'Listening...';
                     statusText.classList.add('listening');
-                    conversationState.textContent = 'Listening';
-                    conversationState.className = 'conversation-state listening';
+                    // Don't show conversation state text
+                    conversationState.style.display = 'none';
                     animateVolumeBars();
                 };
                 
@@ -2207,8 +2206,8 @@
                         console.log('Recognition aborted');
                     }
                     
-                    conversationState.textContent = 'Ready to listen';
-                    conversationState.className = 'conversation-state';
+                    // Don't show conversation state text
+                    conversationState.style.display = 'none';
                 };
             } else {
                 console.error('Speech recognition not supported');
@@ -2369,8 +2368,7 @@
                     stopBtn.disabled = false;
                     stopBtn.style.opacity = '1';
                 }
-                conversationState.textContent = 'Continuous Mode Active';
-                conversationState.style.color = '';
+                conversationState.style.display = 'none';
                 statusText.textContent = 'Restarting conversation...';
                 setTimeout(() => startListening(), 500);
                 return;
@@ -2421,9 +2419,12 @@
             // Show loading state
             statusText.textContent = 'Loading voice preview...';
             
+            // Get the current webhook URL based on the selected AI profile
+            const webhookUrl = `https://workflows.saxtechnology.com/webhook/${currentWebhook || 'megamind-chat'}`;
+            
             try {
                 // Send preview request to the n8n workflow
-                const response = await fetch(WEBHOOK_URL, {
+                const response = await fetch(webhookUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -2506,9 +2507,8 @@
                 }
                 
                 // Update UI
-                statusText.textContent = 'Conversation Stopped';
-                conversationState.textContent = 'Stopped - Click speaker to restart';
-                conversationState.style.color = 'rgba(255, 100, 100, 0.8)';
+                statusText.textContent = 'Conversation Stopped - Click speaker to restart';
+                conversationState.style.display = 'none';
                 speakerIcon.classList.remove('active', 'listening');
                 stopConversationBtn.textContent = 'Conversation Stopped';
                 stopConversationBtn.disabled = true;
