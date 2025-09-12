@@ -896,20 +896,35 @@
     <!-- Document Preview Modal -->
     <div id="previewModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.8); z-index: 10001; align-items: center; justify-content: center;">
         <div style="position: relative; width: 90%; height: 90%; max-width: 1200px; background: white; border-radius: 12px; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
-            <div style="display: flex; justify-content: between; align-items: center; padding: 16px 24px; border-bottom: 1px solid #e5e7eb;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; border-bottom: 1px solid #e5e7eb; background: #f9fafb; border-radius: 12px 12px 0 0;">
                 <h2 id="previewTitle" style="margin: 0; font-size: 18px; font-weight: 600; color: #1f2937; flex: 1;">Document Preview</h2>
-                <button onclick="closePreviewModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280; padding: 4px; line-height: 1;">×</button>
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="openInNewTab()" style="background: white; border: 1px solid #e5e7eb; padding: 8px 12px; border-radius: 6px; cursor: pointer; color: #374151; font-size: 14px; display: flex; align-items: center; gap: 4px;" title="Open in new tab">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                            <polyline points="15 3 21 3 21 9"></polyline>
+                            <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
+                        Open in New Tab
+                    </button>
+                    <button onclick="closePreviewModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280; padding: 4px; line-height: 1;">×</button>
+                </div>
             </div>
-            <div id="previewContent" style="flex: 1; overflow: auto; padding: 0; display: flex; align-items: center; justify-content: center;">
+            <div id="previewContent" style="flex: 1; overflow: auto; padding: 0; display: flex; align-items: center; justify-content: center; background: #f3f4f6;">
                 <!-- Preview content will be loaded here -->
             </div>
-            <div style="padding: 12px 24px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px;">
-                <button onclick="downloadFromPreview()" style="padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">
-                    ⬇️ Download
-                </button>
-                <button onclick="closePreviewModal()" style="padding: 8px 16px; background: #f3f4f6; color: #374151; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">
-                    Close
-                </button>
+            <div style="padding: 12px 24px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; background: #f9fafb; border-radius: 0 0 12px 12px;">
+                <div id="previewInfo" style="font-size: 12px; color: #6b7280;">
+                    <!-- File info will be shown here -->
+                </div>
+                <div style="display: flex; gap: 12px;">
+                    <button onclick="downloadFromPreview()" style="padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">
+                        ⬇️ Download
+                    </button>
+                    <button onclick="closePreviewModal()" style="padding: 8px 16px; background: #f3f4f6; color: #374151; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">
+                        Close
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -959,6 +974,9 @@
         </div>
     </div>
 
+    <!-- Load enhanced document icons -->
+    <script src="js/document-icons-enhanced.js"></script>
+    
     <script>
         // API Configuration - Azure Function endpoints and n8n webhook
         const API_CONFIG = {
@@ -1508,13 +1526,16 @@
                 formattedMeta.push(`<span class="meta-item"><span style="font-size: 10px;">${statusIcon}</span> ${doc.status}</span>`);
             }
             
+            // Use enhanced icon function if available, fallback to existing
+            const enhancedIcon = window.getFileTypeIcon ? window.getFileTypeIcon(displayName) : typeInfo;
+            
             docDiv.innerHTML = `
-                <div class="doc-type-icon ${typeInfo.class}" style="background: ${typeInfo.gradient}; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0;">
-                    ${typeof typeInfo.icon === 'string' && typeInfo.icon.includes('<svg') ? typeInfo.icon : `<span style="color: white; font-size: 28px;">${typeInfo.icon}</span>`}
-                    ${doc.indexed ? '<div class="indexed-badge" style="position: absolute; top: -4px; right: -4px; width: 16px; height: 16px; background: #10b981; border: 2px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px;">✓</div>' : ''}
+                <div class="doc-type-icon" style="position: relative; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0; background: ${enhancedIcon.gradient || typeInfo.gradient};">
+                    ${enhancedIcon.svg || (typeof typeInfo.icon === 'string' && typeInfo.icon.includes('<svg') ? typeInfo.icon : `<span style="color: white; font-size: 28px;">${typeInfo.icon}</span>`)}
+                    ${doc.indexed ? '<div class="indexed-badge" style="position: absolute; top: -4px; right: -4px; width: 16px; height: 16px; background: #10b981; border: 2px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: bold;">✓</div>' : ''}
                 </div>
                 <div class="document-info" style="flex: 1; min-width: 0;">
-                    <div class="document-title" style="font-weight: 600; color: #1e293b; margin-bottom: 4px; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${doc.title || displayName}">
+                <div class="document-title" style="font-weight: 600; color: #1e293b; margin-bottom: 4px; font-size: 14px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word;" title="${doc.title || displayName}">
                         ${doc.title || 'Untitled Document'}
                     </div>
                     <div class="document-filename" style="font-size: 12px; color: #64748b; margin-bottom: 4px;">
@@ -1869,27 +1890,51 @@
             const modal = document.getElementById('previewModal');
             const title = document.getElementById('previewTitle');
             const content = document.getElementById('previewContent');
+            const info = document.getElementById('previewInfo');
             
-            // Store data for download button
-            currentPreviewData = { docId, fileName, department };
+            // Store data for download button and new tab
+            currentPreviewData = { docId, fileName, department, url };
             
             // Update title
-            title.textContent = `Preview: ${fileName}`;
+            title.textContent = fileName;
             
             // Clear previous content
             content.innerHTML = '';
             
             // Determine file type
             const fileExt = fileName.split('.').pop().toLowerCase();
+            const fileTypeInfo = getFileTypeInfo(fileExt);
+            
+            // Update info
+            if (info) {
+                info.innerHTML = `${fileTypeInfo.name} • ${fileExt.toUpperCase()}`;
+            }
             
             if (fileExt === 'pdf') {
-                // For PDFs, use an iframe
-                const iframe = document.createElement('iframe');
-                iframe.src = url;
-                iframe.style.width = '100%';
-                iframe.style.height = '100%';
-                iframe.style.border = 'none';
-                content.appendChild(iframe);
+                // For PDFs, show a message with options instead of iframe to prevent auto-download
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 40px; background: white; border-radius: 8px; max-width: 500px;">
+                        <div style="width: 80px; height: 80px; margin: 0 auto 20px; background: ${fileTypeInfo.gradient}; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                            ${fileTypeInfo.icon}
+                        </div>
+                        <h3 style="margin: 0 0 10px 0; color: #1e293b; font-size: 20px; font-weight: 600;">${fileName}</h3>
+                        <p style="color: #6b7280; margin-bottom: 24px;">PDF Document Ready for Viewing</p>
+                        <div style="display: flex; gap: 12px; justify-content: center;">
+                            <button onclick="openInNewTab()" style="padding: 12px 24px; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 8px;">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                    <polyline points="15 3 21 3 21 9"></polyline>
+                                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                                </svg>
+                                View PDF
+                            </button>
+                            <button onclick="downloadFromPreview()" style="padding: 12px 24px; background: white; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500;">
+                                ⬇️ Download
+                            </button>
+                        </div>
+                        <p style="color: #94a3b8; margin-top: 16px; font-size: 12px;">Click "View PDF" to open in your browser's PDF viewer</p>
+                    </div>
+                `;
             } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg'].includes(fileExt)) {
                 // For images, display directly
                 const img = document.createElement('img');
@@ -1985,6 +2030,12 @@
             
             // Clear stored data
             currentPreviewData = null;
+        }
+        
+        function openInNewTab() {
+            if (currentPreviewData && currentPreviewData.url) {
+                window.open(currentPreviewData.url, '_blank');
+            }
         }
         
         function downloadFromPreview() {
