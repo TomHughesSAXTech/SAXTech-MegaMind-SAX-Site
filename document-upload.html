@@ -1585,7 +1585,7 @@
                     <button class="action-btn btn-download" onclick="downloadDocument('${doc.id}', '${displayName}', '${doc.department || ''}')" style="padding: 6px 12px; background: white; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 12px; color: #374151;">
                         <span style="margin-right: 4px;">⬇️</span> Download
                     </button>
-                    <button class="btn-delete" onclick="deleteDocument('${doc.id}', '${doc.title || displayName}', event)" style="width: 32px; height: 32px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; color: #dc2626; display: flex; align-items: center; justify-content: center;" title="Delete document">
+                    <button class="btn-delete" onclick="deleteDocument('${doc.id}', '${doc.title || displayName}', event, '${doc.department || ''}', '${displayName}')" style="width: 32px; height: 32px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; color: #dc2626; display: flex; align-items: center; justify-content: center;" title="Delete document">
                         <span style="font-size: 16px;">🗑️</span>
                     </button>
                 </div>
@@ -2414,7 +2414,7 @@
         }
         
         // Delete document function
-        async function deleteDocument(docId, title, event) {
+        async function deleteDocument(docId, title, event, department = null, fileName = null) {
             // Prevent default action
             if (event) {
                 event.preventDefault();
@@ -2422,32 +2422,62 @@
             }
             
             // Confirm deletion
-            if (!confirm(`Are you sure you want to delete "${title}"?\n\nThis action cannot be undone.`)) {
+            if (!confirm(`Are you sure you want to delete "${title}"?\n\nThis will remove the document from both the repository and cloud storage.`)) {
                 return;
             }
             
             try {
-                // First try to use Azure Function for deletion (avoids CORS issues)
-                const deleteUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.deleteDocument}`;
-                const functionResponse = await fetch(deleteUrl, {
-                    method: 'POST',
+                console.log(`Attempting to delete document: ${docId} (${title})`);
+                console.log(`Department: ${department}, FileName: ${fileName}`);
+                
+                // First, try the single document delete endpoint with the document ID
+                const singleDeleteUrl = `${API_CONFIG.baseUrl}/documents/delete/${docId}?code=${API_CONFIG.functionKey}`;
+                console.log('Trying single delete URL:', singleDeleteUrl);
+                
+                let functionResponse = await fetch(singleDeleteUrl, {
+                    method: 'DELETE',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'x-functions-key': API_CONFIG.functionKey
-                    },
-                    body: JSON.stringify({
-                        documentIds: [docId]
-                    })
+                        'Content-Type': 'application/json'
+                    }
                 });
                 
-                if (functionResponse.ok || functionResponse.status === 404) {
-                    // If function succeeded or doesn't exist, try direct deletion
-                    if (functionResponse.status === 404) {
-                        console.log('Delete function not found, attempting direct deletion');
-                        
-                        // Function not found - this shouldn't happen in production
-                        console.warn('DocumentsDelete function not available');
-                        throw new Error('Delete function not available. Please contact support.');
+                // If single delete doesn't work, try batch delete
+                if (!functionResponse.ok && functionResponse.status === 404) {
+                    console.log('Single delete endpoint not found, trying batch delete');
+                    const batchDeleteUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.deleteDocument}`;
+                    console.log('Batch delete URL:', batchDeleteUrl);
+                    
+                    functionResponse = await fetch(batchDeleteUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-functions-key': API_CONFIG.functionKey
+                        },
+                        body: JSON.stringify({
+                            documentIds: [docId],
+                            // Include additional info to help with blob deletion
+                            documents: [{
+                                id: docId,
+                                department: department,
+                                fileName: fileName
+                            }]
+                        })
+                    });
+                }
+                
+                console.log('Delete response status:', functionResponse.status);
+                
+                if (functionResponse.ok) {
+                    const result = await functionResponse.json();
+                    console.log('Delete result:', result);
+                    
+                    // Check if all deletions were successful
+                    if (result.results && result.results.length > 0) {
+                        const failed = result.results.filter(r => !r.success);
+                        if (failed.length > 0) {
+                            console.warn('Some deletions failed:', failed);
+                            throw new Error(`Failed to completely delete document: ${failed[0].message || 'Unknown error'}`);
+                        }
                     }
                     
                     // Show success message with cleaner notification
@@ -2464,21 +2494,22 @@
                         z-index: 10000;
                         animation: slideIn 0.3s ease-out;
                     `;
-                    successDiv.innerHTML = `✓ Document "${title}" deleted successfully`;
+                    successDiv.innerHTML = `✓ Document "${title}" deleted from repository and storage`;
                     document.body.appendChild(successDiv);
                     
                     setTimeout(() => {
                         successDiv.remove();
                     }, 3000);
                     
-                    // Refresh the document list
-                    loadDepartmentDocuments();
-                    
-                    // Refresh statistics
-                    loadIndexStatistics();
+                    // Refresh the document list after a short delay
+                    setTimeout(() => {
+                        loadDepartmentDocuments();
+                        loadIndexStatistics();
+                    }, 500);
                 } else {
                     const errorData = await functionResponse.text();
-                    throw new Error(`Delete failed: ${errorData}`);
+                    console.error('Delete failed with response:', errorData);
+                    throw new Error(`Delete failed: ${functionResponse.status} - ${errorData}`);
                 }
             } catch (error) {
                 console.error('Delete error:', error);
