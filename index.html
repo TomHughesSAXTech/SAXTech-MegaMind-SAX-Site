@@ -366,7 +366,7 @@
         .speaker-icon {
             width: 100px;
             height: 100px;
-            border: 3px solid #FFD700;
+            border: 3px solid rgba(255,255,255,0.3);
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -375,37 +375,25 @@
             transition: all 0.3s ease;
             cursor: pointer;
             position: relative;
-            background: rgba(255,215,0,0.1);
+            background: rgba(255,255,255,0.05);
             backdrop-filter: blur(10px);
         }
 
         .speaker-icon.listening {
-            border-color: #00BFFF;
-            box-shadow: 0 0 30px rgba(0, 191, 255, 0.6);
-            animation: listening 2s infinite;
-            background: rgba(0,191,255,0.1);
-        }
-
-        @keyframes listening {
-            0%, 100% { 
-                transform: scale(1);
-                box-shadow: 0 0 30px rgba(0, 191, 255, 0.6);
-            }
-            50% { 
-                transform: scale(1.05);
-                box-shadow: 0 0 50px rgba(0, 191, 255, 0.8);
-            }
+            border-color: rgba(100, 150, 255, 0.5);
+            background: rgba(100, 150, 255, 0.1);
+            /* Removed animation and glow for less distraction */
         }
 
         .speaker-icon svg {
             width: 50px;
             height: 50px;
             fill: currentColor;
-            color: #FFD700;
+            color: rgba(255, 255, 255, 0.8);
         }
 
         .speaker-icon.listening svg {
-            color: #00BFFF;
+            color: rgba(100, 150, 255, 0.8);
         }
 
         .status-text {
@@ -418,8 +406,8 @@
         }
 
         .status-text.listening {
-            color: #00BFFF;
-            text-shadow: 0 0 10px rgba(0,191,255,0.5);
+            color: rgba(100, 150, 255, 0.8);
+            /* Removed text shadow for less distraction */
         }
 
         .volume-bars {
@@ -437,8 +425,8 @@
         }
 
         .volume-bar.active {
-            background: linear-gradient(to top, #FFD700, #FFA500);
-            box-shadow: 0 0 10px rgba(255,215,0,0.5);
+            background: rgba(100, 150, 255, 0.4);
+            /* Removed glow and gradient for subtle indication */
         }
 
         .conversation-indicator {
@@ -452,10 +440,10 @@
         .conversation-state {
             display: inline-block;
             padding: 8px 16px;
-            background: rgba(255,215,0,0.2);
-            border: 1px solid #FFD700;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.3);
             border-radius: 20px;
-            color: #FFD700;
+            color: rgba(255,255,255,0.7);
             font-size: 12px;
             font-weight: 600;
             letter-spacing: 1px;
@@ -463,15 +451,10 @@
         }
         
         .conversation-state.listening {
-            background: rgba(0,191,255,0.2);
-            border-color: #00BFFF;
-            color: #00BFFF;
-            animation: listening-pulse 1.5s infinite;
-        }
-        
-        @keyframes listening-pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
+            background: rgba(100,150,255,0.15);
+            border-color: rgba(100,150,255,0.4);
+            color: rgba(100,150,255,0.9);
+            /* Removed pulsing animation */
         }
 
         /* Large 3D Spinning Carousel */
@@ -1951,21 +1934,17 @@
                 conversationState.textContent = 'AI Speaking';
                 conversationState.className = 'conversation-state';
                 
-                // Animate volume bars while speaking
+                // Show subtle volume bars while AI is speaking
                 const bars = document.querySelectorAll('.volume-bar');
-                const animateSpeaking = () => {
-                    bars.forEach((bar, index) => {
-                        setTimeout(() => {
-                            bar.classList.add('active');
-                            setTimeout(() => bar.classList.remove('active'), 100);
-                        }, index * 50);
-                    });
-                };
-                const speakingInterval = setInterval(animateSpeaking, 300);
+                bars.forEach(bar => {
+                    bar.classList.add('active');
+                    bar.style.background = 'rgba(100, 200, 100, 0.3)';
+                });
+                const speakingInterval = null; // No animation needed
                 
                 currentAudio.onended = () => {
                     isAISpeaking = false;
-                    clearInterval(speakingInterval);
+                    if (speakingInterval) clearInterval(speakingInterval);
                     speakerIcon.classList.remove('active');
                     statusText.classList.remove('active');
                     
@@ -1989,7 +1968,7 @@
                     console.error('Audio playback error:', error);
                     console.log('Audio source was:', audioSrc ? audioSrc.substring(0, 100) + '...' : 'empty');
                     isAISpeaking = false;
-                    clearInterval(speakingInterval);
+                    if (speakingInterval) clearInterval(speakingInterval);
                     speakerIcon.classList.remove('active');
                     statusText.textContent = 'Continuing without audio...';
                     bars.forEach(bar => bar.classList.remove('active'));
@@ -2006,7 +1985,7 @@
                     console.error('Error playing audio:', error);
                     console.log('Audio MIME type issue or codec not supported');
                     isAISpeaking = false;
-                    clearInterval(speakingInterval);
+                    if (speakingInterval) clearInterval(speakingInterval);
                     speakerIcon.classList.remove('active');
                     statusText.textContent = 'Continuing without audio...';
                     bars.forEach(bar => bar.classList.remove('active'));
@@ -2257,24 +2236,12 @@
             }
         }
         
-        // Animate volume bars
+        // Show volume bars (no animation)
         function animateVolumeBars() {
             const bars = document.querySelectorAll('.volume-bar');
-            const animate = () => {
-                bars.forEach((bar, index) => {
-                    const active = Math.random() > 0.5;
-                    if (active) {
-                        bar.classList.add('active');
-                    } else {
-                        bar.classList.remove('active');
-                    }
-                });
-                
-                if (isListening) {
-                    volumeAnimationFrame = requestAnimationFrame(animate);
-                }
-            };
-            animate();
+            bars.forEach(bar => {
+                bar.classList.add('active');
+            });
         }
         
         // Stop volume animation
