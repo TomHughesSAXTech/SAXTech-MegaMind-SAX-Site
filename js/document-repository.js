@@ -461,42 +461,15 @@
                 }
                 
             } else if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(fileExt)) {
-                // For Office documents, download and offer to open locally
+                // For Office documents, open directly in browser using SAS token
                 const sasToken = await generateSASToken(fileName, department);
                 if (sasToken) {
                     const blobUrl = constructBlobUrl(fileName, department, sasToken);
                     
-                    if (previewContent) {
-                        previewContent.innerHTML = `
-                            <div style="text-align: center; padding: 60px 20px;">
-                                <div style="font-size: 64px; margin-bottom: 20px;">📄</div>
-                                <h3 style="margin-bottom: 10px; color: #1f2937;">${fileName}</h3>
-                                <p style="color: #6b7280; margin-bottom: 30px;">Office documents cannot be previewed directly due to security settings.</p>
-                                <div style="display: flex; gap: 12px; justify-content: center;">
-                                    <button onclick="window.open('${blobUrl}', '_blank')" style="
-                                        padding: 12px 24px;
-                                        background: #3b82f6;
-                                        color: white;
-                                        border: none;
-                                        border-radius: 6px;
-                                        cursor: pointer;
-                                        font-size: 14px;
-                                        font-weight: 500;
-                                    ">⬇️ Download</button>
-                                    <button onclick="closePreviewModal()" style="
-                                        padding: 12px 24px;
-                                        background: #f3f4f6;
-                                        color: #374151;
-                                        border: none;
-                                        border-radius: 6px;
-                                        cursor: pointer;
-                                        font-size: 14px;
-                                        font-weight: 500;
-                                    ">Close</button>
-                                </div>
-                            </div>
-                        `;
-                    }
+                    // Open Office documents directly in a new tab
+                    window.open(blobUrl, '_blank');
+                    closePreviewModal();
+                    showNotification(`Opening ${fileName} in a new tab...`, 'success');
                 } else {
                     throw new Error('Could not generate SAS token');
                 }
