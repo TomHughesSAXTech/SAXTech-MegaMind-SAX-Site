@@ -2432,6 +2432,8 @@
                     body: JSON.stringify({
                         message: previewText,
                         voice: voiceName,
+                        selectedVoice: voiceName,
+                        enableTTS: true,
                         preview: true  // Flag to indicate this is just a preview
                     })
                 });
@@ -2439,37 +2441,57 @@
                 if (response.ok) {
                     const result = await response.json();
                     
-                    // Play the preview audio if available
-                    if (result.audioBase64 || result.audioData) {
-                        const audioData = result.audioBase64 || result.audioData;
-                        let audioSrc = audioData;
-                        
-                        if (!audioData.startsWith('data:')) {
-                            audioSrc = 'data:audio/mpeg;base64,' + audioData.replace(/\s/g, '');
+                    // Check for audio data in various possible fields
+                    let audioData = null;
+                    if (result.audioBase64 && typeof result.audioBase64 === 'string' && result.audioBase64.length > 100) {
+                        audioData = result.audioBase64;
+                    } else if (result.audioData && typeof result.audioData === 'string' && result.audioData.length > 100) {
+                        audioData = result.audioData;
+                    } else if (result.audioUrl && result.audioUrl.includes('base64,')) {
+                        // Extract base64 from data URL
+                        const base64Match = result.audioUrl.match(/base64,(.+)/);
+                        if (base64Match && base64Match[1]) {
+                            audioData = base64Match[1];
                         }
-                        
-                        previewAudio = new Audio(audioSrc);
-                        
-                        previewAudio.onended = () => {
-                            statusText.textContent = `Voice changed to ${voiceName}`;
-                            previewAudio = null;
-                        };
-                        
-                        previewAudio.onerror = () => {
-                            statusText.textContent = `Voice changed to ${voiceName}`;
-                            previewAudio = null;
-                        };
-                        
-                        previewAudio.play().catch(error => {
-                            console.error('Error playing preview:', error);
-                            statusText.textContent = `Voice changed to ${voiceName}`;
-                        });
-                        
-                        statusText.textContent = `Playing ${voiceName} preview...`;
+                    }
+                    
+                    if (audioData) {
+                        try {
+                            // Clean and prepare audio data
+                            audioData = audioData.replace(/\s/g, '');
+                            const audioSrc = audioData.startsWith('data:') ? audioData : `data:audio/mpeg;base64,${audioData}`;
+                            
+                            // Validate base64 data
+                            if (audioData.length < 100) {
+                                throw new Error('Audio data too short');
+                            }
+                            
+                            previewAudio = new Audio(audioSrc);
+                            
+                            previewAudio.onended = () => {
+                                statusText.textContent = `Voice changed to ${voiceName}`;
+                                previewAudio = null;
+                            };
+                            
+                            previewAudio.onerror = (error) => {
+                                console.warn('Preview audio error:', error);
+                                statusText.textContent = `Voice changed to ${voiceName} (preview unavailable)`;
+                                previewAudio = null;
+                            };
+                            
+                            await previewAudio.play();
+                            statusText.textContent = `Playing ${voiceName} preview...`;
+                        } catch (playError) {
+                            console.warn('Could not play preview:', playError);
+                            statusText.textContent = `Voice changed to ${voiceName} (preview unavailable)`;
+                        }
                     } else {
-                        statusText.textContent = `Voice changed to ${voiceName}`;
+                        console.log('No audio data in preview response');
+                        statusText.textContent = `Voice changed to ${voiceName} (preview loading...)`;
+                        // Voice preview might not be available immediately
                     }
                 } else {
+                    console.warn('Preview request failed with status:', response.status);
                     statusText.textContent = `Voice changed to ${voiceName}`;
                 }
             } catch (error) {
