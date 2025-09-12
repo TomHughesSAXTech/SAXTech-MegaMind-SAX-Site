@@ -1157,14 +1157,6 @@
                         </select>
                     </div>
                     
-                    <!-- Conversation mode toggle -->
-                    <div class="voice-selector" style="margin-top: 15px;">
-                        <label>
-                            <input type="checkbox" id="continuousModeToggle" style="margin-right: 8px;">
-                            Continuous Conversation Mode
-                        </label>
-                    </div>
-                    
                     <!-- Speaker icon and status -->
                     <div class="speaker-icon" id="speakerIcon">
                         <svg viewBox="0 0 24 24">
@@ -1281,7 +1273,7 @@
         let mediaRecorder = null;
         let audioChunks = [];
         let attachedFiles = [];
-        let conversationMode = false;  // Start with manual mode, enable after first interaction
+        let conversationMode = true;  // Always in conversation mode
         let isInConversation = false;
         let silenceTimer = null;
         let audioContext = null;
@@ -1294,9 +1286,10 @@
         let abortController = null;  // For cancelling fetch requests
         let recognition = null;  // Speech recognition instance
         let isListening = false;
-        let continuousMode = false;  // For continuous conversation
+        let continuousMode = true;  // Always continuous conversation
         let autoRestartTimer = null;
         let volumeAnimationFrame = null;
+        let recognitionActive = false;  // Track actual recognition state
         
         // AI Profile Management
         let currentAIProfile = 'sage';  // Start with SAX MegaMind as default
@@ -1834,14 +1827,18 @@
                             } else {
                                 // Handle response with audio
                                 const responseText = result.response || 'I received your message but couldn\'t generate a response.';
-                                const audioData = result.audioBase64 || result.audioData;
+                                const audioData = result.audioBase64 || result.audioData || null;
                                 
                                 addMessage('bot', responseText, audioData);
                                 
-                                // If we have audio, play it and handle continuous mode
-                                if (audioData && continuousMode) {
-                                    // Will auto-restart listening after audio ends
-                                    console.log('Continuous mode enabled, will restart listening after speech');
+                                // If no audio data but in continuous mode, restart listening
+                                if (!audioData && continuousMode) {
+                                    console.log('No audio data, restarting listening in 2 seconds');
+                                    setTimeout(() => {
+                                        if (!recognitionActive && !isAISpeaking) {
+                                            startListening();
+                                        }
+                                    }, 2000);
                                 }
                             }
                         } catch (jsonError) {
@@ -1881,7 +1878,25 @@
         // Play audio response
         function playAudio(audioData) {
             try {
+                if (!audioData) {
+                    console.warn('No audio data provided');
+                    // Still continue with continuous mode
+                    if (continuousMode) {
+                        setTimeout(() => {
+                            if (!recognitionActive && !isAISpeaking) {
+                                startListening();
+                            }
+                        }, 1000);
+                    }
+                    return;
+                }
+                
                 isAISpeaking = true;
+                
+                // Stop any ongoing recognition
+                if (recognitionActive) {
+                    recognition.stop();
+                }
                 
                 // Support both base64 and data URL formats
                 let audioSrc = audioData;
@@ -1919,21 +1934,17 @@
                     // Clear volume bars
                     bars.forEach(bar => bar.classList.remove('active'));
                     
-                    // Check if continuous mode is enabled
-                    if (continuousMode) {
-                        statusText.textContent = 'Ready to listen again...';
-                        conversationState.textContent = 'Auto-listening in 1s';
-                        
-                        // Auto-restart listening after a short delay
-                        autoRestartTimer = setTimeout(() => {
-                            console.log('Auto-restarting listening in continuous mode');
+                    // Always in continuous mode now
+                    statusText.textContent = 'Ready to listen again...';
+                    conversationState.textContent = 'Auto-listening in 1s';
+                    
+                    // Auto-restart listening after a short delay
+                    autoRestartTimer = setTimeout(() => {
+                        console.log('Auto-restarting listening in continuous mode');
+                        if (!recognitionActive && !isAISpeaking) {
                             startListening();
-                        }, 1000);  // 1 second delay before listening again
-                    } else {
-                        statusText.textContent = 'Tap speaker to continue';
-                        conversationState.textContent = 'Ready to listen';
-                        conversationState.className = 'conversation-state';
-                    }
+                        }
+                    }, 1000);  // 1 second delay before listening again
                 };
                 
                 currentAudio.onerror = (error) => {
@@ -1944,10 +1955,12 @@
                     statusText.textContent = 'Audio playback failed';
                     bars.forEach(bar => bar.classList.remove('active'));
                     
-                    // Still try to continue listening if in continuous mode
-                    if (continuousMode) {
-                        setTimeout(() => startListening(), 1000);
-                    }
+                    // Still try to continue listening in continuous mode
+                    setTimeout(() => {
+                        if (!recognitionActive && !isAISpeaking) {
+                            startListening();
+                        }
+                    }, 1000);
                 };
                 
                 currentAudio.play().catch(error => {
@@ -1956,9 +1969,11 @@
                     clearInterval(speakingInterval);
                     
                     // Try to continue conversation even if audio fails
-                    if (continuousMode) {
-                        setTimeout(() => startListening(), 1000);
-                    }
+                    setTimeout(() => {
+                        if (!recognitionActive && !isAISpeaking) {
+                            startListening();
+                        }
+                    }, 1000);
                 });
                 
             } catch (error) {
@@ -2029,6 +2044,7 @@
                 recognition.onstart = () => {
                     console.log('Speech recognition started');
                     isListening = true;
+                    recognitionActive = true;
                     speakerIcon.classList.add('listening');
                     statusText.textContent = 'Listening...';
                     statusText.classList.add('listening');
@@ -2069,6 +2085,7 @@
                 recognition.onend = () => {
                     console.log('Speech recognition ended');
                     isListening = false;
+                    recognitionActive = false;
                     stopVolumeAnimation();
                     
                     if (finalTranscript.trim()) {
@@ -2083,23 +2100,44 @@
                         statusText.classList.remove('listening');
                         conversationState.textContent = 'Ready to listen';
                         conversationState.className = 'conversation-state';
+                        
+                        // In continuous mode, restart listening after a delay
+                        if (continuousMode && !isAISpeaking) {
+                            setTimeout(() => {
+                                if (!isAISpeaking && !recognitionActive) {
+                                    startListening();
+                                }
+                            }, 2000);
+                        }
                     }
                 };
                 
                 recognition.onerror = (event) => {
                     console.error('Speech recognition error:', event.error);
                     isListening = false;
+                    recognitionActive = false;
                     stopVolumeAnimation();
                     speakerIcon.classList.remove('listening');
                     statusText.textContent = 'Error: ' + event.error;
                     statusText.classList.remove('listening');
                     
                     if (event.error === 'no-speech') {
-                        statusText.textContent = 'No speech detected. Tap to try again';
+                        statusText.textContent = 'No speech detected. Listening again...';
+                        // Restart in continuous mode
+                        if (continuousMode && !isAISpeaking) {
+                            setTimeout(() => {
+                                if (!isAISpeaking && !recognitionActive) {
+                                    startListening();
+                                }
+                            }, 1000);
+                        }
                     } else if (event.error === 'audio-capture') {
                         statusText.textContent = 'Microphone not available';
                     } else if (event.error === 'not-allowed') {
                         statusText.textContent = 'Microphone permission denied';
+                    } else if (event.error === 'aborted') {
+                        // Silently handle aborted errors
+                        console.log('Recognition aborted');
                     }
                     
                     conversationState.textContent = 'Ready to listen';
@@ -2117,17 +2155,31 @@
                 initializeSpeechRecognition();
             }
             
-            if (recognition && !isListening && !isAISpeaking) {
+            // Check if already listening or if AI is speaking
+            if (recognitionActive || isAISpeaking) {
+                console.log('Already listening or AI is speaking, skipping start');
+                return;
+            }
+            
+            if (recognition && !isListening) {
                 try {
                     recognition.start();
                 } catch (error) {
-                    console.error('Error starting recognition:', error);
-                    // If already started, stop and restart
-                    try {
-                        recognition.stop();
-                        setTimeout(() => recognition.start(), 100);
-                    } catch (e) {
-                        console.error('Could not restart recognition:', e);
+                    if (error.name === 'InvalidStateError') {
+                        // Already started, try to stop and restart
+                        console.log('Recognition already active, restarting...');
+                        try {
+                            recognition.stop();
+                            setTimeout(() => {
+                                if (!recognitionActive && !isAISpeaking) {
+                                    recognition.start();
+                                }
+                            }, 500);
+                        } catch (e) {
+                            console.error('Could not restart recognition:', e);
+                        }
+                    } else {
+                        console.error('Error starting recognition:', error);
                     }
                 }
             }
@@ -2269,24 +2321,6 @@
             }
         });
 
-        // Continuous mode toggle
-        document.getElementById('continuousModeToggle').addEventListener('change', (e) => {
-            continuousMode = e.target.checked;
-            if (continuousMode) {
-                statusText.textContent = 'Continuous mode enabled - Tap speaker to start';
-                conversationState.textContent = 'Continuous mode ON';
-            } else {
-                statusText.textContent = 'Tap speaker to start conversation';
-                conversationState.textContent = 'Ready to listen';
-                
-                // Cancel any pending auto-restart
-                if (autoRestartTimer) {
-                    clearTimeout(autoRestartTimer);
-                    autoRestartTimer = null;
-                }
-            }
-        });
-        
         // Initialize on page load
         window.addEventListener('load', () => {
             initialize();
