@@ -2824,11 +2824,29 @@
             }
         }
         
-        // Add voice preview on selection change
+        // Voice selection change handler - just update the selection without preview
         voiceSelect.addEventListener('change', (e) => {
             const selectedVoice = e.target.value;
             if (selectedVoice) {
-                previewVoice(selectedVoice);
+                // Just update the status to show the new voice selection
+                const voiceNames = {
+                    'sarah': 'Sarah',
+                    'daniel': 'Daniel',
+                    'emily': 'Emily',
+                    'james': 'James',
+                    'charlotte': 'Charlotte'
+                };
+                const ttsToggle = document.getElementById('ttsToggle');
+                if (ttsToggle.checked) {
+                    statusText.textContent = `Voice changed to ${voiceNames[selectedVoice] || selectedVoice}. Tap speaker for conversational mode`;
+                } else {
+                    statusText.textContent = `Voice set to ${voiceNames[selectedVoice] || selectedVoice}. Turn on Audio to use`;
+                }
+                console.log('Voice selection changed to:', selectedVoice);
+                
+                // Note: Preview disabled to prevent errors
+                // If you want to preview voices, ensure n8n workflow handles preview requests properly
+                // previewVoice(selectedVoice);
             }
         });
         
