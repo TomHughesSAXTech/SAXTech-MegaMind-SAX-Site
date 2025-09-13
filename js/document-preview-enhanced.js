@@ -102,6 +102,8 @@ function showPreviewLoading(fileName) {
     `;
     
     modal.classList.add('show');
+    // Ensure display is not overridden by inline style
+    modal.style.display = '';
 }
 
 function displayDocumentPreview(fileName, sasUrl) {
@@ -187,6 +189,8 @@ function displayDocumentPreview(fileName, sasUrl) {
     
     console.log('Adding show class to modal');
     modal.classList.add('show');
+    // Ensure display is not overridden by inline style
+    modal.style.display = '';
     console.log('Modal display complete, modal element:', modal);
 }
 
@@ -218,6 +222,8 @@ function showPreviewError(fileName, errorMessage) {
     `;
     
     modal.classList.add('show');
+    // Ensure display is not overridden by inline style
+    modal.style.display = '';
 }
 
 function createPreviewModal() {
@@ -252,7 +258,7 @@ function createPreviewModal() {
             }
             
             .document-preview-modal.show {
-                display: block;
+                display: block !important;
             }
             
             .modal-overlay {
