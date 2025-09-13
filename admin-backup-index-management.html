@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MegaMind Admin - Index Management</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .admin-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .admin-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .admin-card h2 {
+            color: #333;
+            font-size: 20px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #555;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f93b1d 0%, #ea1e63 100%);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(249, 59, 29, 0.4);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
+            color: #333;
+        }
+
+        .btn-warning:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(247, 151, 30, 0.4);
+        }
+
+        .results-container {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .results-container h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .result-item {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .result-item strong {
+            color: #333;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .result-item .metadata {
+            color: #666;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-item .value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-item .label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+            text-transform: uppercase;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .back-btn {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #667eea;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            background: white;
+            transform: translateX(-5px);
+        }
+        
+        .department-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            margin-bottom: 8px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s;
+        }
+        
+        .department-item:hover {
+            background: #e8e9ea;
+            border-color: #667eea;
+        }
+        
+        .department-item.editing {
+            background: #fff3cd;
+            border-color: #ffc107;
+        }
+        
+        .department-name {
+            font-weight: 500;
+            color: #333;
+            flex: 1;
+        }
+        
+        .department-input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #667eea;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .department-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        
+        .btn-edit {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-edit:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+        }
+        
+        .btn-save {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-save:hover {
+            background: #218838;
+        }
+        
+        .btn-cancel {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-cancel:hover {
+            background: #5a6268;
+        }
+        
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-delete:hover {
+            background: #c82333;
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-btn">← Back to MegaMind</a>
+        
+        <div class="header">
+            <h1>🛠️ MegaMind Admin Console</h1>
+            <p>Azure AI Search Index Management & Maintenance</p>
+        </div>
+
+        <div class="alert alert-success" id="successAlert"></div>
+        <div class="alert alert-danger" id="errorAlert"></div>
+        <div class="alert alert-warning" id="warningAlert"></div>
+
+        <div class="admin-grid">
+            <!-- Index Statistics -->
+            <div class="admin-card">
+                <h2>📊 Index Statistics</h2>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="value" id="totalDocs">-</div>
+                        <div class="label">Total Documents</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="value" id="indexSize">-</div>
+                        <div class="label">Index Size</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="value" id="lastUpdate">-</div>
+                        <div class="label">Last Update</div>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="refreshStats()">Refresh Stats</button>
+            </div>
+
+            <!-- Query Index -->
+            <div class="admin-card">
+                <h2>🔍 Query Index</h2>
+                <div class="form-group">
+                    <label>Search Query</label>
+                    <input type="text" id="searchQuery" placeholder="Enter search terms or * for all">
+                </div>
+                <div class="form-group">
+                    <label>Filter (OData)</label>
+                    <input type="text" id="searchFilter" placeholder="e.g., department eq 'IT'">
+                </div>
+                <div class="form-group">
+                    <label>Max Results</label>
+                    <select id="maxResults">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="queryIndex()">Search</button>
+            </div>
+
+            <!-- Delete Document -->
+            <div class="admin-card">
+                <h2>🗑️ Delete Document</h2>
+                <div class="form-group">
+                    <label>Document ID</label>
+                    <input type="text" id="deleteDocId" placeholder="Enter document ID to delete">
+                </div>
+                <button class="btn btn-danger" onclick="deleteDocument()">Delete Document</button>
+            </div>
+
+            <!-- Bulk Delete -->
+            <div class="admin-card">
+                <h2>🗑️ Bulk Delete</h2>
+                <div class="form-group">
+                    <label>Document IDs (one per line)</label>
+                    <textarea id="bulkDeleteIds" placeholder="Enter document IDs, one per line"></textarea>
+                </div>
+                <button class="btn btn-danger" onclick="bulkDelete()">Delete Selected</button>
+            </div>
+
+            <!-- Clear Index -->
+            <div class="admin-card">
+                <h2>⚠️ Clear Index</h2>
+                <p style="color: #dc3545; font-size: 13px; margin-bottom: 15px;">
+                    Warning: This will delete ALL documents from the index. This action cannot be undone.
+                </p>
+                <div class="form-group">
+                    <label>Type "CONFIRM" to proceed</label>
+                    <input type="text" id="clearConfirm" placeholder="Type CONFIRM">
+                </div>
+                <button class="btn btn-danger" onclick="clearIndex()">Clear All Documents</button>
+            </div>
+
+            <!-- Reindex Documents -->
+            <div class="admin-card">
+                <h2>🔄 Reindex Documents</h2>
+                <p style="color: #666; font-size: 13px; margin-bottom: 15px;">
+                    Trigger a full reindex of all documents from blob storage.
+                </p>
+                <button class="btn btn-warning" onclick="reindexDocuments()">Start Reindexing</button>
+            </div>
+            
+            <!-- Department Management -->
+            <div class="admin-card" style="grid-column: span 2;">
+                <h2>🏢 Department Management</h2>
+                <p style="color: #666; font-size: 13px; margin-bottom: 15px;">
+                    Manage departments available for document categorization.
+                </p>
+                
+                <!-- Add New Department -->
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <input type="text" id="newDepartmentName" placeholder="Enter new department name" 
+                           style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
+                    <button class="btn btn-primary" onclick="addDepartment()">Add Department</button>
+                </div>
+                
+                <!-- Department List -->
+                <div id="departmentList" style="max-height: 300px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; padding: 10px;">
+                    <div class="loading" id="deptLoading">
+                        <div class="spinner"></div>
+                        <p style="margin-top: 10px; color: #666;">Loading departments...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="results-container" id="resultsContainer" style="display: none;">
+            <h3>Query Results</h3>
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p style="margin-top: 10px; color: #666;">Loading...</p>
+            </div>
+            <div id="results"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_CONFIG = {
+            searchEndpoint: 'https://saxmegamind-search.search.windows.net',
+            searchApiKey: 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO',
+            indexName: 'sop-documents',
+            functionUrl: 'https://saxtechmegamindfunctions.azurewebsites.net/api',
+            functionKey: 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw=='
+        };
+
+        function showAlert(type, message) {
+            console.log(`ShowAlert called: type=${type}, message=${message}`);
+            
+            const alerts = ['successAlert', 'errorAlert', 'warningAlert'];
+            alerts.forEach(id => {
+                const elem = document.getElementById(id);
+                if (elem) {
+                    elem.classList.remove('show');
+                } else {
+                    console.error(`Alert element not found: ${id}`);
+                }
+            });
+            
+            const alertId = type + 'Alert';
+            const alert = document.getElementById(alertId);
+            if (alert) {
+                alert.textContent = message;
+                alert.classList.add('show');
+                console.log(`Alert shown: ${alertId}`);
+                
+                setTimeout(() => {
+                    alert.classList.remove('show');
+                    console.log(`Alert hidden: ${alertId}`);
+                }, 5000);
+            } else {
+                console.error(`Alert element not found: ${alertId}`);
+                // Fallback to browser alert if elements are missing
+                alert(message);
+            }
+        }
+
+        // Helper function to format date to EST timezone
+        function formatDateToEST(dateString) {
+            if (!dateString) return '--';
+            
+            try {
+                const date = new Date(dateString);
+                
+                // Format to EST/EDT (Eastern Time)
+                const options = {
+                    timeZone: 'America/New_York',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true
+                };
+                
+                const formatter = new Intl.DateTimeFormat('en-US', options);
+                const formatted = formatter.format(date);
+                
+                // Add EST/EDT label
+                const isDST = date.getMonth() >= 2 && date.getMonth() <= 10; // Rough DST check
+                const timezone = isDST ? 'EDT' : 'EST';
+                
+                return `${formatted} ${timezone}`;
+            } catch (error) {
+                console.error('Error formatting date:', error);
+                return dateString; // Return original if formatting fails
+            }
+        }
+
+        async function refreshStats() {
+            try {
+                // First try to get document count from index maintenance
+                const statsResponse = await fetch(
+                    `${API_CONFIG.functionUrl}/index/maintenance`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-functions-key': API_CONFIG.functionKey
+                        },
+                        body: JSON.stringify({
+                            operation: 'stats'
+                        })
+                    }
+                );
+                
+                let totalDocs = 0;
+                if (statsResponse.ok) {
+                    const statsData = await statsResponse.json();
+                    if (statsData.success && statsData.stats) {
+                        totalDocs = statsData.stats.totalDocuments || 0;
+                        document.getElementById('totalDocs').textContent = totalDocs;
+                        
+                        // Calculate size
+                        const sizeInMB = (totalDocs * 50 / 1024).toFixed(1);
+                        document.getElementById('indexSize').textContent = `${sizeInMB} MB`;
+                    }
+                }
+                
+                // Now query for the most recent document to get actual last update time
+                const searchResponse = await fetch(
+                    `${API_CONFIG.functionUrl}/documents/search`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-functions-key': API_CONFIG.functionKey
+                        },
+                        body: JSON.stringify({
+                            query: '*',
+                            top: 10,
+                            orderby: 'uploadDate desc',
+                            select: 'uploadDate,createdDate,lastModified'
+                        })
+                    }
+                );
+                
+                if (searchResponse.ok) {
+                    const searchData = await searchResponse.json();
+                    const documents = searchData.value || searchData.results || [];
+                    
+                    if (documents && documents.length > 0) {
+                        // Find the most recent date from the documents
+                        let mostRecentDate = null;
+                        documents.forEach(doc => {
+                            const dates = [doc.uploadDate, doc.createdDate, doc.lastModified].filter(d => d);
+                            dates.forEach(dateStr => {
+                                const date = new Date(dateStr);
+                                if (!mostRecentDate || date > mostRecentDate) {
+                                    mostRecentDate = date;
+                                }
+                            });
+                        });
+                        
+                        if (mostRecentDate) {
+                            // Format to EST
+                            const formatted = formatDateToEST(mostRecentDate.toISOString());
+                            document.getElementById('lastUpdate').textContent = formatted;
+                        } else {
+                            document.getElementById('lastUpdate').textContent = '--';
+                        }
+                    } else {
+                        document.getElementById('lastUpdate').textContent = 'No documents';
+                    }
+                    
+                    showAlert('success', 'Statistics refreshed successfully');
+                } else {
+                    throw new Error('Failed to fetch recent documents');
+                }
+            } catch (error) {
+                showAlert('error', 'Error fetching statistics: ' + error.message);
+                document.getElementById('lastUpdate').textContent = 'Error';
+            }
+        }
+
+        async function queryIndex() {
+            const query = document.getElementById('searchQuery').value || '*';
+            const filter = document.getElementById('searchFilter').value;
+            const top = document.getElementById('maxResults').value;
+            
+            document.getElementById('resultsContainer').style.display = 'block';
+            document.getElementById('loading').classList.add('show');
+            document.getElementById('results').innerHTML = '';
+            
+            try {
+                // Use Azure Function for search
+                const response = await fetch(
+                    `${API_CONFIG.functionUrl}/documents/search`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-functions-key': API_CONFIG.functionKey
+                        },
+                        body: JSON.stringify({
+                            query: query,
+                            search: query,  // Add both query and search for compatibility
+                            filter: filter,
+                            top: parseInt(top),
+                            select: 'id,title,fileName,department,documentType,uploadDate,createdDate,author,fileSize,status,vectorized,chunkCount,conversionMethod,contentHash,contentLength,metadata'  // Extended fields including contentLength
+                        })
+                    }
+                );
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const documents = data.results || data.value || [];
+                    
+                    // Debug: Log the first document to see available fields
+                    if (documents.length > 0) {
+                        console.log('=== DOCUMENT STRUCTURE DEBUG ===');
+                        console.log('First document:', documents[0]);
+                        console.log('Available fields:', Object.keys(documents[0]));
+                        console.log('================================');
+                    }
+                    
+                    displayResults(documents);
+                    showAlert('success', `Found ${documents.length} documents`);
+                } else {
+                    throw new Error('Search failed');
+                }
+            } catch (error) {
+                showAlert('error', 'Search error: ' + error.message);
+            } finally {
+                document.getElementById('loading').classList.remove('show');
+            }
+        }
+
+        function displayResults(documents) {
+            const resultsDiv = document.getElementById('results');
+            
+            if (!documents || documents.length === 0) {
+                resultsDiv.innerHTML = '<p style="color: #666;">No documents found</p>';
+                return;
+            }
+            
+            // Create a detailed table display
+            resultsDiv.innerHTML = `
+                <table style="width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px;">
+                    <thead>
+                        <tr style="background: #f5f5f5; border-bottom: 2px solid #ddd;">
+                            <th style="padding: 10px; text-align: left;">Title/File</th>
+                            <th style="padding: 10px; text-align: left;">Department</th>
+                            <th style="padding: 10px; text-align: left;">Type</th>
+                            <th style="padding: 10px; text-align: left;">Index Method</th>
+                            <th style="padding: 10px; text-align: center;">Size</th>
+                            <th style="padding: 10px; text-align: center;">Vectorized</th>
+                            <th style="padding: 10px; text-align: left;">Upload Date</th>
+                            <th style="padding: 10px; text-align: center;">Chunks</th>
+                            <th style="padding: 10px; text-align: center;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${documents.map(doc => {
+                            // Format file size
+                            const formatSize = (bytes) => {
+                                if (!bytes || bytes === 0) return '-';
+                                const k = 1024;
+                                const sizes = ['B', 'KB', 'MB', 'GB'];
+                                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                                return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+                            };
+                            
+                            // Format date to EST
+                            const formatDate = (dateStr) => {
+                                if (!dateStr) return 'N/A';
+                                try {
+                                    const date = new Date(dateStr);
+                                    const options = {
+                                        timeZone: 'America/New_York',
+                                        year: 'numeric',
+                                        month: '2-digit',
+                                        day: '2-digit',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                        hour12: true
+                                    };
+                                    return new Intl.DateTimeFormat('en-US', options).format(date);
+                                } catch (e) {
+                                    return dateStr;
+                                }
+                            };
+                            
+                            // Determine indexing method based on file type and processing
+                            let indexMethod = 'Standard';
+                            
+                            // First check if there's OCR text indicating OCR processing
+                            if (doc.ocrText && doc.ocrText.trim().length > 0) {
+                                indexMethod = 'OCR';
+                            } else if (doc.conversionMethod) {
+                                indexMethod = doc.conversionMethod;
+                            } else if (doc.fileName) {
+                                // Infer method from file extension
+                                const ext = doc.fileName.toLowerCase().split('.').pop();
+                                if (['jpg', 'jpeg', 'png', 'gif', 'bmp'].includes(ext)) {
+                                    indexMethod = 'OCR';
+                                } else if (['xlsx', 'xls', 'csv'].includes(ext)) {
+                                    indexMethod = 'Excel';
+                                } else if (['pdf'].includes(ext)) {
+                                    indexMethod = 'PDF Extract';
+                                } else if (['docx', 'doc'].includes(ext)) {
+                                    indexMethod = 'Word Extract';
+                                } else if (['txt', 'md'].includes(ext)) {
+                                    indexMethod = 'Text';
+                                }
+                            }
+                            
+                            // Status override for Active documents
+                            if (doc.status === 'Active' || doc.status === 'indexed') {
+                                if (indexMethod === 'Standard') {
+                                    indexMethod = 'Indexed';
+                                }
+                            }
+                            
+                            const methodColor = indexMethod === 'OCR' ? '#9333ea' : 
+                                              indexMethod === 'Excel' ? '#16a34a' : 
+                                              indexMethod === 'PDF Extract' ? '#0891b2' :
+                                              indexMethod === 'Word Extract' ? '#0369a1' :
+                                              indexMethod === 'Text' ? '#059669' :
+                                              indexMethod === 'Indexed' ? '#3b82f6' :
+                                              indexMethod === 'Active' ? '#3b82f6' : '#6b7280';
+                            
+                            return `
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <td style="padding: 10px;">
+                                    <strong>${doc.title || doc.fileName || 'Untitled'}</strong>
+                                    <br>
+                                    <small style="color: #666;">${doc.fileName || ''}</small>
+                                    <br>
+                                    <small style="color: #999; font-size: 11px;">ID: ${doc.id}</small>
+                                </td>
+                                <td style="padding: 10px;">${doc.department || 'N/A'}</td>
+                                <td style="padding: 10px;">${doc.documentType || 'N/A'}</td>
+                                <td style="padding: 10px;">
+                                    <span style="padding: 2px 8px; background: ${methodColor}; color: white; border-radius: 4px; font-size: 11px;">
+                                        ${indexMethod}
+                                    </span>
+                                </td>
+                                <td style="padding: 10px; text-align: center;">${formatSize(doc.fileSize)}</td>
+                                <td style="padding: 10px; text-align: center;">
+                                    ${(doc.vectorized === true || doc.status === 'indexed' || doc.status === 'Active' || (doc.content && doc.content.length > 0)) ? 
+                                        '<span style="color: #16a34a; font-weight: bold;">✓</span>' : 
+                                        '<span style="color: #dc2626;">✗</span>'}
+                                </td>
+                                <td style="padding: 10px; font-size: 11px;">${formatDate(doc.uploadDate || doc.createdDate)}</td>
+                                <td style="padding: 10px; text-align: center;">
+                                    ${doc.chunkCount ? 
+                                        `<span style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${doc.chunkCount} chunks</span>` : 
+                                        doc.contentLength ? 
+                                        `<span style="background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${doc.contentLength.toLocaleString()} chars</span>` :
+                                        doc.content && doc.content.length > 0 ?
+                                        `<span style="background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${doc.content.length.toLocaleString()} chars</span>` :
+                                        '<span style="color: #999;">-</span>'}
+                                </td>
+                                <td style="padding: 10px; text-align: center;">
+                                    <button class="btn btn-danger" style="padding: 4px 10px; font-size: 11px;" 
+                                            onclick="(function(e) { try { e.preventDefault(); e.stopPropagation(); deleteDocumentById('${doc.id}', e); } catch(err) { console.error('Delete button error:', err); alert('Error: ' + err.message); } })(event)">Delete</button>
+                                </td>
+                            </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+                <div style="margin-top: 20px; padding: 10px; background: #f9f9f9; border-radius: 4px;">
+                    <strong>Total Results:</strong> ${documents.length} documents
+                </div>
+            `;
+        }
+
+        async function deleteDocument() {
+            const docId = document.getElementById('deleteDocId').value.trim();
+            
+            if (!docId) {
+                showAlert('warning', 'Please enter a document ID');
+                return;
+            }
+            
+            if (!confirm(`Are you sure you want to delete document ${docId}?`)) {
+                return;
+            }
+            
+            await deleteDocumentById(docId, null);
+        }
+
+        async function deleteDocumentById(docId, event) {
+            console.log('=== DELETE FUNCTION CALLED ===');
+            console.log('Document ID:', docId);
+            console.log('Event object:', event);
+            console.log('API URL:', `${API_CONFIG.functionUrl}/documents/delete`);
+            console.log('API Key present:', !!API_CONFIG.functionKey);
+            
+            // Prevent any default action or bubbling
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            
+            try {
+                const deleteUrl = `${API_CONFIG.functionUrl}/documents/delete`;
+                const requestBody = JSON.stringify({ documentIds: [docId] });
+                
+                console.log('Delete URL:', deleteUrl);
+                console.log('Request body:', requestBody);
+                console.log('Sending delete request...');
+                
+                // Try Azure Function first
+                const functionResponse = await fetch(
+                    deleteUrl,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-functions-key': API_CONFIG.functionKey
+                        },
+                        body: requestBody
+                    }
+                );
+                
+                console.log('Delete response status:', functionResponse.status);
+                console.log('Response OK:', functionResponse.ok);
+                
+                if (functionResponse.ok) {
+                    console.log('Parsing JSON response...');
+                    let result;
+                    try {
+                        const responseText = await functionResponse.text();
+                        console.log('Response text:', responseText);
+                        if (responseText) {
+                            result = JSON.parse(responseText);
+                            console.log('Parsed result:', result);
+                        } else {
+                            result = { message: 'Document deleted successfully' };
+                            console.log('Empty response, using default message');
+                        }
+                    } catch (parseError) {
+                        console.error('Error parsing response:', parseError);
+                        result = { message: `Document ${docId} deleted successfully` };
+                    }
+                    
+                    console.log('Showing success alert...');
+                    showAlert('success', result.message || `Document ${docId} deleted successfully`);
+                    
+                    // Clear the delete input if it exists
+                    const deleteInput = document.getElementById('deleteDocId');
+                    if (deleteInput) {
+                        deleteInput.value = '';
+                        console.log('Cleared delete input field');
+                    }
+                    
+                    console.log('Scheduling stats refresh...');
+                    // Refresh stats
+                    setTimeout(() => {
+                        console.log('Refreshing stats...');
+                        refreshStats();
+                    }, 500);
+                    
+                    // Refresh search results if visible
+                    if (document.getElementById('resultsContainer').style.display === 'block') {
+                        console.log('Refreshing search results...');
+                        queryIndex();
+                    }
+                } else {
+                    const errorText = await functionResponse.text();
+                    let errorMessage = 'Delete operation failed';
+                    try {
+                        const errorData = JSON.parse(errorText);
+                        errorMessage = errorData.message || errorMessage;
+                    } catch (e) {
+                        errorMessage = errorText || errorMessage;
+                    }
+                    throw new Error(errorMessage);
+                }
+            } catch (error) {
+                showAlert('error', 'Delete error: ' + error.message);
+            }
+        }
+
+        async function bulkDelete() {
+            const idsText = document.getElementById('bulkDeleteIds').value.trim();
+            
+            if (!idsText) {
+                showAlert('warning', 'Please enter document IDs');
+                return;
+            }
+            
+            const ids = idsText.split('\n').map(id => id.trim()).filter(id => id);
+            
+            if (!confirm(`Are you sure you want to delete ${ids.length} documents?`)) {
+                return;
+            }
+            
+            try {
+                // Use Azure Function for bulk delete
+                const response = await fetch(
+                    `${API_CONFIG.functionUrl}/documents/delete`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-functions-key': API_CONFIG.functionKey
+                        },
+                        body: JSON.stringify({
+                            documentIds: ids
+                        })
+                    }
+                );
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    showAlert('success', result.summary || `${ids.length} documents deleted successfully`);
+                    document.getElementById('bulkDeleteIds').value = '';
+                    setTimeout(refreshStats, 500);
+                } else {
+                    throw new Error('Bulk delete failed');
+                }
+            } catch (error) {
+                showAlert('error', 'Bulk delete error: ' + error.message);
+            }
+        }
+
+        async function clearIndex() {
+            const confirmation = document.getElementById('clearConfirm').value;
+            
+            if (confirmation !== 'CONFIRM') {
+                showAlert('warning', 'Please type CONFIRM to proceed');
+                return;
+            }
+            
+            if (!confirm('This will delete ALL documents from the index. Are you absolutely sure?')) {
+                return;
+            }
+            
+            try {
+                // Use Azure Function to clear index
+                const response = await fetch(
+                    `${API_CONFIG.functionUrl}/index/maintenance`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-functions-key': API_CONFIG.functionKey
+                        },
+                        body: JSON.stringify({
+                            operation: 'clear',
+                            confirm: true
+                        })
+                    }
+                );
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success) {
+                        showAlert('success', result.message || 'Index cleared successfully');
+                        document.getElementById('clearConfirm').value = '';
+                        setTimeout(refreshStats, 500);
+                    } else {
+                        showAlert('warning', result.message || 'Operation failed');
+                    }
+                } else {
+                    throw new Error('Failed to clear index');
+                }
+            } catch (error) {
+                showAlert('error', 'Clear index error: ' + error.message);
+            }
+        }
+
+        async function reindexDocuments() {
+            if (!confirm('This will trigger a full reindex. Continue?')) {
+                return;
+            }
+            
+            showAlert('warning', 'Reindexing functionality requires Azure Function implementation');
+            // TODO: Implement reindexing through Azure Function
+        }
+
+        // Department Management Functions
+        let departments = [];
+        
+        function loadDepartments() {
+            // Load departments from localStorage
+            const savedDepts = localStorage.getItem('megamind_departments');
+            if (savedDepts) {
+                departments = JSON.parse(savedDepts);
+            } else {
+                // Default departments
+                departments = [
+                    { id: 1, name: 'IT' },
+                    { id: 2, name: 'HR' },
+                    { id: 3, name: 'Finance' },
+                    { id: 4, name: 'Operations' },
+                    { id: 5, name: 'Sales' },
+                    { id: 6, name: 'Marketing' },
+                    { id: 7, name: 'Legal' },
+                    { id: 8, name: 'Executive' },
+                    { id: 9, name: 'Customer Service' },
+                    { id: 10, name: 'R&D' }
+                ];
+                saveDepartments();
+            }
+            displayDepartments();
+        }
+        
+        function saveDepartments() {
+            localStorage.setItem('megamind_departments', JSON.stringify(departments));
+        }
+        
+        function displayDepartments() {
+            const listDiv = document.getElementById('departmentList');
+            
+            if (departments.length === 0) {
+                listDiv.innerHTML = '<p style="color: #666; text-align: center;">No departments configured</p>';
+                return;
+            }
+            
+            listDiv.innerHTML = departments.map(dept => `
+                <div class="department-item" id="dept-${dept.id}">
+                    <span class="department-name" id="dept-name-${dept.id}">${dept.name}</span>
+                    <div class="department-actions">
+                        <button class="btn-small btn-edit" onclick="editDepartment(${dept.id})">Edit</button>
+                        <button class="btn-small btn-delete" onclick="deleteDepartment(${dept.id})">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function addDepartment() {
+            const input = document.getElementById('newDepartmentName');
+            const name = input.value.trim();
+            
+            if (!name) {
+                showAlert('warning', 'Please enter a department name');
+                return;
+            }
+            
+            // Check for duplicates
+            if (departments.some(d => d.name.toLowerCase() === name.toLowerCase())) {
+                showAlert('warning', 'Department already exists');
+                return;
+            }
+            
+            // Add new department
+            const newDept = {
+                id: Math.max(...departments.map(d => d.id), 0) + 1,
+                name: name
+            };
+            
+            departments.push(newDept);
+            saveDepartments();
+            displayDepartments();
+            
+            input.value = '';
+            showAlert('success', `Department "${name}" added successfully`);
+        }
+        
+        function editDepartment(id) {
+            const dept = departments.find(d => d.id === id);
+            if (!dept) return;
+            
+            const itemDiv = document.getElementById(`dept-${id}`);
+            itemDiv.classList.add('editing');
+            
+            itemDiv.innerHTML = `
+                <input type="text" class="department-input" id="edit-input-${id}" value="${dept.name}">
+                <div class="department-actions">
+                    <button class="btn-small btn-save" onclick="saveDepartmentEdit(${id})">Save</button>
+                    <button class="btn-small btn-cancel" onclick="cancelDepartmentEdit(${id})">Cancel</button>
+                </div>
+            `;
+            
+            // Focus on input and select text
+            const input = document.getElementById(`edit-input-${id}`);
+            input.focus();
+            input.select();
+            
+            // Allow Enter key to save
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    saveDepartmentEdit(id);
+                }
+            });
+        }
+        
+        function saveDepartmentEdit(id) {
+            const input = document.getElementById(`edit-input-${id}`);
+            const newName = input.value.trim();
+            
+            if (!newName) {
+                showAlert('warning', 'Department name cannot be empty');
+                return;
+            }
+            
+            // Check for duplicates (excluding current department)
+            if (departments.some(d => d.id !== id && d.name.toLowerCase() === newName.toLowerCase())) {
+                showAlert('warning', 'Department name already exists');
+                return;
+            }
+            
+            // Update department
+            const dept = departments.find(d => d.id === id);
+            if (dept) {
+                const oldName = dept.name;
+                dept.name = newName;
+                saveDepartments();
+                displayDepartments();
+                showAlert('success', `Department renamed from "${oldName}" to "${newName}"`);
+            }
+        }
+        
+        function cancelDepartmentEdit(id) {
+            displayDepartments();
+        }
+        
+        function deleteDepartment(id) {
+            const dept = departments.find(d => d.id === id);
+            if (!dept) return;
+            
+            if (!confirm(`Are you sure you want to delete the "${dept.name}" department?`)) {
+                return;
+            }
+            
+            departments = departments.filter(d => d.id !== id);
+            saveDepartments();
+            displayDepartments();
+            showAlert('success', `Department "${dept.name}" deleted successfully`);
+        }
+        
+        // Load stats and departments on page load
+        window.addEventListener('load', () => {
+            refreshStats();
+            loadDepartments();
+        });
+    </script>
+</body>
+</html>
