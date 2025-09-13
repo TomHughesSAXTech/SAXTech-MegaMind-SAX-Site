@@ -2058,8 +2058,15 @@
                 });
                 
                 // Prepare comprehensive payload with full user context
+                // Add context if screenshot was pasted
+                let enhancedMessage = message;
+                if (attachedFiles.length > 0 && attachedFiles.some(f => f.isScreenshot)) {
+                    const screenshotCount = attachedFiles.filter(f => f.isScreenshot).length;
+                    enhancedMessage = (message || '') + `\n\n[Context: User has pasted ${screenshotCount} screenshot(s). Image OCR processing is pending in n8n workflow. Please acknowledge the screenshot and ask the user to describe what they need help with regarding the image.]`;
+                }
+                
                 const payload = {
-                    message: message,
+                    message: enhancedMessage,
                     sessionId: sessionId,
                     profile: currentAIProfile,
                     voice: currentVoiceId,  // Send the actual ElevenLabs voice ID
@@ -2138,6 +2145,14 @@
                 
                 // Debug log the payload being sent with voice details
                 console.log('Sending payload to n8n:', {
+                    MESSAGE_SENT: payload.message,
+                    ATTACHMENTS_STATUS: {
+                        attachedFilesArray: attachedFiles,
+                        attachmentCount: attachedFiles.length,
+                        hasScreenshots: attachedFiles.some(f => f.isScreenshot),
+                        attachmentsInPayload: payload.attachments,
+                        firstAttachment: payload.attachments[0] || null
+                    },
                     voiceSettings: {
                         voice: payload.voice,
                         voiceId: payload.voiceId,
@@ -2150,9 +2165,7 @@
                     userProfileJobTitle: userProfile?.jobTitle || 'Not set',
                     userProfileDepartment: userProfile?.department || 'Not set',
                     currentAccountUsername: currentAccount?.username || 'Not set',
-                    payloadStructure: Object.keys(payload),
-                    attachments: attachedFiles,  // Debug: log attachments
-                    attachmentsInPayload: payload.attachments  // Debug: log what's in payload
+                    payloadStructure: Object.keys(payload)
                 });
                 
                 // Construct webhook URL
