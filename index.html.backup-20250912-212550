@@ -1146,11 +1146,18 @@
                     <div class="voice-selector">
                         <label for="voiceSelect">AI Voice</label>
                         <select id="voiceSelect">
-                            <option value="sarah">Sarah (Female Professional)</option>
-                            <option value="daniel">Daniel (Male Professional)</option>
+                            <option value="sarah">Sarah (Soft American Female)</option>
+                            <option value="rachel">Rachel (Professional Female)</option>
+                            <option value="adam">Adam (News Narrator)</option>
                             <option value="emily">Emily (British Female)</option>
-                            <option value="james">James (Deep Male)</option>
-                            <option value="charlotte">Charlotte (Energetic Female)</option>
+                            <option value="bella">Bella (Soft Female)</option>
+                            <option value="domi">Domi (Young Female)</option>
+                            <option value="nicole">Nicole (Whispery Female)</option>
+                            <option value="fin">Fin (Irish Male)</option>
+                            <option value="antoni">Antoni (Well-Rounded Male)</option>
+                            <option value="thomas">Thomas (Calm Male)</option>
+                            <option value="charlie">Charlie (Casual Male)</option>
+                            <option value="george">George (British Male)</option>
                         </select>
                     </div>
                     
