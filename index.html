@@ -3094,14 +3094,59 @@
             fileInput.click();
         });
         
-        fileInput.addEventListener('change', (e) => {
+        fileInput.addEventListener('change', async (e) => {
             const files = Array.from(e.target.files);
             if (files.length > 0) {
-                attachedFiles = files;
-                files.forEach(file => {
-                    addMessage('bot', `File "${file.name}" attached successfully.`);
+                // Clear previous attachments
+                window.attachedFiles = [];
+                attachedFiles = window.attachedFiles;
+                
+                // Process each file and convert to base64
+                for (const file of files) {
+                    try {
+                        // Convert file to base64
+                        const reader = new FileReader();
+                        const base64Promise = new Promise((resolve, reject) => {
+                            reader.onload = (event) => resolve(event.target.result);
+                            reader.onerror = reject;
+                        });
+                        reader.readAsDataURL(file);
+                        const base64Data = await base64Promise;
+                        
+                        // Create file object with base64 data
+                        const fileObj = {
+                            name: file.name,
+                            type: file.type || 'application/octet-stream',
+                            size: file.size,
+                            data: base64Data,  // Include base64 data
+                            isScreenshot: false
+                        };
+                        
+                        // Add to attachedFiles array
+                        window.attachedFiles.push(fileObj);
+                        attachedFiles = window.attachedFiles;
+                        
+                        // Notify user
+                        addMessage('bot', `File "${file.name}" attached successfully.`);
+                        
+                        console.log('File attached:', {
+                            name: file.name,
+                            type: file.type,
+                            size: file.size,
+                            hasData: !!fileObj.data
+                        });
+                    } catch (error) {
+                        console.error('Error processing file:', error);
+                        addMessage('bot', `Failed to attach "${file.name}". Please try again.`);
+                    }
+                }
+                
+                console.log('All files attached:', {
+                    count: window.attachedFiles.length,
+                    files: window.attachedFiles.map(f => ({name: f.name, type: f.type, hasData: !!f.data}))
                 });
-                e.target.value = '';
+                
+                e.target.value = ''; // Clear file input
             }
         });
         
