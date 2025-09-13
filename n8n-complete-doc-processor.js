@@ -278,8 +278,12 @@ return {
   ...inputJson,  // Preserve all original fields
   sessionId: sessionId,  // Ensure sessionId is present
   
-  // Message with embedded content for AI
+  // CRITICAL: chatInput is what the AI Agent node expects
+  chatInput: messageForAI,  // This is the field the AI Agent reads
+  
+  // Also keep original message fields
   MESSAGE_WITH_ATTACHMENTS: messageForAI,
+  MESSAGE_SENT: messageForAI,  // Override original with content-enriched version
   
   // Attachment processing details
   attachmentProcessing: {

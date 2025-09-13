@@ -2,11 +2,12 @@
 
 ## After the Document Processor Code Node, configure your AI node:
 
-### 1. In the AI Agent Node (or OpenAI/ChatGPT Node):
+### 1. In the AI Agent Node:
 
-**Message Field Configuration:**
-- Set the "Message" or "Prompt" field to use: `{{ $json.MESSAGE_WITH_ATTACHMENTS }}`
-- This field contains the user's message PLUS the extracted document content
+**IMPORTANT: The document processor now automatically sets the correct field!**
+- The code outputs `chatInput` which the AI Agent expects
+- You don't need to change any field mappings
+- Just leave the Prompt setting as "Take from previous node automatically"
 
 ### 2. Alternative: If using a Chat Model Node:
 
@@ -27,9 +28,10 @@ You are a helpful AI assistant. When documents are attached, their content will 
 {{ $json.MESSAGE_WITH_ATTACHMENTS }}
 ```
 
-### 4. Make sure these fields are passed through:
+### 4. Fields that are automatically handled:
+- `chatInput` - The AI Agent reads this (contains message + file content)
 - `sessionId` - For memory nodes
-- `MESSAGE_WITH_ATTACHMENTS` - Contains the combined message + file content
+- `MESSAGE_WITH_ATTACHMENTS` - Backup field with combined content
 - `extractedContent` - Raw extracted content if needed
 - `attachmentProcessing` - Metadata about processed files
 
@@ -40,5 +42,8 @@ You are a helpful AI assistant. When documents are attached, their content will 
    - The file content between ━━━ markers
    - The instruction to acknowledge the content
 
-## The key field is: `MESSAGE_WITH_ATTACHMENTS`
-This is what the AI should read to see both the user's message and the file content.
+## The key field is: `chatInput`
+This is automatically set by the document processor and contains both the user's message and file content.
+
+## NO CONFIGURATION NEEDED!
+The document processor outputs the correct field name that the AI Agent expects.
