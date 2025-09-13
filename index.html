@@ -1133,7 +1133,7 @@
 
     <!-- Main application -->
     <div id="mainApp" class="container hidden">
-        <!-- Voice interaction device -->
+        <!-- Conversational interaction device -->
         <div class="iphone-container">
             <div class="iphone">
                 <div class="dynamic-island"></div>
@@ -1146,19 +1146,20 @@
                     <div class="voice-selector">
                         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
                             <label style="margin: 0;">Audio Settings</label>
-                            <label class="switch" style="margin: 0;">
-                                <input type="checkbox" id="ttsToggle">
-                                <span class="slider" style="
-                                    position: relative;
-                                    display: inline-block;
-                                    width: 44px;
-                                    height: 24px;
+                            <label class="switch" style="position: relative; display: inline-block; width: 44px; height: 24px; margin: 0;">
+                                <input type="checkbox" id="ttsToggle" style="opacity: 0; width: 0; height: 0;">
+                                <span class="slider" id="ttsSlider" style="
+                                    position: absolute;
+                                    cursor: pointer;
+                                    top: 0;
+                                    left: 0;
+                                    right: 0;
+                                    bottom: 0;
                                     background-color: #ccc;
                                     border-radius: 24px;
                                     transition: .3s;
-                                    cursor: pointer;
                                 ">
-                                    <span style="
+                                    <span id="sliderKnob" style="
                                         position: absolute;
                                         content: '';
                                         height: 18px;
@@ -1189,7 +1190,7 @@
                         </svg>
                     </div>
                     
-                    <div class="status-text" id="statusText">Turn on Audio, then tap speaker for voice mode</div>
+                    <div class="status-text" id="statusText">Turn on Audio, then tap speaker for conversational mode</div>
                     
                     <!-- Volume bars for voice activity -->
                     <div class="volume-bars">
@@ -1326,7 +1327,7 @@
         let autoRestartTimer = null;
         let volumeAnimationFrame = null;
         let recognitionActive = false;  // Track actual recognition state
-        let voiceInteractionActive = false;  // Track voice interaction mode
+        let voiceInteractionActive = false;  // Track conversational mode
         
         // AI Profile Management
         let currentAIProfile = 'sage';  // Start with SAX MegaMind as default
@@ -1420,28 +1421,34 @@
                 if (ttsToggle.checked) {
                     ttsStatus.textContent = 'Audio: ON';
                     ttsStatus.style.color = 'rgba(255,215,0,0.8)';
-                    statusText.textContent = 'Audio enabled. Tap speaker for voice mode';
+                    statusText.textContent = 'Audio enabled. Tap speaker for conversational mode';
+                    // Update slider visual
+                    document.getElementById('ttsSlider').style.backgroundColor = 'rgba(255,215,0,0.8)';
+                    document.getElementById('sliderKnob').style.transform = 'translateX(20px)';
                 } else {
                     ttsStatus.textContent = 'Audio: OFF';
                     ttsStatus.style.color = 'rgba(255,255,255,0.6)';
-                    statusText.textContent = 'Turn on Audio, then tap speaker for voice mode';
+                    statusText.textContent = 'Turn on Audio, then tap speaker for conversational mode';
+                    // Update slider visual
+                    document.getElementById('ttsSlider').style.backgroundColor = '#ccc';
+                    document.getElementById('sliderKnob').style.transform = 'translateX(0)';
                     
-                    // If voice mode is active, stop it
-                    if (voiceInteractionActive) {
-                        voiceInteractionActive = false;
-                        conversationStopped = true;
-                        
-                        // Stop any ongoing recognition
-                        if (recognition && recognitionActive) {
-                            recognition.stop();
-                        }
-                        
-                        // Stop any playing audio
-                        stopAudio();
-                        
-                        // Visual feedback
-                        speakerIcon.classList.remove('active', 'listening');
-                        conversationState.style.display = 'none';
+                        // If conversational mode is active, stop it
+                        if (voiceInteractionActive) {
+                            voiceInteractionActive = false;
+                            conversationStopped = true;
+                            
+                            // Stop any ongoing recognition
+                            if (recognition && recognitionActive) {
+                                recognition.stop();
+                            }
+                            
+                            // Stop any playing audio
+                            stopAudio();
+                            
+                            // Visual feedback
+                            speakerIcon.classList.remove('active', 'listening');
+                            conversationState.style.display = 'none';
                         
                         // Clear any timers
                         if (autoRestartTimer) {
@@ -2031,9 +2038,9 @@
                                 
                                 addMessage('bot', responseText, audioData);
                                 
-                                // If no audio data but in voice mode, restart listening
-                                if (!audioData && voiceInteractionActive) {
-                                    console.log('No audio data, restarting listening in voice mode');
+                // If no audio data but in conversational mode, restart listening
+                if (!audioData && voiceInteractionActive) {
+                    console.log('No audio data, restarting listening in conversational mode');
                                     setTimeout(() => {
                                         if (voiceInteractionActive && !recognitionActive && !isAISpeaking) {
                                             startListening();
@@ -2089,7 +2096,7 @@
                 
                 if (!audioData) {
                     console.warn('No audio data provided');
-                    // Still continue with continuous mode if in voice interaction
+                // Still continue with continuous mode if in conversational mode
                     if (voiceInteractionActive) {
                         setTimeout(() => {
                             if (!recognitionActive && !isAISpeaking) {
@@ -2162,19 +2169,19 @@
                         bar.style.background = '';
                     });
                     
-                    // Only restart listening if in voice mode
+                    // Only restart listening if in conversational mode
                     if (voiceInteractionActive && !conversationStopped) {
                         statusText.textContent = 'Ready to listen again...';
                         
                         // Auto-restart listening after a short delay
                         autoRestartTimer = setTimeout(() => {
-                            console.log('Auto-restarting listening in voice mode');
+                            console.log('Auto-restarting listening in conversational mode');
                             if (voiceInteractionActive && !recognitionActive && !isAISpeaking && !conversationStopped) {
                                 startListening();
                             }
                         }, 1000);  // 1 second delay before listening again
                     } else {
-                        statusText.textContent = 'Tap speaker to start voice mode';
+                        statusText.textContent = 'Tap speaker to start conversational mode';
                     }
                 };
                 
@@ -2190,7 +2197,7 @@
                         bar.style.background = '';
                     });
                     
-                    // Continue listening even if audio fails (only in voice mode)
+                    // Continue listening even if audio fails (only in conversational mode)
                     if (voiceInteractionActive) {
                         setTimeout(() => {
                             if (voiceInteractionActive && !recognitionActive && !isAISpeaking) {
@@ -2212,7 +2219,7 @@
                         bar.style.background = '';
                     });
                     
-                    // Continue conversation even if audio fails (only in voice mode)
+                    // Continue conversation even if audio fails (only in conversational mode)
                     if (voiceInteractionActive) {
                         setTimeout(() => {
                             if (voiceInteractionActive && !recognitionActive && !isAISpeaking) {
@@ -2368,7 +2375,7 @@
                     statusText.classList.remove('listening');
                     
                     if (event.error === 'no-speech') {
-                        // Only restart if in voice mode
+                        // Only restart if in conversational mode
                         if (voiceInteractionActive && !conversationStopped && !isAISpeaking) {
                             statusText.textContent = 'No speech detected. Listening again...';
                             setTimeout(() => {
@@ -2399,9 +2406,9 @@
         
         // Start listening
         function startListening() {
-            // Only start listening if in voice interaction mode
+            // Only start listening if in conversational mode
             if (!voiceInteractionActive) {
-                console.log('Not in voice mode, skipping speech recognition');
+                console.log('Not in conversational mode, skipping speech recognition');
                 return;
             }
             
@@ -2560,9 +2567,9 @@
                 return;
             }
             
-            // Toggle voice interaction mode
+                // Toggle conversational mode
             if (!voiceInteractionActive) {
-                // Starting voice interaction
+                // Starting conversational mode
                 voiceInteractionActive = true;
                 conversationStopped = false;
                 
@@ -2571,12 +2578,12 @@
                 
                 // Visual feedback
                 speakerIcon.classList.add('active');
-                statusText.textContent = 'Initializing voice mode...';
+                statusText.textContent = 'Initializing conversational mode...';
                 conversationState.style.display = 'none';
                 
-                console.log('Voice mode activated - waiting for preview');
+                console.log('Conversational mode activated - waiting for preview');
             } else {
-                // Stopping voice interaction
+                // Stopping conversational mode
                 voiceInteractionActive = false;
                 conversationStopped = true;
                 
@@ -2590,7 +2597,7 @@
                 
                 // Visual feedback
                 speakerIcon.classList.remove('active', 'listening');
-                statusText.textContent = 'Voice mode stopped. Tap to restart.';
+                statusText.textContent = 'Conversational mode stopped. Tap to restart.';
                 conversationState.style.display = 'none';
                 
                 // Clear any timers
@@ -2603,11 +2610,11 @@
                     silenceTimer = null;
                 }
                 
-                console.log('Voice mode deactivated');
+                console.log('Conversational mode deactivated');
             }
         });
         
-        // Send preview message for voice interaction
+        // Send preview message for conversational mode
         async function sendPreviewMessage() {
             try {
                 const voiceSelect = document.getElementById('voiceSelect');
@@ -2630,7 +2637,7 @@
                     // DO NOT include 'message' field for preview
                 };
                 
-                console.log('Sending preview for voice interaction start with voice:', selectedVoice);
+                console.log('Sending preview for conversational mode start with voice:', selectedVoice);
                 
                 const webhookUrl = `https://workflows.saxtechnology.com/webhook/${currentWebhook || 'megamind-chat'}`;
                 
