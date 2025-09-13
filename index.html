@@ -2036,6 +2036,8 @@
                     enableTTS: ttsEnabled,  // Use toggle state
                     ttsSummaryLength: 'short',  // Request short TTS summaries (5-10 seconds)
                     ttsSummarize: true,  // Force summarization for TTS to save tokens
+                    // Send voice configuration for dynamic mapping
+                    voiceConfig: JSON.parse(localStorage.getItem('megamind_voice_config') || '[]')
                     attachments: attachedFiles.map(f => ({
                         name: f.name,
                         type: f.type,
@@ -3085,9 +3087,42 @@
             location.reload();
         };
         
+        // Load voice configuration from admin settings
+        function loadVoiceDropdown() {
+            const voiceSelect = document.getElementById('voiceSelect');
+            const saved = localStorage.getItem('megamind_voice_config');
+            
+            if (saved) {
+                try {
+                    const voices = JSON.parse(saved);
+                    voiceSelect.innerHTML = '';
+                    
+                    voices.forEach(voice => {
+                        const option = document.createElement('option');
+                        option.value = voice.name.toLowerCase();
+                        option.textContent = voice.name;
+                        voiceSelect.appendChild(option);
+                    });
+                    
+                    console.log('Loaded custom voice configuration:', voices.length, 'voices');
+                } catch (e) {
+                    console.error('Error loading voice config:', e);
+                }
+            }
+        }
+        
+        // Listen for voice config updates from admin page
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'voice_config_update') {
+                console.log('Received voice config update from admin');
+                loadVoiceDropdown();
+            }
+        });
+        
         // Initialize on page load
         window.addEventListener('load', async () => {
             console.log('Page loaded, initializing application...');
+            loadVoiceDropdown();  // Load custom voices
             await initialize();  // Call the main initialize function, not just initializeMSAL
         });
         

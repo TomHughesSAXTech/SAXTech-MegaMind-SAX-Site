@@ -7,24 +7,31 @@ const selectedVoice = $json.selectedVoice || 'rachel';
 const enableTTS = $json.enableTTS !== false;
 const ttsSummarize = $json.ttsSummarize !== false;  // Default to true
 
-// UPDATED VOICE MAPPING - These are actual ElevenLabs voice IDs
-const voiceMapping = {
-  // Professional voices
-  'rachel': 'EXAVITQu4vr4xnSDxMaL',      // Rachel - Female Professional
-  'clyde': 'onwK4e9ZLuTAKqWW03F9',       // Clyde - Male Professional  
-  'charlotte': 'XB0fDUnXU5powFXDhCwa',   // Charlotte - British Female
-  'bill': 'pqHfZKP75CvOlQylNhV4',        // Bill - American Documentary
-  'george': 'JBFqnCBsd6RMkjVDRZzb',      // George - British Narrator
-  'domi': 'AZnzlk1XvdvUeBnXmlld',        // Domi - Young Female
-  'nicole': 'piTKgcLEGmPE4e6mEKli',      // Nicole - Soft Female
-  'jessie': 'Zlb1dXrM653N07WRdFW3',      // Jessie - Warm Male
-  
-  // Legacy mapping for backward compatibility
-  'sarah': 'EXAVITQu4vr4xnSDxMaL',       // Maps to Rachel
-  'daniel': 'onwK4e9ZLuTAKqWW03F9',      // Maps to Clyde
-  'emily': 'XB0fDUnXU5powFXDhCwa',       // Maps to Charlotte
-  'james': 'Zlb1dXrM653N07WRdFW3',       // Maps to Jessie
-};
+// DYNAMIC VOICE MAPPING - Build from incoming voice configuration
+// The frontend sends voiceConfig with the voice mappings from admin
+const voiceConfig = $json.voiceConfig || [];
+const voiceMapping = {};
+
+// Build mapping from config
+if (voiceConfig.length > 0) {
+  voiceConfig.forEach(voice => {
+    voiceMapping[voice.name.toLowerCase()] = voice.id;
+  });
+  console.log('Using dynamic voice configuration:', Object.keys(voiceMapping).length, 'voices');
+} else {
+  // Fallback to default mapping if no config provided
+  Object.assign(voiceMapping, {
+    'rachel': 'EXAVITQu4vr4xnSDxMaL',
+    'clyde': 'onwK4e9ZLuTAKqWW03F9',
+    'charlotte': 'XB0fDUnXU5powFXDhCwa',
+    'bill': 'pqHfZKP75CvOlQylNhV4',
+    'george': 'JBFqnCBsd6RMkjVDRZzb',
+    'domi': 'AZnzlk1XvdvUeBnXmlld',
+    'nicole': 'piTKgcLEGmPE4e6mEKli',
+    'jessie': 'Zlb1dXrM653N07WRdFW3'
+  });
+  console.log('Using default voice mapping');
+}
 
 // Get voice ID
 const voiceKey = selectedVoice.toLowerCase();
