@@ -1343,8 +1343,8 @@
                             <th style="padding: 10px; text-align: center;">Size</th>
                             <th style="padding: 10px; text-align: center;">Vectorized</th>
                             <th style="padding: 10px; text-align: left;">Upload Date</th>
-                            <th style="padding: 10px; text-align: center;">Chunks</th>
-                            <th style="padding: 10px; text-align: center;">Characters</th>
+                            <th style="padding: 10px; text-align: center;">Chunk #</th>
+                            <th style="padding: 10px; text-align: center;">Chunk Size</th>
                             <th style="padding: 10px; text-align: center;">Actions</th>
                         </tr>
                     </thead>
@@ -1418,6 +1418,17 @@
                                               indexMethod === 'Indexed' ? '#3b82f6' :
                                               indexMethod === 'Active' ? '#3b82f6' : '#6b7280';
                             
+                            // Check if this is a chunk (ID contains _chunk_)
+                            const isChunk = doc.id && doc.id.includes('_chunk_');
+                            let chunkNumber = '-';
+                            let documentId = doc.id;
+                            
+                            if (isChunk) {
+                                const parts = doc.id.split('_chunk_');
+                                documentId = parts[0];
+                                chunkNumber = parts[1] ? parseInt(parts[1]) : '-';
+                            }
+                            
                             return `
                             <tr style="border-bottom: 1px solid #eee;">
                                 <td style="padding: 10px;">
@@ -1426,6 +1437,7 @@
                                     <small style="color: #666;">${doc.fileName || ''}</small>
                                     <br>
                                     <small style="color: #999; font-size: 11px;">ID: ${doc.id}</small>
+                                    ${isChunk ? `<br><small style="color: #667eea; font-size: 11px;">📄 Document Chunk</small>` : ''}
                                 </td>
                                 <td style="padding: 10px;">${doc.department || 'N/A'}</td>
                                 <td style="padding: 10px;">${doc.documentType || 'N/A'}</td>
@@ -1442,23 +1454,25 @@
                                 </td>
                                 <td style="padding: 10px; font-size: 11px;">${formatDate(doc.uploadDate || doc.createdDate)}</td>
                                 <td style="padding: 10px; text-align: center;">
-                                    ${(() => {
-                                        // Calculate chunk count from various possible sources
-                                        let chunkCount = 0;
-                                        if (doc.chunkCount) {
-                                            chunkCount = doc.chunkCount;
-                                        } else if (doc.chunks && Array.isArray(doc.chunks)) {
-                                            chunkCount = doc.chunks.length;
-                                        } else if (doc.chunks && typeof doc.chunks === 'number') {
-                                            chunkCount = doc.chunks;
-                                        } else if (doc.metadata && doc.metadata.chunks) {
-                                            chunkCount = doc.metadata.chunks;
-                                        }
-                                        
-                                        return chunkCount > 0 ? 
-                                            `<span style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${chunkCount}</span>` : 
-                                            '<span style="color: #999;">-</span>';
-                                    })()}
+                                    ${isChunk && chunkNumber !== '-' ? 
+                                        `<span style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold;">#${chunkNumber}</span>` : 
+                                        (() => {
+                                            // For non-chunk documents, show chunk count if available
+                                            let chunkCount = 0;
+                                            if (doc.chunkCount) {
+                                                chunkCount = doc.chunkCount;
+                                            } else if (doc.chunks && Array.isArray(doc.chunks)) {
+                                                chunkCount = doc.chunks.length;
+                                            } else if (doc.chunks && typeof doc.chunks === 'number') {
+                                                chunkCount = doc.chunks;
+                                            } else if (doc.metadata && doc.metadata.chunks) {
+                                                chunkCount = doc.metadata.chunks;
+                                            }
+                                            
+                                            return chunkCount > 0 ? 
+                                                `<span style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${chunkCount} chunks</span>` : 
+                                                '<span style="color: #999;">-</span>';
+                                        })()}
                                 </td>
                                 <td style="padding: 10px; text-align: center;">
                                     ${(() => {
@@ -1477,8 +1491,12 @@
                                             });
                                         }
                                         
-                                        // Priority order for character count sources
-                                        if (doc.totalCharacters && doc.totalCharacters > 0) {
+                                        // For chunks, always use the actual content length
+                                        if (isChunk && doc.content && typeof doc.content === 'string') {
+                                            charCount = doc.content.length;
+                                        }
+                                        // Priority order for character count sources (non-chunks)
+                                        else if (doc.totalCharacters && doc.totalCharacters > 0) {
                                             charCount = doc.totalCharacters;
                                         }
                                         else if (doc.contentLength && doc.contentLength > 0) {
@@ -1495,8 +1513,8 @@
                                                 charCount = doc.metadata.totalChars;
                                             }
                                         }
-                                        // Check if we have content field
-                                        else if (doc.content) {
+                                        // Check if we have content field (non-chunk documents)
+                                        else if (doc.content && !isChunk) {
                                             if (typeof doc.content === 'string') {
                                                 charCount = doc.content.length;
                                             } else if (Array.isArray(doc.content)) {
@@ -1565,7 +1583,9 @@
                     </tbody>
                 </table>
                 <div style="margin-top: 20px; padding: 10px; background: #f9f9f9; border-radius: 4px;">
-                    <strong>Total Results:</strong> ${documents.length} documents
+                    <strong>Total Results:</strong> ${documents.length} ${documents.some(d => d.id && d.id.includes('_chunk_')) ? 'chunks' : 'documents'}
+                    ${documents.some(d => d.id && d.id.includes('_chunk_')) ? 
+                        `<br><small style="color: #666;">💡 Tip: These are individual document chunks. Each chunk is approximately 3,000 characters for optimal vector search.</small>` : ''}
                 </div>
             `;
         }
