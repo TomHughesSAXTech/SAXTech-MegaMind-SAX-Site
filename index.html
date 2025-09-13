@@ -2015,15 +2015,23 @@
                 // Create abort controller for this request
                 abortController = new AbortController();
                 
-                // Get the current voice selection
-                const currentVoice = voiceSelect.value || 'sarah';
+                // Get the current voice selection with enhanced debugging
+                const voiceSelectElement = document.getElementById('voiceSelect');
+                const selectedOption = voiceSelectElement.options[voiceSelectElement.selectedIndex];
+                const currentVoice = voiceSelectElement.value || 'EXAVITQu4vr4xnSDxMaL'; // Rachel as default
+                const currentVoiceId = selectedOption?.getAttribute('data-voice-id') || currentVoice;
+                const currentVoiceName = selectedOption?.textContent || 'Rachel';
                 const ttsEnabled = document.getElementById('ttsToggle').checked;
                 
                 console.log('Voice and TTS settings:', {
                     selectedVoice: currentVoice,
+                    voiceId: currentVoiceId,
+                    voiceName: currentVoiceName,
                     ttsEnabled: ttsEnabled,
-                    voiceSelectElement: voiceSelect,
-                    voiceSelectValue: voiceSelect.value
+                    voiceSelectElement: voiceSelectElement,
+                    voiceSelectValue: voiceSelectElement.value,
+                    selectedOption: selectedOption,
+                    allOptions: Array.from(voiceSelectElement.options).map(opt => ({value: opt.value, text: opt.textContent, voiceId: opt.getAttribute('data-voice-id')}))
                 });
                 
                 // Prepare comprehensive payload with full user context
@@ -2031,8 +2039,10 @@
                     message: message,
                     sessionId: sessionId,
                     profile: currentAIProfile,
-                    voice: currentVoice,  // Current voice selection
-                    selectedVoice: currentVoice,  // Pass the selected voice
+                    voice: currentVoiceId,  // Send the actual ElevenLabs voice ID
+                    voiceId: currentVoiceId,  // Also send as voiceId for compatibility
+                    voiceName: currentVoiceName,  // Send the display name
+                    selectedVoice: currentVoice,  // Legacy field
                     enableTTS: ttsEnabled,  // Use toggle state
                     ttsSummaryLength: 'short',  // Request short TTS summaries (5-10 seconds)
                     ttsSummarize: true,  // Force summarization for TTS to save tokens
@@ -2101,8 +2111,14 @@
                     }
                 };
                 
-                // Debug log the payload being sent
+                // Debug log the payload being sent with voice details
                 console.log('Sending payload to n8n:', {
+                    voiceSettings: {
+                        voice: payload.voice,
+                        voiceId: payload.voiceId,
+                        voiceName: payload.voiceName,
+                        enableTTS: payload.enableTTS
+                    },
                     hasUserProfile: !!userProfile,
                     userProfileName: userProfile?.displayName || 'Not set',
                     userProfileEmail: userProfile?.mail || 'Not set',
