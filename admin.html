@@ -759,7 +759,12 @@
                 
                 if (response.ok) {
                     const config = await response.json();
-                    voices = config.voices || [];
+                    // Ensure all voices have both id and voiceId fields
+                    voices = (config.voices || []).map(v => ({
+                        name: v.name,
+                        id: v.id || v.voiceId,
+                        voiceId: v.voiceId || v.id
+                    }));
                     showStatus('Loaded cloud configuration (used by all users)', 'success');
                 } else {
                     throw new Error('Failed to load from cloud');
@@ -769,10 +774,20 @@
                 // Fallback to local storage
                 const saved = localStorage.getItem('megamind_voice_config');
                 if (saved) {
-                    voices = JSON.parse(saved);
+                    // Ensure all voices have both id and voiceId fields
+                    voices = JSON.parse(saved).map(v => ({
+                        name: v.name,
+                        id: v.id || v.voiceId,
+                        voiceId: v.voiceId || v.id
+                    }));
                     showStatus('Loaded local configuration (cloud unavailable)', 'error');
                 } else {
-                    voices = [...defaultVoices];
+                    // Ensure default voices have voiceId field
+                    voices = defaultVoices.map(v => ({
+                        name: v.name,
+                        id: v.id,
+                        voiceId: v.id
+                    }));
                     showStatus('Using default configuration', 'success');
                 }
             }
@@ -806,8 +821,9 @@
                 
                 // Add to test select
                 const option = document.createElement('option');
-                option.value = voice.id;
+                option.value = voice.voiceId || voice.id;
                 option.textContent = voice.name;
+                option.setAttribute('data-voice-id', voice.voiceId || voice.id);
                 testSelect.appendChild(option);
             });
         }
@@ -827,7 +843,7 @@
                 return;
             }
             
-            voices.push({ name, id });
+            voices.push({ name, id, voiceId: id });
             renderVoiceList();
             updateVoiceStats();
             
@@ -869,7 +885,13 @@
                         'x-admin-key': 'SAXAdmin2024',  // Admin authentication
                         'x-user-email': 'admin@saxtechnology.com'  // Admin context doesn't have userProfile
                     },
-                    body: JSON.stringify({ voices: voices })
+                    body: JSON.stringify({ 
+                        voices: voices.map(v => ({
+                            name: v.name,
+                            id: v.id || v.voiceId,
+                            voiceId: v.voiceId || v.id
+                        }))
+                    })
                 });
                 
                 if (!response.ok) {
@@ -878,9 +900,14 @@
                 
                 const result = await response.json();
                 
-                // Also save locally as backup
-                localStorage.setItem('megamind_voice_config', JSON.stringify(voices));
-                localStorage.setItem('megamind_voice_config_backup', JSON.stringify(voices));
+                // Also save locally as backup with voiceId field
+                const voicesWithVoiceId = voices.map(v => ({
+                    name: v.name,
+                    id: v.id || v.voiceId,
+                    voiceId: v.voiceId || v.id
+                }));
+                localStorage.setItem('megamind_voice_config', JSON.stringify(voicesWithVoiceId));
+                localStorage.setItem('megamind_voice_config_backup', JSON.stringify(voicesWithVoiceId));
                 
                 showStatus('Voice configuration saved to cloud for all users!', 'success');
                 
@@ -915,12 +942,17 @@
                 }
                 
                 imported.forEach(v => {
-                    if (!v.name || !v.id) {
-                        throw new Error('Each voice must have name and id');
+                    if (!v.name || (!v.id && !v.voiceId)) {
+                        throw new Error('Each voice must have name and id/voiceId');
                     }
                 });
                 
-                voices = imported;
+                // Ensure all imported voices have both id and voiceId fields
+                voices = imported.map(v => ({
+                    name: v.name,
+                    id: v.id || v.voiceId,
+                    voiceId: v.voiceId || v.id
+                }));
                 renderVoiceList();
                 updateVoiceStats();
                 document.getElementById('importJson').value = '';
@@ -932,9 +964,14 @@
         }
 
         async function previewVoice() {
-            const voiceId = document.getElementById('testVoiceSelect').value;
+            const selectElement = document.getElementById('testVoiceSelect');
+            const voiceId = selectElement.value;
             const text = document.getElementById('testText').value;
             const apiKey = localStorage.getItem('elevenlabs_api_key') || 'sk_94c95a3f46355ef03ad7cc214059cccfd2c492fc1571a2bf';
+            
+            console.log('Preview voice - selected value:', voiceId);
+            console.log('Preview voice - select element:', selectElement);
+            console.log('Preview voice - all options:', Array.from(selectElement.options).map(o => ({value: o.value, text: o.textContent})));
             
             if (!voiceId || !text) {
                 showStatus('Please select a voice and enter text', 'error');
@@ -1291,6 +1328,7 @@
                             <th style="padding: 10px; text-align: center;">Vectorized</th>
                             <th style="padding: 10px; text-align: left;">Upload Date</th>
                             <th style="padding: 10px; text-align: center;">Chunks</th>
+                            <th style="padding: 10px; text-align: center;">Characters</th>
                             <th style="padding: 10px; text-align: center;">Actions</th>
                         </tr>
                     </thead>
@@ -1389,11 +1427,14 @@
                                 <td style="padding: 10px; font-size: 11px;">${formatDate(doc.uploadDate || doc.createdDate)}</td>
                                 <td style="padding: 10px; text-align: center;">
                                     ${doc.chunkCount ? 
-                                        `<span style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${doc.chunkCount} chunks</span>` : 
-                                        doc.contentLength ? 
-                                        `<span style="background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${doc.contentLength.toLocaleString()} chars</span>` :
+                                        `<span style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${doc.chunkCount}</span>` : 
+                                        '<span style="color: #999;">-</span>'}
+                                </td>
+                                <td style="padding: 10px; text-align: center;">
+                                    ${doc.contentLength ? 
+                                        `<span style="background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${doc.contentLength.toLocaleString()}</span>` :
                                         doc.content && doc.content.length > 0 ?
-                                        `<span style="background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${doc.content.length.toLocaleString()} chars</span>` :
+                                        `<span style="background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${doc.content.length.toLocaleString()}</span>` :
                                         '<span style="color: #999;">-</span>'}
                                 </td>
                                 <td style="padding: 10px; text-align: center;">
