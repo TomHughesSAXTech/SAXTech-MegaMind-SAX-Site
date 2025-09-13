@@ -1557,11 +1557,12 @@
                     // Try to load profile but don't fail if it doesn't work
                     try {
                         await loadUserProfile();
+                        showMainApp();
                     } catch (profileError) {
-                        console.warn('Could not load full profile, using basic info:', profileError);
+                        console.warn('Could not load full profile:', profileError);
+                        // If we can't get the profile, show the login page
+                        showAuthOverlay();
                     }
-                    
-                    showMainApp();
                 } else {
                     console.log('No existing account found');
                     showAuthOverlay();
@@ -1646,12 +1647,9 @@
                     account: currentAccount
                 });
                 } catch (silentError) {
-                    // If silent fails, try interactive
-                    console.log('Silent token acquisition failed, trying interactive...');
-                    tokenResponse = await msalInstance.acquireTokenPopup({
-                        scopes: ["User.Read", "User.ReadBasic.All", "Directory.Read.All", "UserAuthenticationMethod.Read.All"],
-                        account: currentAccount
-                    });
+                    // If silent fails, DON'T automatically try interactive - let user click login
+                    console.log('Silent token acquisition failed, user needs to login');
+                    throw silentError; // Propagate the error up
                 }
                 
                 // Get full user profile from Microsoft Graph
