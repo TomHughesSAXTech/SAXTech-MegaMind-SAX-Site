@@ -435,10 +435,8 @@
                 allDocuments = allDocuments.filter(doc => {
                     // Check different possible department field names
                     const docDept = doc.department || doc.Department || doc.dept || '';
-                    const matches = docDept && docDept.toLowerCase() === state.currentDepartment.toLowerCase();
-                    if (!matches && docDept) {
-                        console.log(`Document ${doc.fileName || doc.title} department '${docDept}' doesn't match '${state.currentDepartment}'`);
-                    }
+                    // Exact match comparison (case-insensitive)
+                    const matches = docDept && docDept.trim().toLowerCase() === state.currentDepartment.trim().toLowerCase();
                     return matches;
                 });
                 console.log(`Client-side filter: ${beforeFilter} -> ${allDocuments.length} documents in '${state.currentDepartment}'`);
@@ -968,40 +966,26 @@
         loadDocuments();
     }
 
-    // Load departments dynamically from Azure
-    async function loadDepartments() {
-        try {
-            // First try to get departments from index maintenance
-            const response = await fetch(`${CONFIG.azure.functionApp.baseUrl}${CONFIG.azure.functionApp.endpoints.indexMaintenance}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-functions-key': CONFIG.azure.functionApp.key
-                },
-                body: JSON.stringify({
-                    operation: 'list-departments'
-                })
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success && data.departments) {
-                    console.log('Loaded departments from API:', data.departments);
-                    updateDepartmentFilter(data.departments);
-                    return; // Success, exit early
-                }
-            }
-        } catch (error) {
-            console.error('Error loading departments from API:', error);
-        }
+    // Load departments - match the upload form exactly
+    function loadDepartments() {
+        // Match the department dropdown from the upload form exactly
+        const departments = [
+            { value: 'A&A', text: 'Audit & Advisory' },
+            { value: 'Finance', text: 'Finance' },
+            { value: 'HR', text: 'Human Resources' },
+            { value: 'Leadership', text: 'Leadership' },
+            { value: 'Marketing/Business Development', text: 'Marketing & Business Development' },
+            { value: 'Operations', text: 'Operations' },
+            { value: 'Shared Services', text: 'Shared Services' },
+            { value: 'Tax', text: 'Tax Services' },
+            { value: 'Transaction Advisory', text: 'Transaction Advisory' },
+            { value: 'Wealth Management', text: 'Wealth Management' }
+        ];
         
-        // Fallback: Use predefined departments if API fails
-        const fallbackDepartments = ['IT', 'Finance', 'Audit and Attestation', 'Tax', 'HR', 'Legal', 'Operations'];
-        console.log('Using fallback departments:', fallbackDepartments);
-        updateDepartmentFilter(fallbackDepartments);
+        updateDepartmentFilter(departments);
     }
     
-    // Update department filter with dynamic departments
+    // Update department filter with departments matching upload form
     function updateDepartmentFilter(departments) {
         if (elements.departmentFilter) {
             // Save current selection
@@ -1012,14 +996,18 @@
                 elements.departmentFilter.remove(1);
             }
             
-            // Add departments from Azure
+            // Add departments
             departments.forEach(dept => {
-                if (dept && dept !== 'converted-documents' && dept !== 'original-documents') {
-                    const option = document.createElement('option');
+                const option = document.createElement('option');
+                // Handle both object format {value, text} and simple string format
+                if (typeof dept === 'object' && dept.value && dept.text) {
+                    option.value = dept.value;
+                    option.textContent = dept.text;
+                } else if (typeof dept === 'string') {
                     option.value = dept;
-                    option.textContent = dept.charAt(0).toUpperCase() + dept.slice(1);
-                    elements.departmentFilter.appendChild(option);
+                    option.textContent = dept;
                 }
+                elements.departmentFilter.appendChild(option);
             });
             
             // Restore selection if it still exists
