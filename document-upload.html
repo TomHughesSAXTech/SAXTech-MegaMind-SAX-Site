@@ -1286,7 +1286,57 @@
                 let lastUpdated = '--';
                 
                 // Azure AI Search returns results in 'value' array
-                const documents = searchResults.value || [];
+                let allDocuments = searchResults.value || [];
+                
+                // Deduplicate documents that are split into chunks
+                const uniqueDocumentsMap = new Map();
+                
+                allDocuments.forEach(doc => {
+                    // Use fileName as the unique key, or fall back to title
+                    let uniqueKey = '';
+                    
+                    if (doc.fileName) {
+                        uniqueKey = doc.fileName;
+                    } else if (doc.title) {
+                        uniqueKey = doc.title;
+                    } else if (doc.id) {
+                        // For chunked documents, extract base ID
+                        const baseId = doc.id.replace(/_chunk\d+$/i, '').replace(/-chunk-\d+$/i, '').replace(/\.chunk\d+$/i, '');
+                        uniqueKey = baseId;
+                    }
+                    
+                    if (uniqueKey && !uniqueDocumentsMap.has(uniqueKey)) {
+                        // Store the first occurrence
+                        uniqueDocumentsMap.set(uniqueKey, {
+                            ...doc,
+                            isChunked: allDocuments.filter(d => 
+                                (d.fileName === doc.fileName && doc.fileName) || 
+                                (d.title === doc.title && doc.title)
+                            ).length > 1
+                        });
+                    } else if (uniqueKey && uniqueDocumentsMap.has(uniqueKey)) {
+                        // Merge metadata from duplicate chunks
+                        const existingDoc = uniqueDocumentsMap.get(uniqueKey);
+                        
+                        // Keep the larger file size
+                        if (doc.fileSize && (!existingDoc.fileSize || doc.fileSize > existingDoc.fileSize)) {
+                            existingDoc.fileSize = doc.fileSize;
+                        }
+                        
+                        // Merge other metadata
+                        if (!existingDoc.department && doc.department) {
+                            existingDoc.department = doc.department;
+                        }
+                        if (!existingDoc.description && doc.description) {
+                            existingDoc.description = doc.description;
+                        }
+                    }
+                });
+                
+                // Convert map back to array
+                const documents = Array.from(uniqueDocumentsMap.values());
+                
+                console.log(`Deduplicated ${allDocuments.length} chunks to ${documents.length} unique documents`);
                 
                 if (documents && documents.length > 0) {
                     // Group documents by department, then by documentType
@@ -1660,9 +1710,32 @@
                     folderGrid.innerHTML = '';
                     
                     if (searchResults.value && searchResults.value.length > 0) {
+                        // Deduplicate search results first
+                        const uniqueDocsMap = new Map();
+                        let allResults = searchResults.value;
+                        
+                        allResults.forEach(doc => {
+                            let uniqueKey = '';
+                            if (doc.fileName) {
+                                uniqueKey = doc.fileName;
+                            } else if (doc.title) {
+                                uniqueKey = doc.title;
+                            } else if (doc.id) {
+                                const baseId = doc.id.replace(/_chunk\d+$/i, '').replace(/-chunk-\d+$/i, '').replace(/\.chunk\d+$/i, '');
+                                uniqueKey = baseId;
+                            }
+                            
+                            if (uniqueKey && !uniqueDocsMap.has(uniqueKey)) {
+                                uniqueDocsMap.set(uniqueKey, doc);
+                            }
+                        });
+                        
+                        const uniqueResults = Array.from(uniqueDocsMap.values());
+                        console.log(`Search: deduplicated ${allResults.length} chunks to ${uniqueResults.length} unique documents`);
+                        
                         // Group search results by department
                         const groupedResults = {};
-                        searchResults.value.forEach(doc => {
+                        uniqueResults.forEach(doc => {
                             const dept = doc.department || 'General';
                             if (!groupedResults[dept]) {
                                 groupedResults[dept] = [];
@@ -1695,7 +1768,7 @@
                             folderGrid.appendChild(deptDiv);
                         });
                         
-                        documentCount.textContent = `${searchResults.value.length} results found`;
+                        documentCount.textContent = `${uniqueResults.length} results found`;
                     } else {
                         folderGrid.innerHTML = `
                             <div style="text-align: center; padding: 40px; color: #64748b;">
