@@ -302,6 +302,82 @@
         elements.fileUploadArea.style.display = 'block';
     }
 
+    // Deduplicate documents that are split into chunks
+    function deduplicateDocuments(documents) {
+        if (!documents || documents.length === 0) {
+            return [];
+        }
+        
+        // Create a map to store unique documents
+        const uniqueDocsMap = new Map();
+        
+        documents.forEach(doc => {
+            // Use fileName as the unique key, or fall back to title, or create a composite key
+            let uniqueKey = '';
+            
+            // Try to extract the base document identifier
+            if (doc.fileName) {
+                // Use fileName as primary identifier
+                uniqueKey = doc.fileName;
+            } else if (doc.title) {
+                // Fall back to title
+                uniqueKey = doc.title;
+            } else if (doc.id) {
+                // For chunked documents, the ID might contain a pattern like "docId_chunk1"
+                // Extract the base ID by removing chunk suffixes
+                const baseId = doc.id.replace(/_chunk\d+$/i, '').replace(/-chunk-\d+$/i, '').replace(/\.chunk\d+$/i, '');
+                uniqueKey = baseId;
+            }
+            
+            // If we have a unique key and haven't seen this document yet
+            if (uniqueKey && !uniqueDocsMap.has(uniqueKey)) {
+                // Store the first occurrence of this document
+                uniqueDocsMap.set(uniqueKey, {
+                    ...doc,
+                    // Add a flag to indicate this might be a multi-chunk document
+                    isChunked: documents.filter(d => 
+                        (d.fileName === doc.fileName && doc.fileName) || 
+                        (d.title === doc.title && doc.title)
+                    ).length > 1
+                });
+            } else if (uniqueKey && uniqueDocsMap.has(uniqueKey)) {
+                // If we've seen this document, merge any additional metadata
+                const existingDoc = uniqueDocsMap.get(uniqueKey);
+                
+                // Merge chunk counts if available
+                if (doc.chunkCount && !existingDoc.chunkCount) {
+                    existingDoc.chunkCount = doc.chunkCount;
+                }
+                
+                // Keep the larger file size (in case chunks report partial sizes)
+                if (doc.fileSize && (!existingDoc.fileSize || doc.fileSize > existingDoc.fileSize)) {
+                    existingDoc.fileSize = doc.fileSize;
+                }
+                
+                // Merge other metadata as needed
+                if (!existingDoc.department && doc.department) {
+                    existingDoc.department = doc.department;
+                }
+                if (!existingDoc.author && doc.author) {
+                    existingDoc.author = doc.author;
+                }
+                if (!existingDoc.description && doc.description) {
+                    existingDoc.description = doc.description;
+                }
+            }
+        });
+        
+        // Convert map back to array and sort by most recent first
+        const uniqueDocs = Array.from(uniqueDocsMap.values());
+        uniqueDocs.sort((a, b) => {
+            const dateA = new Date(a.uploadDate || a.lastModified || 0);
+            const dateB = new Date(b.uploadDate || b.lastModified || 0);
+            return dateB - dateA; // Most recent first
+        });
+        
+        return uniqueDocs;
+    }
+
     // Document Loading
     async function loadDocuments() {
         try {
@@ -331,7 +407,13 @@
             
             const data = await response.json();
             // Handle both response formats
-            state.documents = data.value || data.results || [];
+            let allDocuments = data.value || data.results || [];
+            
+            // Deduplicate documents - group by fileName to handle chunked documents
+            const uniqueDocuments = deduplicateDocuments(allDocuments);
+            state.documents = uniqueDocuments;
+            
+            console.log(`Loaded ${allDocuments.length} chunks, deduplicated to ${uniqueDocuments.length} unique documents`);
             
             displayDocuments();
             updateDocumentCount();
@@ -383,16 +465,19 @@
             <div class="document-icon ${iconClass}">
                 ${iconEmoji}
                 ${doc.indexed ? '<div class="indexed-badge">✓</div>' : ''}
+                ${doc.isChunked ? '<div class="chunked-badge" title="Document is split into chunks for processing">📑</div>' : ''}
             </div>
             <div class="document-info">
                 <div class="document-title" title="${doc.title || doc.fileName}">
                     ${doc.title || doc.fileName || 'Untitled Document'}
+                    ${doc.isChunked ? '<span style="font-size: 0.75em; color: #6b7280; margin-left: 8px;">(chunked)</span>' : ''}
                 </div>
                 <div class="document-meta">
                     <span class="meta-item">📅 ${uploadDate}</span>
                     ${fileSize ? `<span class="meta-item">💾 ${fileSize}</span>` : ''}
                     ${doc.department ? `<span class="meta-item">🏢 ${doc.department}</span>` : ''}
                     ${doc.author ? `<span class="meta-item">👤 ${doc.author}</span>` : ''}
+                    ${doc.chunkCount ? `<span class="meta-item">📊 ${doc.chunkCount} chunks</span>` : ''}
                 </div>
                 ${doc.description ? `<div class="document-description">${doc.description}</div>` : ''}
             </div>
