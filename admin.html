@@ -882,7 +882,7 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-admin-key': 'SAXAdmin2024',  // Admin authentication
+                        'X-Admin-Key': 'MegaMind2024$VoiceAdmin',  // Correct admin authentication key
                         'x-user-email': 'admin@saxtechnology.com'  // Admin context doesn't have userProfile
                     },
                     body: JSON.stringify({ 
@@ -895,10 +895,13 @@
                 });
                 
                 if (!response.ok) {
-                    throw new Error(`Save failed: ${response.status}`);
+                    const errorText = await response.text();
+                    console.error('Save response error:', errorText);
+                    throw new Error(`Save failed: ${response.status} - ${errorText}`);
                 }
                 
                 const result = await response.json();
+                console.log('Save successful:', result);
                 
                 // Also save locally as backup with voiceId field
                 const voicesWithVoiceId = voices.map(v => ({
@@ -1287,7 +1290,7 @@
                             search: query,
                             filter: filter,
                             top: parseInt(top),
-                            select: 'id,title,fileName,department,documentType,uploadDate,createdDate,author,fileSize,status,vectorized,chunkCount,conversionMethod,contentHash,contentLength,metadata'
+                            select: 'id,title,fileName,department,documentType,uploadDate,createdDate,author,fileSize,status,vectorized,chunkCount,chunks,conversionMethod,contentHash,contentLength,metadata'
                         })
                     }
                 );
@@ -1426,8 +1429,10 @@
                                 </td>
                                 <td style="padding: 10px; font-size: 11px;">${formatDate(doc.uploadDate || doc.createdDate)}</td>
                                 <td style="padding: 10px; text-align: center;">
-                                    ${doc.chunkCount ? 
-                                        `<span style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${doc.chunkCount}</span>` : 
+                                    ${doc.chunkCount || doc.chunks ? 
+                                        `<span style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${doc.chunkCount || doc.chunks}</span>` : 
+                                        doc.metadata && doc.metadata.chunks ?
+                                        `<span style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${doc.metadata.chunks}</span>` :
                                         '<span style="color: #999;">-</span>'}
                                 </td>
                                 <td style="padding: 10px; text-align: center;">
