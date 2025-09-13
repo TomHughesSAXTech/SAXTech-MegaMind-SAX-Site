@@ -3102,8 +3102,11 @@
                     voiceSelect.innerHTML = '';
                     voices.forEach(voice => {
                         const option = document.createElement('option');
-                        option.value = voice.name.toLowerCase();
+                        // Use voiceId as the value instead of name
+                        option.value = voice.voiceId || voice.name.toLowerCase();
                         option.textContent = voice.name;
+                        option.setAttribute('data-voice-id', voice.voiceId || voice.name.toLowerCase());
+                        option.setAttribute('data-voice-name', voice.name);
                         voiceSelect.appendChild(option);
                     });
                     
@@ -3127,8 +3130,11 @@
                         
                         voices.forEach(voice => {
                             const option = document.createElement('option');
-                            option.value = voice.name.toLowerCase();
+                            // Use voiceId as the value instead of name
+                            option.value = voice.voiceId || voice.name.toLowerCase();
                             option.textContent = voice.name;
+                            option.setAttribute('data-voice-id', voice.voiceId || voice.name.toLowerCase());
+                            option.setAttribute('data-voice-name', voice.name);
                             voiceSelect.appendChild(option);
                         });
                         

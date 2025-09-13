@@ -42,6 +42,7 @@ window.openDocumentPreview = async function(fileName) {
             throw new Error('Document not found in any expected location');
         }
         
+        console.log('Displaying document with SAS URL');
         // Display the document
         displayDocumentPreview(fileName, sasUrl);
         
@@ -104,9 +105,11 @@ function showPreviewLoading(fileName) {
 }
 
 function displayDocumentPreview(fileName, sasUrl) {
+    console.log('displayDocumentPreview called with:', fileName, sasUrl);
     let modal = document.getElementById('documentPreviewModal');
     
     if (!modal) {
+        console.log('Creating new modal');
         modal = createPreviewModal();
     }
     
@@ -182,7 +185,9 @@ function displayDocumentPreview(fileName, sasUrl) {
         </div>
     `;
     
+    console.log('Adding show class to modal');
     modal.classList.add('show');
+    console.log('Modal display complete, modal element:', modal);
 }
 
 function showPreviewError(fileName, errorMessage) {
