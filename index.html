@@ -2037,7 +2037,7 @@
                     ttsSummaryLength: 'short',  // Request short TTS summaries (5-10 seconds)
                     ttsSummarize: true,  // Force summarization for TTS to save tokens
                     // Send voice configuration for dynamic mapping
-                    voiceConfig: JSON.parse(localStorage.getItem('megamind_voice_config') || '[]')
+                    voiceConfig: JSON.parse(localStorage.getItem('megamind_voice_config') || '[]'),
                     attachments: attachedFiles.map(f => ({
                         name: f.name,
                         type: f.type,
