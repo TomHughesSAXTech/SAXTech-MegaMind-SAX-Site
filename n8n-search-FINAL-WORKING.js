@@ -145,21 +145,16 @@ try {
         // Create preview link - CRITICAL for document preview modal
         doc.previewLink = `<a href="#" onclick="openDocumentPreview('${doc.fileName}'); return false;" style="color: #2196F3; text-decoration: none; font-weight: bold;">📄 View ${doc.fileName}</a>`;
 
-        // Calculate relevance (0-100%)
-        const relevancePercent = Math.min(100, Math.round((doc.searchScore || 0) * 100));
-        const relevanceColor = relevancePercent > 70 ? '#4CAF50' : relevancePercent > 40 ? '#FF9800' : '#9E9E9E';
+        // Keep score for sorting but don't display it
 
         // Create HTML display card
         doc.displayHtml = `
-<div style="margin: 15px 0; padding: 15px; border-left: 4px solid ${relevanceColor}; border-radius: 8px; background: #fafafa;">
+<div style="margin: 15px 0; padding: 15px; border-left: 4px solid #2196F3; border-radius: 8px; background: #fafafa;">
     <h4 style="margin: 0 0 10px 0; color: #333;">📄 ${doc.title}</h4>
     <p style="margin: 5px 0; color: #666; font-size: 0.9em;">
         <strong>Type:</strong> ${doc.documentType} | 
         <strong>Department:</strong> ${doc.department} | 
         <strong>Matched:</strong> ${matchedSections}
-    </p>
-    <p style="margin: 5px 0; color: #666; font-size: 0.9em;">
-        <strong>Relevance:</strong> <span style="color: ${relevanceColor}; font-weight: bold;">${relevancePercent}%</span>
     </p>
     <p style="margin: 10px 0 5px 0;">${doc.previewLink}</p>
 </div>`;
