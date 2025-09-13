@@ -1828,34 +1828,50 @@
                 event.stopPropagation();
             }
             
-            console.log('Preview document:', docId, fileName, 'Department:', department);
+            console.log('Preview document:', docId, fileName, 'Department provided:', department);
             
             try {
-                // First, get the document details to find the correct department
+                // Get the department - try multiple sources
                 let actualDepartment = department;
-                if (!actualDepartment) {
-                    const searchResponse = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'x-functions-key': API_CONFIG.functionKey
-                        },
-                        body: JSON.stringify({
-                            query: `id:${docId}`,
-                            top: 1
-                        })
-                    });
-                    
-                    if (searchResponse.ok) {
-                        const searchData = await searchResponse.json();
-                        if (searchData.value && searchData.value[0]) {
-                            actualDepartment = searchData.value[0].department;
+                
+                // If no department provided, try to get from current filter or fetch from API
+                if (!actualDepartment || actualDepartment === '') {
+                    // Try current department filter first
+                    const departmentFilter = document.getElementById('departmentFilter');
+                    if (departmentFilter && departmentFilter.value && departmentFilter.value !== '') {
+                        actualDepartment = departmentFilter.value;
+                        console.log('Using department from filter:', actualDepartment);
+                    } else {
+                        // Fetch from search API
+                        console.log('Fetching document details to find department...');
+                        const searchResponse = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'x-functions-key': API_CONFIG.functionKey
+                            },
+                            body: JSON.stringify({
+                                query: `id:${docId}`,
+                                top: 1
+                            })
+                        });
+                        
+                        if (searchResponse.ok) {
+                            const searchData = await searchResponse.json();
+                            if (searchData.value && searchData.value[0]) {
+                                actualDepartment = searchData.value[0].department;
+                                console.log('Department from API:', actualDepartment);
+                            }
                         }
                     }
                 }
                 
-                // Use the actual department or fall back to 'Operations' if still not found
-                const deptForPreview = actualDepartment || 'Operations';
+                // Require department - no fallbacks
+                if (!actualDepartment || actualDepartment === '') {
+                    throw new Error('Cannot determine document department. Please select a department from the filter.');
+                }
+                
+                const deptForPreview = actualDepartment;
                 
                 try {
                     const sasUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.generateSAS}?code=${API_CONFIG.functionKey}`;
