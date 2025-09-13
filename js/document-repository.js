@@ -64,7 +64,7 @@
         // Document browser elements
         searchInput: document.getElementById('searchInput'),
         departmentFilter: document.getElementById('departmentFilter'),
-        documentGrid: document.getElementById('documentGrid'),
+        documentGrid: document.getElementById('folderGrid'),  // Changed from 'documentGrid' to 'folderGrid' to match HTML
         documentCount: document.getElementById('documentCount'),
         
         // Stats elements
@@ -84,10 +84,23 @@
 
     // Initialize
     function init() {
+        console.log('Document Repository: Initializing...');
+        
+        // Verify DOM elements exist
+        if (!elements.departmentFilter) {
+            console.error('Department filter element not found!');
+        } else {
+            console.log('Department filter element found:', elements.departmentFilter);
+        }
+        
         setupEventListeners();
         loadIndexStatistics();
         loadDepartments();  // Load departments dynamically
-        loadDocuments();
+        
+        // Load documents after a short delay to let departments populate
+        setTimeout(() => {
+            loadDocuments();
+        }, 500);
         
         // Set up auto-refresh for statistics
         setInterval(loadIndexStatistics, CONFIG.refreshInterval);
@@ -381,6 +394,11 @@
     // Document Loading
     async function loadDocuments() {
         try {
+            console.log('Loading documents with filter:', {
+                search: state.searchTerm,
+                department: state.currentDepartment
+            });
+            
             // Build query - match backend expectations
             let query = {
                 query: state.searchTerm || '*',  // Changed from 'search' to 'query'
@@ -409,11 +427,28 @@
             // Handle both response formats
             let allDocuments = data.value || data.results || [];
             
+            console.log(`Backend returned ${allDocuments.length} documents`);
+            
+            // Apply client-side department filter if backend didn't filter
+            if (state.currentDepartment && state.currentDepartment !== '') {
+                const beforeFilter = allDocuments.length;
+                allDocuments = allDocuments.filter(doc => {
+                    // Check different possible department field names
+                    const docDept = doc.department || doc.Department || doc.dept || '';
+                    const matches = docDept && docDept.toLowerCase() === state.currentDepartment.toLowerCase();
+                    if (!matches && docDept) {
+                        console.log(`Document ${doc.fileName || doc.title} department '${docDept}' doesn't match '${state.currentDepartment}'`);
+                    }
+                    return matches;
+                });
+                console.log(`Client-side filter: ${beforeFilter} -> ${allDocuments.length} documents in '${state.currentDepartment}'`);
+            }
+            
             // Deduplicate documents - group by fileName to handle chunked documents
             const uniqueDocuments = deduplicateDocuments(allDocuments);
             state.documents = uniqueDocuments;
             
-            console.log(`Loaded ${allDocuments.length} chunks, deduplicated to ${uniqueDocuments.length} unique documents`);
+            console.log(`Final result: ${uniqueDocuments.length} unique documents after deduplication`);
             
             displayDocuments();
             updateDocumentCount();
@@ -426,6 +461,27 @@
 
     // Document Display
     function displayDocuments() {
+        // Try to find the grid element if not already cached
+        if (!elements.documentGrid) {
+            elements.documentGrid = document.getElementById('documentGrid') || document.getElementById('folderGrid');
+            if (!elements.documentGrid) {
+                console.error('Document grid element not found!');
+                return;
+            }
+        }
+        
+        // Hide empty state if it exists
+        const emptyState = document.getElementById('emptyState');
+        if (emptyState) {
+            emptyState.style.display = 'none';
+        }
+        
+        // Show explorer container
+        const explorerContainer = document.getElementById('explorerContainer');
+        if (explorerContainer) {
+            explorerContainer.style.display = 'block';
+        }
+        
         if (state.documents.length === 0) {
             elements.documentGrid.innerHTML = `
                 <div class="empty-state">
@@ -915,6 +971,7 @@
     // Load departments dynamically from Azure
     async function loadDepartments() {
         try {
+            // First try to get departments from index maintenance
             const response = await fetch(`${CONFIG.azure.functionApp.baseUrl}${CONFIG.azure.functionApp.endpoints.indexMaintenance}`, {
                 method: 'POST',
                 headers: {
@@ -929,12 +986,19 @@
             if (response.ok) {
                 const data = await response.json();
                 if (data.success && data.departments) {
+                    console.log('Loaded departments from API:', data.departments);
                     updateDepartmentFilter(data.departments);
+                    return; // Success, exit early
                 }
             }
         } catch (error) {
-            console.error('Error loading departments:', error);
+            console.error('Error loading departments from API:', error);
         }
+        
+        // Fallback: Use predefined departments if API fails
+        const fallbackDepartments = ['IT', 'Finance', 'Audit and Attestation', 'Tax', 'HR', 'Legal', 'Operations'];
+        console.log('Using fallback departments:', fallbackDepartments);
+        updateDepartmentFilter(fallbackDepartments);
     }
     
     // Update department filter with dynamic departments
