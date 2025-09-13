@@ -11,19 +11,56 @@ window.openDocumentPreview = async function(fileName, department) {
     showPreviewLoading(fileName);
     
     try {
-        // NO FALLBACKS - only use the actual department provided
-        if (!department || department === '') {
-            throw new Error('Department is required for document preview');
+        // If no department provided, fetch it from the API
+        let actualDepartment = department;
+        
+        if (!actualDepartment || actualDepartment === '' || actualDepartment === 'undefined') {
+            console.log('No department provided, fetching from API...');
+            
+            // Try to find the document in the search index to get its department
+            const searchResponse = await fetch('https://saxtechmegamindfunctions.azurewebsites.net/api/documents/search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-functions-key': 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw=='
+                },
+                body: JSON.stringify({
+                    query: fileName,
+                    top: 10,
+                    searchMode: 'all'
+                })
+            });
+            
+            if (searchResponse.ok) {
+                const searchData = await searchResponse.json();
+                const results = searchData.value || [];
+                
+                // Find the document that matches our filename
+                const matchingDoc = results.find(doc => 
+                    doc.fileName === fileName || 
+                    (doc.fileName && doc.fileName.replace(/_chunk_\d+$/, '') === fileName)
+                );
+                
+                if (matchingDoc && matchingDoc.department) {
+                    actualDepartment = matchingDoc.department;
+                    console.log('Found department from API:', actualDepartment);
+                }
+            }
         }
         
-        // Use the exact department provided - it should match the folder structure
-        const documentPath = `${department}/${fileName}`;
+        // If still no department, throw error
+        if (!actualDepartment || actualDepartment === '' || actualDepartment === 'undefined') {
+            throw new Error('Could not determine document department');
+        }
+        
+        // Use the department to build the path
+        const documentPath = `${actualDepartment}/${fileName}`;
         console.log('Trying path:', documentPath);
         
         const sasUrl = await generateSASUrl(documentPath);
         
         if (!sasUrl) {
-            throw new Error(`Document not found in ${department} folder`);
+            throw new Error(`Document not found in ${actualDepartment} folder`);
         }
         
         console.log('Displaying document with SAS URL');
