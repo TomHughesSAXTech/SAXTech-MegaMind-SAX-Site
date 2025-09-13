@@ -1429,18 +1429,75 @@
                                 </td>
                                 <td style="padding: 10px; font-size: 11px;">${formatDate(doc.uploadDate || doc.createdDate)}</td>
                                 <td style="padding: 10px; text-align: center;">
-                                    ${doc.chunkCount || doc.chunks ? 
-                                        `<span style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${doc.chunkCount || doc.chunks}</span>` : 
-                                        doc.metadata && doc.metadata.chunks ?
-                                        `<span style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${doc.metadata.chunks}</span>` :
-                                        '<span style="color: #999;">-</span>'}
+                                    ${(() => {
+                                        // Calculate chunk count from various possible sources
+                                        let chunkCount = 0;
+                                        if (doc.chunkCount) {
+                                            chunkCount = doc.chunkCount;
+                                        } else if (doc.chunks && Array.isArray(doc.chunks)) {
+                                            chunkCount = doc.chunks.length;
+                                        } else if (doc.chunks && typeof doc.chunks === 'number') {
+                                            chunkCount = doc.chunks;
+                                        } else if (doc.metadata && doc.metadata.chunks) {
+                                            chunkCount = doc.metadata.chunks;
+                                        }
+                                        
+                                        return chunkCount > 0 ? 
+                                            `<span style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${chunkCount}</span>` : 
+                                            '<span style="color: #999;">-</span>';
+                                    })()}
                                 </td>
                                 <td style="padding: 10px; text-align: center;">
-                                    ${doc.contentLength ? 
-                                        `<span style="background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${doc.contentLength.toLocaleString()}</span>` :
-                                        doc.content && doc.content.length > 0 ?
-                                        `<span style="background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${doc.content.length.toLocaleString()}</span>` :
-                                        '<span style="color: #999;">-</span>'}
+                                    ${(() => {
+                                        // Calculate total character count from chunks or content
+                                        let charCount = 0;
+                                        
+                                        // First check if we have contentLength directly
+                                        if (doc.contentLength && doc.contentLength > 0) {
+                                            charCount = doc.contentLength;
+                                        }
+                                        // Check if we have chunks array with actual chunk data
+                                        else if (doc.chunks && Array.isArray(doc.chunks) && doc.chunks.length > 0) {
+                                            // Sum up the character count from all chunks
+                                            charCount = doc.chunks.reduce((total, chunk) => {
+                                                if (typeof chunk === 'string') {
+                                                    return total + chunk.length;
+                                                } else if (chunk && chunk.content) {
+                                                    return total + chunk.content.length;
+                                                } else if (chunk && chunk.text) {
+                                                    return total + chunk.text.length;
+                                                }
+                                                return total;
+                                            }, 0);
+                                        }
+                                        // Check if we have content field
+                                        else if (doc.content) {
+                                            if (typeof doc.content === 'string') {
+                                                charCount = doc.content.length;
+                                            } else if (Array.isArray(doc.content)) {
+                                                charCount = doc.content.reduce((total, item) => {
+                                                    if (typeof item === 'string') {
+                                                        return total + item.length;
+                                                    } else if (item && item.content) {
+                                                        return total + item.content.length;
+                                                    }
+                                                    return total;
+                                                }, 0);
+                                            }
+                                        }
+                                        // Check metadata for content length
+                                        else if (doc.metadata) {
+                                            if (doc.metadata.contentLength) {
+                                                charCount = doc.metadata.contentLength;
+                                            } else if (doc.metadata.totalCharacters) {
+                                                charCount = doc.metadata.totalCharacters;
+                                            }
+                                        }
+                                        
+                                        return charCount > 0 ? 
+                                            `<span style="background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${charCount.toLocaleString()}</span>` :
+                                            '<span style="color: #999;">-</span>';
+                                    })()}
                                 </td>
                                 <td style="padding: 10px; text-align: center;">
                                     <button class="btn btn-danger" style="padding: 4px 10px; font-size: 11px;" 
