@@ -1,0 +1,323 @@
+<!-- Add this HTML to your index.html, right before the closing </body> tag -->
+
+<!-- Document Preview Modal -->
+<div id="documentPreviewModal" class="modal" style="display: none;">
+    <div class="modal-content" style="width: 90%; height: 90%; max-width: 1200px;">
+        <div class="modal-header">
+            <h2 id="previewTitle">Document Preview</h2>
+            <span class="close" onclick="closeDocumentPreview()">&times;</span>
+        </div>
+        <div class="modal-body" style="height: calc(100% - 60px); padding: 0;">
+            <iframe id="previewFrame" style="width: 100%; height: 100%; border: none;"></iframe>
+        </div>
+    </div>
+</div>
+
+<!-- Add this CSS to your existing styles -->
+<style>
+/* Modal styles */
+.modal {
+    position: fixed;
+    z-index: 10000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.5em;
+    color: #333;
+}
+
+.modal-header .close {
+    font-size: 28px;
+    font-weight: bold;
+    color: #aaa;
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.modal-header .close:hover {
+    color: #000;
+}
+
+.modal-body {
+    overflow: hidden;
+}
+</style>
+
+<!-- Add this JavaScript to your existing script section -->
+<script>
+// Document preview functionality with SAS token generation
+async function openDocumentPreview(fileName) {
+    console.log('Opening document preview for:', fileName);
+    
+    const modal = document.getElementById('documentPreviewModal');
+    const previewFrame = document.getElementById('previewFrame');
+    const previewTitle = document.getElementById('previewTitle');
+    
+    if (!modal) {
+        // Create modal if it doesn't exist
+        createPreviewModal();
+        return openDocumentPreview(fileName); // Retry after creating modal
+    }
+    
+    // Show loading state
+    modal.style.display = 'flex';
+    previewTitle.textContent = `Loading ${fileName}...`;
+    previewFrame.src = 'about:blank';
+    
+    try {
+        // Generate SAS token using Azure Function
+        const sasResponse = await fetch('https://saxtechmegamindfunctions.azurewebsites.net/api/GenerateSASToken', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                fileName: fileName
+            })
+        });
+        
+        if (!sasResponse.ok) {
+            throw new Error(`Failed to generate SAS token: ${sasResponse.status}`);
+        }
+        
+        const sasData = await sasResponse.json();
+        console.log('SAS token generated successfully');
+        
+        // Create the preview URL with SAS token
+        const documentUrl = sasData.url;
+        
+        // Update title
+        previewTitle.textContent = fileName;
+        
+        // For PDFs and Office documents, use the direct URL
+        // For other files, you might want to handle differently
+        const fileExtension = fileName.split('.').pop().toLowerCase();
+        
+        if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(fileExtension)) {
+            // Use Office Online viewer for Office documents
+            if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(fileExtension)) {
+                previewFrame.src = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(documentUrl)}`;
+            } else {
+                // Direct display for PDFs
+                previewFrame.src = documentUrl;
+            }
+        } else if (['txt', 'csv', 'json', 'xml', 'html', 'md'].includes(fileExtension)) {
+            // For text files, fetch and display content
+            const textResponse = await fetch(documentUrl);
+            const textContent = await textResponse.text();
+            const htmlContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <style>
+                        body { 
+                            font-family: monospace; 
+                            padding: 20px; 
+                            white-space: pre-wrap; 
+                            word-wrap: break-word;
+                            background: #f5f5f5;
+                        }
+                    </style>
+                </head>
+                <body>${escapeHtml(textContent)}</body>
+                </html>
+            `;
+            previewFrame.srcdoc = htmlContent;
+        } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg'].includes(fileExtension)) {
+            // For images
+            const htmlContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <style>
+                        body { 
+                            margin: 0; 
+                            padding: 20px; 
+                            display: flex; 
+                            justify-content: center; 
+                            align-items: center; 
+                            min-height: 100vh;
+                            background: #f0f0f0;
+                        }
+                        img { 
+                            max-width: 100%; 
+                            max-height: 100vh; 
+                            object-fit: contain;
+                            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                        }
+                    </style>
+                </head>
+                <body>
+                    <img src="${documentUrl}" alt="${fileName}">
+                </body>
+                </html>
+            `;
+            previewFrame.srcdoc = htmlContent;
+        } else {
+            // For other file types, offer download
+            const htmlContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <style>
+                        body { 
+                            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            height: 100vh;
+                            margin: 0;
+                            background: #f5f5f5;
+                        }
+                        .container {
+                            text-align: center;
+                            padding: 40px;
+                            background: white;
+                            border-radius: 10px;
+                            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                        }
+                        h2 { color: #333; }
+                        p { color: #666; margin: 20px 0; }
+                        a {
+                            display: inline-block;
+                            padding: 12px 24px;
+                            background: #007bff;
+                            color: white;
+                            text-decoration: none;
+                            border-radius: 5px;
+                            transition: background 0.3s;
+                        }
+                        a:hover { background: #0056b3; }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <h2>📄 ${fileName}</h2>
+                        <p>This file type cannot be previewed directly.</p>
+                        <a href="${documentUrl}" download="${fileName}">Download File</a>
+                    </div>
+                </body>
+                </html>
+            `;
+            previewFrame.srcdoc = htmlContent;
+        }
+        
+    } catch (error) {
+        console.error('Error opening document preview:', error);
+        previewTitle.textContent = 'Error Loading Document';
+        
+        const errorHtml = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body { 
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        height: 100vh;
+                        margin: 0;
+                        background: #f5f5f5;
+                    }
+                    .error {
+                        text-align: center;
+                        padding: 40px;
+                        background: white;
+                        border-radius: 10px;
+                        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                    }
+                    h2 { color: #d32f2f; }
+                    p { color: #666; }
+                </style>
+            </head>
+            <body>
+                <div class="error">
+                    <h2>⚠️ Error Loading Document</h2>
+                    <p>${error.message}</p>
+                    <p>Please try again or contact support.</p>
+                </div>
+            </body>
+            </html>
+        `;
+        previewFrame.srcdoc = errorHtml;
+    }
+}
+
+// Close preview modal
+function closeDocumentPreview() {
+    const modal = document.getElementById('documentPreviewModal');
+    if (modal) {
+        modal.style.display = 'none';
+        const previewFrame = document.getElementById('previewFrame');
+        if (previewFrame) {
+            previewFrame.src = 'about:blank';
+        }
+    }
+}
+
+// Create modal if it doesn't exist
+function createPreviewModal() {
+    const modalHtml = `
+        <div id="documentPreviewModal" class="modal" style="display: none;">
+            <div class="modal-content" style="width: 90%; height: 90%; max-width: 1200px;">
+                <div class="modal-header">
+                    <h2 id="previewTitle">Document Preview</h2>
+                    <span class="close" onclick="closeDocumentPreview()">&times;</span>
+                </div>
+                <div class="modal-body" style="height: calc(100% - 60px); padding: 0;">
+                    <iframe id="previewFrame" style="width: 100%; height: 100%; border: none;"></iframe>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+// Helper function to escape HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Close modal when clicking outside
+window.addEventListener('click', function(event) {
+    const modal = document.getElementById('documentPreviewModal');
+    if (event.target === modal) {
+        closeDocumentPreview();
+    }
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeDocumentPreview();
+    }
+});
+</script>

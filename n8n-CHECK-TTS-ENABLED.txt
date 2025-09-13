@@ -1,0 +1,6 @@
+=====================================
+CHECK TTS ENABLED - IF NODE CONDITION
+Copy this into your IF node's condition field
+=====================================
+
+{{ $json.enableTTS === true && $json.ttsText && $json.ttsText.length > 0 }}
