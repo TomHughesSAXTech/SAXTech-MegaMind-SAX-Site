@@ -1226,11 +1226,14 @@
                             </label>
                         </div>
                         <select id="voiceSelect">
-                            <option value="sarah">Sarah (Female Professional)</option>
-                            <option value="daniel">Daniel (Male Professional)</option>
-                            <option value="emily">Emily (British Female)</option>
-                            <option value="james">James (Deep Male)</option>
-                            <option value="charlotte">Charlotte (Energetic Female)</option>
+                            <option value="rachel">Rachel (Female Professional)</option>
+                            <option value="clyde">Clyde (Male Professional)</option>
+                            <option value="charlotte">Charlotte (British Female)</option>
+                            <option value="bill">Bill (American Documentary)</option>
+                            <option value="george">George (British Narrator)</option>
+                            <option value="domi">Domi (Young Female)</option>
+                            <option value="nicole">Nicole (Soft Female)</option>
+                            <option value="jessie">Jessie (Warm Male)</option>
                         </select>
                         <div id="ttsStatus" style="text-align: center; margin-top: 5px; font-size: 11px; color: rgba(255,255,255,0.6);">Audio: OFF</div>
                     </div>
@@ -2032,6 +2035,7 @@
                     selectedVoice: currentVoice,  // Pass the selected voice
                     enableTTS: ttsEnabled,  // Use toggle state
                     ttsSummaryLength: 'short',  // Request short TTS summaries (5-10 seconds)
+                    ttsSummarize: true,  // Force summarization for TTS to save tokens
                     attachments: attachedFiles.map(f => ({
                         name: f.name,
                         type: f.type,

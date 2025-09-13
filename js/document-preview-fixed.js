@@ -30,7 +30,7 @@ window.openDocumentPreview = async function(fileName) {
         }
 
         const sasData = await sasResponse.json();
-        const sasUrl = sasData.sasUrl || sasData.url;
+        const sasUrl = sasData.blobUrl || sasData.sasUrl || sasData.url;
         
         if (!sasUrl) {
             throw new Error('No SAS URL returned');

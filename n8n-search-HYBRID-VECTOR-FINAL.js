@@ -185,8 +185,11 @@ try {
         doc.previewLink = `<a href="#" onclick="openDocumentPreview('${doc.fileName}'); return false;" style="color: #2196F3; text-decoration: none; font-weight: bold;">📄 View ${doc.fileName}</a>`;
 
         // Calculate relevance using reranker score if available, otherwise search score
+        // For hybrid search, scores are typically 0-1, so we scale them appropriately
         const scoreToUse = doc.rerankerScore !== null ? doc.rerankerScore : doc.searchScore;
-        const relevancePercent = Math.min(100, Math.round(scoreToUse * 100));
+        // Scale the score: 0.01 = 25%, 0.03 = 50%, 0.05 = 75%, 0.1+ = 90%+
+        const scaledScore = Math.min(1, scoreToUse * 20); // Multiply by 20 to scale better
+        const relevancePercent = Math.min(100, Math.round(scaledScore * 100));
         const relevanceColor = relevancePercent > 70 ? '#4CAF50' : relevancePercent > 40 ? '#FF9800' : '#9E9E9E';
 
         // Create HTML display card
