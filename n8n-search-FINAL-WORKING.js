@@ -54,7 +54,7 @@ try {
         search: query,
         searchMode: searchType === 'comprehensive' ? 'all' : 'any',
         queryType: 'simple',
-        select: 'fileName,title,content,documentType,department,tags,createdDate,blobUrl',
+        select: 'fileName,title,content,documentType,department,tags,createdDate',
         top: 50,
         count: true
     };
@@ -108,7 +108,7 @@ try {
                 searchScore: doc['@search.score'] || 0,
                 chunks: [],
                 content: '',
-                blobUrl: doc.blobUrl || ''
+                : doc. || ''
             };
         }
 
