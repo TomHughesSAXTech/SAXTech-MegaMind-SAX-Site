@@ -1647,8 +1647,42 @@
                     account: currentAccount
                 });
                 } catch (silentError) {
-                    // If silent fails, DON'T automatically try interactive - let user click login
-                    console.log('Silent token acquisition failed, user needs to login');
+                    console.log('Silent token acquisition failed:', silentError);
+                    
+                    // Check if it's a consent error and handle it
+                    if (silentError.errorCode === 'invalid_grant' || 
+                        silentError.errorCode === 'consent_required' ||
+                        silentError.errorCode === 'interaction_required' ||
+                        (silentError.message && silentError.message.includes('AADSTS65001'))) {
+                        
+                        console.log('Consent or interaction required, clearing invalid session...');
+                        
+                        // Clear the invalid cached tokens
+                        if (currentAccount) {
+                            try {
+                                // Clear from MSAL cache
+                                const accounts = msalInstance.getAllAccounts();
+                                for (const account of accounts) {
+                                    await msalInstance.getTokenCache().removeAccount(account);
+                                }
+                            } catch (e) {
+                                console.log('Error clearing account cache:', e);
+                            }
+                        }
+                        
+                        // Clear localStorage items
+                        const keysToRemove = [];
+                        for (let i = 0; i < localStorage.length; i++) {
+                            const key = localStorage.key(i);
+                            if (key && (key.includes('msal') || key.includes('login.microsoftonline.com'))) {
+                                keysToRemove.push(key);
+                            }
+                        }
+                        keysToRemove.forEach(key => localStorage.removeItem(key));
+                        
+                        currentAccount = null;
+                    }
+                    
                     throw silentError; // Propagate the error up
                 }
                 
