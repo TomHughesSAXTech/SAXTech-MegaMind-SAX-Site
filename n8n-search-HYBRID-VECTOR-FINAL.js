@@ -176,8 +176,8 @@ try {
         const fullContent = doc.chunks.map(c => c.content).join('\n\n');
         doc.content = fullContent.substring(0, 500) + (fullContent.length > 500 ? '...' : '');
 
-        // Create preview button - clean and simple
-        doc.previewButton = `<button onclick="openDocumentPreview('${doc.fileName}'); return false;" style="
+        // Create preview button - clean and simple, include department
+        doc.previewButton = `<button onclick="openDocumentPreview('${doc.fileName}', '${doc.department}'); return false;" style="
             padding: 8px 16px;
             background: #2196F3;
             color: white;

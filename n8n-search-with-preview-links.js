@@ -96,7 +96,7 @@ try {
         
         // IMPORTANT: Create the preview link format
         // This is what will make the preview work in the chat
-        doc.previewLink = `<a href="#" onclick="openDocumentPreview('${doc.fileName}'); return false;">📄 View ${doc.fileName}</a>`;
+        doc.previewLink = `<a href="#" onclick="openDocumentPreview('${doc.fileName}', '${doc.department}'); return false;">📄 View ${doc.fileName}</a>`;
         
         // Also include a formatted HTML snippet for the AI to use
         doc.htmlSnippet = `

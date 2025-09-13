@@ -138,7 +138,7 @@ try {
             `Section ${doc.chunks[0].chunkNumber + 1}`;
         
         // CRITICAL: Create the preview link with onclick handler
-        doc.previewLink = `<a href="#" onclick="openDocumentPreview('${doc.fileName}'); return false;" style="color: #2196F3; text-decoration: none; font-weight: bold;">📄 View ${doc.fileName}</a>`;
+        doc.previewLink = `<a href="#" onclick="openDocumentPreview('${doc.fileName}', '${doc.department}'); return false;" style="color: #2196F3; text-decoration: none; font-weight: bold;">📄 View ${doc.fileName}</a>`;
         
         // Create formatted result for AI to display
         doc.displayHtml = `

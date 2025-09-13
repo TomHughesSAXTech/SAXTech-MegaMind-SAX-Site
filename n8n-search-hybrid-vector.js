@@ -209,7 +209,7 @@ try {
         const relevancePercent = Math.min(100, Math.round(relevanceScore * 25)); // Adjust scale as needed
         
         // CRITICAL: Create the preview link with onclick handler
-        doc.previewLink = `<a href="#" onclick="openDocumentPreview('${doc.fileName}'); return false;" style="color: #2196F3; text-decoration: none; font-weight: bold;">📄 View ${doc.fileName}</a>`;
+        doc.previewLink = `<a href="#" onclick="openDocumentPreview('${doc.fileName}', '${doc.department}'); return false;" style="color: #2196F3; text-decoration: none; font-weight: bold;">📄 View ${doc.fileName}</a>`;
         
         // Create formatted HTML for display with relevance indicator
         const relevanceColor = relevancePercent > 75 ? '#4CAF50' : relevancePercent > 50 ? '#FF9800' : '#9E9E9E';

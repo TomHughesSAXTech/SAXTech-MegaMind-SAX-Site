@@ -120,7 +120,7 @@ try {
         doc.matchedSections = doc.chunks.map(c => `Section ${c.chunkNumber + 1}`).join(', ');
         
         // IMPORTANT: Create the preview link that calls our JavaScript function
-        doc.previewLink = `<a href="#" onclick="openDocumentPreview('${doc.fileName}'); return false;">📄 View ${doc.fileName}</a>`;
+        doc.previewLink = `<a href="#" onclick="openDocumentPreview('${doc.fileName}', '${doc.department}'); return false;">📄 View ${doc.fileName}</a>`;
         
         // Create a summary for the AI
         doc.summary = `Document: ${doc.title} (${doc.documentType}) - Matched in ${doc.matchedSections}`;

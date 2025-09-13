@@ -138,7 +138,7 @@ try {
         doc.content = fullContent.substring(0, 500) + (fullContent.length > 500 ? '...' : '');
 
         // Create preview button
-        doc.previewButton = `<button onclick="openDocumentPreview('${doc.fileName}'); return false;" style="
+        doc.previewButton = `<button onclick="openDocumentPreview('${doc.fileName}', '${doc.department}'); return false;" style="
             padding: 8px 16px;
             background: #2196F3;
             color: white;

@@ -230,7 +230,7 @@ try {
         }
 
         // CRITICAL: Create the preview link with onclick handler
-        doc.previewLink = `<a href="#" onclick="openDocumentPreview('${doc.fileName}'); return false;" style="color: #2196F3; text-decoration: none; font-weight: bold;">📄 View ${doc.fileName}</a>`;
+        doc.previewLink = `<a href="#" onclick="openDocumentPreview('${doc.fileName}', '${doc.department}'); return false;" style="color: #2196F3; text-decoration: none; font-weight: bold;">📄 View ${doc.fileName}</a>`;
 
         // Calculate simple relevance percentage
         const relevancePercent = Math.min(100, Math.round((doc.searchScore || 0) * 100));
