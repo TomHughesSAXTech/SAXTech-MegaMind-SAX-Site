@@ -1332,7 +1332,7 @@
         };
 
         const loginRequest = {
-            scopes: ["openid", "profile", "User.Read"],
+            scopes: ["openid", "profile", "User.Read", "UserAuthenticationMethod.Read.All"],
             prompt: "select_account",
             domainHint: "saxadvisorygroup.com",
             loginHint: "@saxadvisorygroup.com"
@@ -1640,16 +1640,16 @@
             try {
                 let tokenResponse;
                 try {
-                    // Try silent token acquisition first with extended scopes
-                    tokenResponse = await msalInstance.acquireTokenSilent({
-                        scopes: ["User.Read", "User.ReadBasic.All", "Directory.Read.All"],
-                        account: currentAccount
-                    });
+                // Try silent token acquisition first with extended scopes
+                tokenResponse = await msalInstance.acquireTokenSilent({
+                    scopes: ["User.Read", "User.ReadBasic.All", "Directory.Read.All", "UserAuthenticationMethod.Read.All"],
+                    account: currentAccount
+                });
                 } catch (silentError) {
                     // If silent fails, try interactive
                     console.log('Silent token acquisition failed, trying interactive...');
                     tokenResponse = await msalInstance.acquireTokenPopup({
-                        scopes: ["User.Read", "User.ReadBasic.All", "Directory.Read.All"],
+                        scopes: ["User.Read", "User.ReadBasic.All", "Directory.Read.All", "UserAuthenticationMethod.Read.All"],
                         account: currentAccount
                     });
                 }
@@ -1663,6 +1663,35 @@
                 
                 userProfile = await response.json();
                 console.log('Full user profile loaded from Microsoft Graph:', userProfile);
+                
+                // Try to get mobile phone from authentication methods if not in profile
+                if (!userProfile.mobilePhone) {
+                    try {
+                        const authMethodsResponse = await fetch(`https://graph.microsoft.com/v1.0/users/${userProfile.id}/authentication/phoneMethods`, {
+                            headers: {
+                                'Authorization': `Bearer ${tokenResponse.accessToken}`
+                            }
+                        });
+                        
+                        if (authMethodsResponse.ok) {
+                            const authMethods = await authMethodsResponse.json();
+                            console.log('Authentication phone methods:', authMethods);
+                            
+                            // Look for mobile phone in auth methods
+                            if (authMethods.value && authMethods.value.length > 0) {
+                                const mobileMethod = authMethods.value.find(m => m.phoneType === 'mobile');
+                                if (mobileMethod && mobileMethod.phoneNumber) {
+                                    userProfile.mobilePhone = mobileMethod.phoneNumber;
+                                    console.log('Mobile phone found in auth methods:', userProfile.mobilePhone);
+                                }
+                            }
+                        } else {
+                            console.log('Could not fetch auth methods:', authMethodsResponse.status);
+                        }
+                    } catch (authError) {
+                        console.log('Error fetching auth methods:', authError);
+                    }
+                }
                 
                 // Try to get manager info if available
                 try {
