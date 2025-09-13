@@ -1978,6 +1978,14 @@
         // Send message
         async function sendMessage() {
             const message = messageInput.value.trim();
+            
+            console.log('sendMessage called:', {
+                message: message,
+                attachedFiles: attachedFiles,
+                attachedFilesLength: attachedFiles.length,
+                hasScreenshots: attachedFiles.some(f => f.isScreenshot)
+            });
+            
             if (!message && attachedFiles.length === 0) return;
             
             // Add user message
@@ -2002,9 +2010,6 @@
             if (attachmentsPreview) {
                 attachmentsPreview.innerHTML = '';
             }
-            
-            // Clear attachedFiles array after sending
-            attachedFiles = [];
             
             // Update button to stop mode
             isChatRunning = true;
@@ -2145,7 +2150,9 @@
                     userProfileJobTitle: userProfile?.jobTitle || 'Not set',
                     userProfileDepartment: userProfile?.department || 'Not set',
                     currentAccountUsername: currentAccount?.username || 'Not set',
-                    payloadStructure: Object.keys(payload)
+                    payloadStructure: Object.keys(payload),
+                    attachments: attachedFiles,  // Debug: log attachments
+                    attachmentsInPayload: payload.attachments  // Debug: log what's in payload
                 });
                 
                 // Construct webhook URL
@@ -2160,6 +2167,9 @@
                     body: JSON.stringify(payload),
                     signal: abortController.signal
                 });
+                
+                // Clear attachedFiles array AFTER sending the request
+                attachedFiles = [];
                 
                 // Remove typing indicator
                 if (chatMessages.contains(typingDiv)) {
@@ -3119,7 +3129,11 @@
                             // Notify user
                             addMessage('bot', 'Screenshot pasted successfully. Type your message and click send.');
                             
-                            console.log('Screenshot pasted and ready to send');
+                            console.log('Screenshot pasted and ready to send:', {
+                                attachedFiles: attachedFiles,
+                                lastFile: attachedFiles[attachedFiles.length - 1],
+                                totalAttachments: attachedFiles.length
+                            });
                         };
                         reader.readAsDataURL(blob);
                     }
