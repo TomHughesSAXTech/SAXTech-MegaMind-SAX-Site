@@ -3026,6 +3026,27 @@
         // Track session start time for context
         window.sessionStartTime = Date.now();
         
+        // Add a function to force re-authentication
+        window.forceReauth = async function() {
+            console.log('Forcing re-authentication...');
+            const accounts = msalInstance.getAllAccounts();
+            for (const account of accounts) {
+                try {
+                    await msalInstance.logout({
+                        account: account,
+                        postLogoutRedirectUri: null
+                    });
+                } catch (e) {
+                    console.log('Logout error:', e);
+                }
+            }
+            sessionStorage.clear();
+            localStorage.removeItem('msal.account.keys');
+            localStorage.removeItem('msal.idtoken');
+            localStorage.removeItem('msal.client.info');
+            location.reload();
+        };
+        
         // Initialize on page load
         window.addEventListener('load', async () => {
             console.log('Page loaded, initializing application...');
