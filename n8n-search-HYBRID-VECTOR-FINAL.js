@@ -176,27 +176,31 @@ try {
         const fullContent = doc.chunks.map(c => c.content).join('\n\n');
         doc.content = fullContent.substring(0, 500) + (fullContent.length > 500 ? '...' : '');
 
-        // Track matched sections
-        const matchedSections = doc.chunks.length > 1 ? 
-            `Sections ${doc.chunks[0].chunkNumber + 1}-${doc.chunks[doc.chunks.length - 1].chunkNumber + 1}` :
-            `Section ${doc.chunks[0].chunkNumber + 1}`;
-
-        // Create preview link - CRITICAL for document preview modal
-        doc.previewLink = `<a href="#" onclick="openDocumentPreview('${doc.fileName}'); return false;" style="color: #2196F3; text-decoration: none; font-weight: bold;">📄 View ${doc.fileName}</a>`;
+        // Create preview button - clean and simple
+        doc.previewButton = `<button onclick="openDocumentPreview('${doc.fileName}'); return false;" style="
+            padding: 8px 16px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s;
+        " onmouseover="this.style.background='#1976D2'" onmouseout="this.style.background='#2196F3'">📄 Preview Document</button>`;
 
         // Use score for sorting but don't display it
         const scoreToUse = doc.rerankerScore !== null ? doc.rerankerScore : doc.searchScore;
 
-        // Create HTML display card without relevance scores
+        // Create HTML display card - clean without chunk info
         doc.displayHtml = `
 <div style="margin: 15px 0; padding: 15px; border-left: 4px solid #2196F3; border-radius: 8px; background: #fafafa;">
     <h4 style="margin: 0 0 10px 0; color: #333;">📄 ${doc.title}</h4>
     <p style="margin: 5px 0; color: #666; font-size: 0.9em;">
         <strong>Type:</strong> ${doc.documentType} | 
-        <strong>Department:</strong> ${doc.department} | 
-        <strong>Matched:</strong> ${matchedSections}
+        <strong>Department:</strong> ${doc.department}
     </p>
-    <p style="margin: 10px 0 5px 0;">${doc.previewLink}</p>
+    <p style="margin: 10px 0 5px 0;">${doc.previewButton}</p>
 </div>`;
 
         return doc;

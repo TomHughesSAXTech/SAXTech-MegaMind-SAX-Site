@@ -850,13 +850,13 @@
         }
 
         .message-avatar {
-            width: 40px;
-            height: 40px;
+            width: 48px;
+            height: 48px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 16px;
+            font-size: 18px;
             font-weight: bold;
             flex-shrink: 0;
             box-shadow: 0 3px 10px rgba(0,0,0,0.2);
@@ -3087,16 +3087,19 @@
             location.reload();
         };
         
-        // Load voice configuration from admin settings
-        function loadVoiceDropdown() {
+        // Load voice configuration from centralized Azure storage
+        async function loadVoiceDropdown() {
             const voiceSelect = document.getElementById('voiceSelect');
-            const saved = localStorage.getItem('megamind_voice_config');
             
-            if (saved) {
-                try {
-                    const voices = JSON.parse(saved);
-                    voiceSelect.innerHTML = '';
+            try {
+                // Load from Azure Function (same config for ALL users)
+                const response = await fetch('https://saxtechmegamindfunctions.azurewebsites.net/api/ManageVoiceConfig');
+                
+                if (response.ok) {
+                    const config = await response.json();
+                    const voices = config.voices || [];
                     
+                    voiceSelect.innerHTML = '';
                     voices.forEach(voice => {
                         const option = document.createElement('option');
                         option.value = voice.name.toLowerCase();
@@ -3104,9 +3107,35 @@
                         voiceSelect.appendChild(option);
                     });
                     
-                    console.log('Loaded custom voice configuration:', voices.length, 'voices');
-                } catch (e) {
-                    console.error('Error loading voice config:', e);
+                    // Cache in localStorage for offline use
+                    localStorage.setItem('megamind_voice_config', JSON.stringify(voices));
+                    console.log('Loaded centralized voice configuration:', voices.length, 'voices');
+                    
+                } else {
+                    throw new Error('Failed to load from cloud');
+                }
+                
+            } catch (error) {
+                console.error('Failed to load from cloud, using cached:', error);
+                
+                // Fallback to cached version
+                const saved = localStorage.getItem('megamind_voice_config');
+                if (saved) {
+                    try {
+                        const voices = JSON.parse(saved);
+                        voiceSelect.innerHTML = '';
+                        
+                        voices.forEach(voice => {
+                            const option = document.createElement('option');
+                            option.value = voice.name.toLowerCase();
+                            option.textContent = voice.name;
+                            voiceSelect.appendChild(option);
+                        });
+                        
+                        console.log('Using cached voice configuration:', voices.length, 'voices');
+                    } catch (e) {
+                        console.error('Error loading cached config:', e);
+                    }
                 }
             }
         }
