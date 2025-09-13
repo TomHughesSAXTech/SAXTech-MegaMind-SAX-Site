@@ -2056,6 +2056,14 @@
         let currentPreviewData = null;
         
         function showDocumentInModal(url, fileName, docId, department) {
+            // First try to use the enhanced preview system if available
+            if (window.openDocumentPreview && typeof window.openDocumentPreview === 'function') {
+                console.log('Using enhanced preview system');
+                window.openDocumentPreview(fileName, department);
+                return;
+            }
+            
+            // Fall back to inline modal preview
             const modal = document.getElementById('previewModal');
             const title = document.getElementById('previewTitle');
             const content = document.getElementById('previewContent');

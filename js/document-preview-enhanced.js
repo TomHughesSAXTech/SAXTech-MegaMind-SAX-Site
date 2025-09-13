@@ -4,24 +4,36 @@
  */
 
 // Make openDocumentPreview globally available
-window.openDocumentPreview = async function(fileName) {
-    console.log('Opening document preview for:', fileName);
-    
-    // The actual blob path might include folders
-    // For "2025.07_Caseware Manual.pdf" the actual path is "Audit and Attestation/2025.07_Caseware Manual.pdf"
+window.openDocumentPreview = async function(fileName, department) {
+    console.log('Opening document preview for:', fileName, 'Department:', department);
     
     // Show loading modal
     showPreviewLoading(fileName);
     
     try {
-        // Try common folder patterns first, then base filename
-        const possiblePaths = [
-            `Audit and Attestation/${fileName}`,
-            `Technical Procedures/${fileName}`,
-            `Documents/${fileName}`,
+        // Build possible paths based on department
+        const possiblePaths = [];
+        
+        // If department is provided, try it first
+        if (department && department !== '') {
+            possiblePaths.push(`${department}/${fileName}`);
+        }
+        
+        // Also try some common variations
+        possiblePaths.push(
+            `A&A/${fileName}`,  // Audit & Advisory shortened
+            `HR/${fileName}`,  // Human Resources shortened
+            `Finance/${fileName}`,
+            `Leadership/${fileName}`,
+            `Marketing/Business Development/${fileName}`,
+            `Operations/${fileName}`,
+            `Shared Services/${fileName}`,
+            `Tax/${fileName}`,
+            `Transaction Advisory/${fileName}`,
+            `Wealth Management/${fileName}`,
             `General/${fileName}`,
             fileName  // Try base filename last
-        ];
+        );
         
         let sasUrl = null;
         let successfulPath = null;
@@ -30,7 +42,7 @@ window.openDocumentPreview = async function(fileName) {
             console.log('Trying path:', path);
             const testUrl = await generateSASUrl(path);
             if (testUrl) {
-                // Got a SAS URL, but need to verify it actually works
+                // Got a SAS URL
                 console.log('Got SAS URL for path:', path);
                 sasUrl = testUrl;
                 successfulPath = path;
