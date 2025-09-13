@@ -2524,16 +2524,18 @@
                 
                 const payload = {
                     preview: true,  // This tells n8n to use the short greeting
-                    selectedVoice: selectedVoice,
+                    selectedVoice: selectedVoice,  // Pass the selected voice
+                    voice: selectedVoice,  // Also pass as 'voice' for compatibility
                     enableTTS: true,
                     sessionId: 'voice_' + Date.now(),
                     userProfile: {
                         name: userProfile?.displayName || '',
                         givenName: firstName
                     }
+                    // DO NOT include 'message' field for preview
                 };
                 
-                console.log('Sending preview for voice interaction start');
+                console.log('Sending preview for voice interaction start with voice:', selectedVoice);
                 
                 const webhookUrl = `https://workflows.saxtechnology.com/webhook/${currentWebhook || 'megamind-chat'}`;
                 
@@ -2546,7 +2548,9 @@
                 });
                 
                 if (response.ok) {
-                    const result = await response.json();
+                    const responseText = await response.text();
+                    try {
+                        const result = JSON.parse(responseText);
                     
                     // Play the preview audio if available
                     if (result.audioBase64 || result.audioData || result.audioUrl) {
@@ -2569,6 +2573,20 @@
                             }
                         }, 1000);
                     }
+                    } catch (parseError) {
+                        console.error('Error parsing preview response:', parseError);
+                        console.log('Response was:', responseText);
+                        // Try to start listening anyway
+                        setTimeout(() => {
+                            if (voiceInteractionActive && !isAISpeaking && !recognitionActive) {
+                                startListening();
+                            }
+                        }, 1000);
+                    }
+                } else {
+                    console.error('Preview request failed with status:', response.status);
+                    const errorText = await response.text();
+                    console.log('Error response:', errorText);
                 }
             } catch (error) {
                 console.error('Error sending preview:', error);
@@ -2581,7 +2599,7 @@
             }
         }
         
-        // Voice preview function
+        // Voice preview function for dropdown change
         async function previewVoice(voiceName) {
             // Stop any existing preview
             if (previewAudio) {
@@ -2589,23 +2607,28 @@
                 previewAudio = null;
             }
             
-            // Use the same preview text for all voices
-            const previewText = "Hi, I'm MegaMind, your SAX AI Assistant";
-            
             // Show loading state
             statusText.textContent = 'Loading voice preview...';
             
             // Get the current webhook URL based on the selected AI profile
             const webhookUrl = `https://workflows.saxtechnology.com/webhook/${currentWebhook || 'megamind-chat'}`;
             
+            // Get user profile info for personalization
+            const firstName = userProfile?.givenName || userProfile?.displayName?.split(' ')[0] || '';
+            
             try {
-                // Send preview request to the n8n workflow - ensure voice is passed correctly
+                // Send preview request with preview flag (no message)
                 const requestData = {
-                    message: previewText,
-                    voice: voiceName.toLowerCase(),  // Ensure lowercase for consistency
-                    selectedVoice: voiceName.toLowerCase(),
-                    enableTTS: true,  // Ensure TTS is enabled
-                    sessionId: 'preview_' + Date.now()  // Unique session for preview
+                    preview: true,  // This tells n8n to use the short greeting
+                    voice: voiceName.toLowerCase(),  // Pass as 'voice'
+                    selectedVoice: voiceName.toLowerCase(),  // Also pass as 'selectedVoice'
+                    enableTTS: true,
+                    sessionId: 'preview_' + Date.now(),
+                    userProfile: {
+                        name: userProfile?.displayName || '',
+                        givenName: firstName
+                    }
+                    // DO NOT include 'message' field for preview
                 };
                 
                 console.log('Sending preview request:', requestData);
@@ -2619,7 +2642,9 @@
                 });
                 
                 if (response.ok) {
-                    const result = await response.json();
+                    const responseText = await response.text();
+                    try {
+                        const result = JSON.parse(responseText);
                     
                     // Check for audio data in various possible fields
                     let audioData = null;
@@ -2678,11 +2703,17 @@
                         }
                     } else {
                         console.log('No audio data in preview response');
-                        statusText.textContent = `Voice changed to ${voiceName} (preview loading...)`;
-                        // Voice preview might not be available immediately
+                        statusText.textContent = `Voice changed to ${voiceName}`;
+                    }
+                    } catch (parseError) {
+                        console.error('Error parsing voice preview response:', parseError);
+                        console.log('Response was:', responseText);
+                        statusText.textContent = `Voice changed to ${voiceName}`;
                     }
                 } else {
                     console.warn('Preview request failed with status:', response.status);
+                    const errorText = await response.text();
+                    console.log('Error response:', errorText);
                     statusText.textContent = `Voice changed to ${voiceName}`;
                 }
             } catch (error) {
