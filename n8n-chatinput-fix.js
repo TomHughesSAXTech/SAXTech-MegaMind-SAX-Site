@@ -4,8 +4,10 @@
 const inputJson = $input.first().json;
 
 // Find the user's message from various possible field names
+// IMPORTANT: Webhook data has message in body.message
 const userMessage = 
   inputJson.chatInput ||                    // If already set
+  inputJson.body?.message ||                // FROM WEBHOOK BODY - THIS IS THE KEY!
   inputJson.userMessage ||                  // From your webhook
   inputJson.MESSAGE_SENT ||                 // From chat frontend
   inputJson.MESSAGE_WITH_ATTACHMENTS ||     // From document processor
@@ -17,7 +19,9 @@ const userMessage =
   '';                                        // Fallback to empty
 
 // Get session ID from various sources
+// Webhook has sessionId in body.sessionId
 const sessionId = 
+  inputJson.body?.sessionId ||              // FROM WEBHOOK BODY
   inputJson.sessionId || 
   inputJson.session_id || 
   inputJson.MESSAGE_METADATA?.sessionId ||
@@ -26,6 +30,7 @@ const sessionId =
 // Check if there's extracted content from attachments
 const extractedContent = inputJson.extractedContent || '';
 const hasAttachments = inputJson.hasProcessedAttachments || 
+                       inputJson.body?.attachments?.length > 0 ||  // Check in body too
                        inputJson.attachments?.length > 0 || 
                        false;
 
