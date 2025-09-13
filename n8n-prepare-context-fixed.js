@@ -16,9 +16,11 @@ const attachments = inputData.attachments || [];
 const profile = inputData.profile || 'sage';
 
 // Get proper current time with full details
+// Use browser timezone if provided (from userProfile or userContext), otherwise use UTC
+const timezone = userProfile.timezone || userContext.timezone || inputData.timezone || inputData.userTimezone || 'UTC';
 const now = new Date();
 const timeString = now.toLocaleString('en-US', {
-  timeZone: 'America/Los_Angeles',
+  timeZone: timezone,
   weekday: 'long',
   year: 'numeric',
   month: 'long',
@@ -28,11 +30,17 @@ const timeString = now.toLocaleString('en-US', {
   hour12: true
 });
 
-const currentHour = now.getHours();
+// Get hour in user's timezone for proper greeting
+const userHour = parseInt(now.toLocaleString('en-US', {
+  timeZone: timezone,
+  hour: 'numeric',
+  hour12: false
+}));
+
 let timeContext = '';
-if (currentHour < 12) {
+if (userHour < 12) {
   timeContext = 'Morning';
-} else if (currentHour < 17) {
+} else if (userHour < 17) {
   timeContext = 'Afternoon';
 } else {
   timeContext = 'Evening';
@@ -196,6 +204,7 @@ const completeContext = personalizedContext + departmentInstructions + `
 IMPORTANT TIME & INTERACTION CONTEXT:
 - Current Time: ${timeString}
 - Time Period: ${timeContext}
+- User Timezone: ${timezone}
 - Session ID: ${sessionId}
 - Has Attachments: ${attachments.length > 0 ? 'Yes (' + attachments.length + ' files)' : 'No'}
 - Voice Preference: ${voice}

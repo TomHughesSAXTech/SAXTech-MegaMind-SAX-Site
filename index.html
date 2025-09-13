@@ -1899,14 +1899,26 @@
                 // Create abort controller for this request
                 abortController = new AbortController();
                 
+                // Get the current voice selection
+                const currentVoice = voiceSelect.value || 'sarah';
+                const ttsEnabled = document.getElementById('ttsToggle').checked;
+                
+                console.log('Voice and TTS settings:', {
+                    selectedVoice: currentVoice,
+                    ttsEnabled: ttsEnabled,
+                    voiceSelectElement: voiceSelect,
+                    voiceSelectValue: voiceSelect.value
+                });
+                
                 // Prepare comprehensive payload with full user context
                 const payload = {
                     message: message,
                     sessionId: sessionId,
                     profile: currentAIProfile,
-                    voice: voiceSelect.value || 'sarah',  // Current voice selection
-                    selectedVoice: voiceSelect.value || 'sarah',  // Pass the selected voice
-                    enableTTS: document.getElementById('ttsToggle').checked,  // Use toggle state
+                    voice: currentVoice,  // Current voice selection
+                    selectedVoice: currentVoice,  // Pass the selected voice
+                    enableTTS: ttsEnabled,  // Use toggle state
+                    ttsSummaryLength: 'short',  // Request short TTS summaries (5-10 seconds)
                     attachments: attachedFiles.map(f => ({
                         name: f.name,
                         type: f.type,
@@ -2629,6 +2641,7 @@
                     selectedVoice: selectedVoice,  // Pass the selected voice
                     voice: selectedVoice,  // Also pass as 'voice' for compatibility
                     enableTTS: ttsToggle.checked,  // Use the actual toggle state
+                    ttsSummaryLength: 'short',  // Request short TTS summaries (5-10 seconds)
                     sessionId: 'voice_' + Date.now(),
                     userProfile: {
                         name: userProfile?.displayName || '',
@@ -2637,7 +2650,12 @@
                     // DO NOT include 'message' field for preview
                 };
                 
-                console.log('Sending preview for conversational mode start with voice:', selectedVoice);
+                console.log('Sending preview for conversational mode:', {
+                    voice: selectedVoice,
+                    enableTTS: ttsToggle.checked,
+                    ttsSummaryLength: 'short',
+                    payload: payload
+                });
                 
                 const webhookUrl = `https://workflows.saxtechnology.com/webhook/${currentWebhook || 'megamind-chat'}`;
                 
