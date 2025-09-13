@@ -14,15 +14,36 @@ window.openDocumentPreview = async function(fileName, department) {
         // Build possible paths based on department
         const possiblePaths = [];
         
-        // If department is provided, try it first
+        // If department is provided, try it first - it should be the exact folder name
         if (department && department !== '') {
+            console.log('Department provided, trying:', department);
             possiblePaths.push(`${department}/${fileName}`);
+            
+            // Also try variations of the department name
+            // Map full names to folder names if needed
+            const deptMappings = {
+                'Human Resources': 'HR',
+                'Audit & Advisory': 'A&A',
+                'Tax Services': 'Tax',
+                'Marketing & Business Development': 'Marketing/Business Development'
+            };
+            
+            // If department matches a key, also try the mapped value
+            if (deptMappings[department]) {
+                possiblePaths.push(`${deptMappings[department]}/${fileName}`);
+            }
+            
+            // If department matches a value, also try the key
+            const reverseMappings = Object.entries(deptMappings).find(([key, val]) => val === department);
+            if (reverseMappings) {
+                possiblePaths.push(`${reverseMappings[0]}/${fileName}`);
+            }
         }
         
-        // Also try some common variations
-        possiblePaths.push(
-            `A&A/${fileName}`,  // Audit & Advisory shortened
+        // Then try common department folders as fallbacks (but not first!)
+        const fallbackPaths = [
             `HR/${fileName}`,  // Human Resources shortened
+            `A&A/${fileName}`,  // Audit & Advisory shortened
             `Finance/${fileName}`,
             `Leadership/${fileName}`,
             `Marketing/Business Development/${fileName}`,
@@ -33,7 +54,14 @@ window.openDocumentPreview = async function(fileName, department) {
             `Wealth Management/${fileName}`,
             `General/${fileName}`,
             fileName  // Try base filename last
-        );
+        ];
+        
+        // Add fallbacks only if not already in the list
+        fallbackPaths.forEach(path => {
+            if (!possiblePaths.includes(path)) {
+                possiblePaths.push(path);
+            }
+        });
         
         let sasUrl = null;
         let successfulPath = null;
