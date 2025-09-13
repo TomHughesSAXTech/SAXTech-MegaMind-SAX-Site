@@ -14,23 +14,27 @@ window.openDocumentPreview = async function(fileName) {
     showPreviewLoading(fileName);
     
     try {
-        // Try with original filename first
-        let sasUrl = await generateSASUrl(fileName);
+        // Try common folder patterns first, then base filename
+        const possiblePaths = [
+            `Audit and Attestation/${fileName}`,
+            `Technical Procedures/${fileName}`,
+            `Documents/${fileName}`,
+            `General/${fileName}`,
+            fileName  // Try base filename last
+        ];
         
-        if (!sasUrl) {
-            // If that fails, try common folder patterns
-            const possiblePaths = [
-                fileName,
-                `Audit and Attestation/${fileName}`,
-                `Technical Procedures/${fileName}`,
-                `Documents/${fileName}`,
-                `General/${fileName}`
-            ];
-            
-            for (const path of possiblePaths) {
-                console.log('Trying path:', path);
-                sasUrl = await generateSASUrl(path);
-                if (sasUrl) break;
+        let sasUrl = null;
+        let successfulPath = null;
+        
+        for (const path of possiblePaths) {
+            console.log('Trying path:', path);
+            const testUrl = await generateSASUrl(path);
+            if (testUrl) {
+                // Got a SAS URL, but need to verify it actually works
+                console.log('Got SAS URL for path:', path);
+                sasUrl = testUrl;
+                successfulPath = path;
+                break;  // Use the first successful path
             }
         }
         
