@@ -1364,7 +1364,8 @@
         let isRecording = false;
         let mediaRecorder = null;
         let audioChunks = [];
-        let attachedFiles = [];
+        window.attachedFiles = [];  // Make it globally accessible
+        let attachedFiles = window.attachedFiles;  // Use the window reference
         let conversationMode = true;  // Always in conversation mode
         let isInConversation = false;
         let silenceTimer = null;
@@ -1986,7 +1987,7 @@
             const message = messageInput.value.trim();
             
             // Capture attachedFiles at the moment of sending
-            const filesToSend = [...attachedFiles];  // Make a copy
+            const filesToSend = [...window.attachedFiles];  // Make a copy from global
             
             console.log('sendMessage called:', {
                 message: message,
@@ -2237,7 +2238,8 @@
                                 addMessage('bot', responseText, audioData);
                                 
                                 // Clear attachedFiles ONLY after successful response
-                                attachedFiles = [];
+                                window.attachedFiles = [];
+                                attachedFiles = window.attachedFiles;
                                 
                 // If no audio data but in conversational mode, restart listening
                 if (!audioData && voiceInteractionActive) {
@@ -3105,13 +3107,19 @@
         
         // Add paste event listener to support pasting images
         messageInput.addEventListener('paste', async (e) => {
+            console.log('PASTE EVENT TRIGGERED');
+            console.log('Clipboard items:', e.clipboardData.items);
+            console.log('Clipboard items length:', e.clipboardData.items.length);
+            
             const items = e.clipboardData.items;
             
             for (let i = 0; i < items.length; i++) {
                 const item = items[i];
+                console.log(`Item ${i}:`, item.type, item.kind);
                 
                 // Check if it's an image
                 if (item.type.indexOf('image') !== -1) {
+                    console.log('IMAGE DETECTED IN PASTE');
                     e.preventDefault(); // Prevent default paste
                     
                     const blob = item.getAsFile();
@@ -3141,21 +3149,28 @@
                             attachmentsPreview.appendChild(previewDiv);
                             
                             // Add to attachedFiles array for sending
-                            attachedFiles.push({
+                            const fileObj = {
                                 name: `screenshot_${Date.now()}.png`,
                                 type: 'image/png',
                                 size: blob.size,
                                 data: base64Data, // Include actual data
                                 isScreenshot: true
-                            });
+                            };
+                            
+                            console.log('ADDING TO attachedFiles:', fileObj);
+                            console.log('attachedFiles BEFORE push:', [...window.attachedFiles]);
+                            window.attachedFiles.push(fileObj);
+                            attachedFiles = window.attachedFiles;  // Ensure local reference is updated
+                            console.log('attachedFiles AFTER push:', [...window.attachedFiles]);
                             
                             // Notify user
                             addMessage('bot', 'Screenshot pasted successfully. Type your message and click send.');
                             
                             console.log('Screenshot pasted and ready to send:', {
-                                attachedFiles: attachedFiles,
+                                attachedFiles: [...attachedFiles],
                                 lastFile: attachedFiles[attachedFiles.length - 1],
-                                totalAttachments: attachedFiles.length
+                                totalAttachments: attachedFiles.length,
+                                globalAttachedFiles: window.attachedFiles
                             });
                         };
                         reader.readAsDataURL(blob);
@@ -3171,7 +3186,8 @@
                 sessionStorage.removeItem('megamind_sax_messages');
                 
                 // Clear any attachments
-                attachedFiles = [];
+                window.attachedFiles = [];
+                attachedFiles = window.attachedFiles;
                 const attachmentsPreview = document.getElementById('attachments-preview');
                 if (attachmentsPreview) {
                     attachmentsPreview.innerHTML = '';
