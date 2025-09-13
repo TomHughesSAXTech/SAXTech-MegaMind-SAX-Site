@@ -1442,7 +1442,13 @@
         const voiceSelect = document.getElementById('voiceSelect');
         const conversationState = document.getElementById('conversationState');
         let previewAudio = null;
-        const fileInput = document.getElementById('fileInput');
+        const fileBtn = document.getElementById('fileBtn');
+        
+        // Debug: Track attachedFiles changes
+        window.debugAttachments = function() {
+            console.log('Current attachedFiles:', attachedFiles);
+            return attachedFiles;
+        };
         const resetBtn = document.getElementById('resetBtn');
         let conversationStopped = false;  // Track if conversation is manually stopped
 
@@ -1979,14 +1985,18 @@
         async function sendMessage() {
             const message = messageInput.value.trim();
             
+            // Capture attachedFiles at the moment of sending
+            const filesToSend = [...attachedFiles];  // Make a copy
+            
             console.log('sendMessage called:', {
                 message: message,
                 attachedFiles: attachedFiles,
+                filesToSend: filesToSend,
                 attachedFilesLength: attachedFiles.length,
                 hasScreenshots: attachedFiles.some(f => f.isScreenshot)
             });
             
-            if (!message && attachedFiles.length === 0) return;
+            if (!message && filesToSend.length === 0) return;
             
             // Add user message
             if (message) {
@@ -1994,8 +2004,8 @@
             }
             
             // Show attached images in the chat if any
-            if (attachedFiles.length > 0) {
-                attachedFiles.forEach(file => {
+            if (filesToSend.length > 0) {
+                filesToSend.forEach(file => {
                     if (file.isScreenshot && file.data) {
                         // Show the pasted screenshot in the chat
                         const imgMessage = `<img src="${file.data}" style="max-width: 300px; max-height: 300px; border-radius: 8px; margin: 5px 0;" alt="Pasted screenshot">`;
@@ -2060,8 +2070,8 @@
                 // Prepare comprehensive payload with full user context
                 // Add context if screenshot was pasted
                 let enhancedMessage = message;
-                if (attachedFiles.length > 0 && attachedFiles.some(f => f.isScreenshot)) {
-                    const screenshotCount = attachedFiles.filter(f => f.isScreenshot).length;
+                if (filesToSend.length > 0 && filesToSend.some(f => f.isScreenshot)) {
+                    const screenshotCount = filesToSend.filter(f => f.isScreenshot).length;
                     enhancedMessage = (message || '') + `\n\n[Context: User has pasted ${screenshotCount} screenshot(s). Image OCR processing is pending in n8n workflow. Please acknowledge the screenshot and ask the user to describe what they need help with regarding the image.]`;
                 }
                 
@@ -2078,7 +2088,7 @@
                     ttsSummarize: true,  // Force summarization for TTS to save tokens
                     // Send voice configuration for dynamic mapping
                     voiceConfig: JSON.parse(localStorage.getItem('megamind_voice_config') || '[]'),
-                    attachments: attachedFiles.map(f => ({
+                    attachments: filesToSend.map(f => ({
                         name: f.name,
                         type: f.type,
                         size: f.size,
@@ -2147,9 +2157,10 @@
                 console.log('Sending payload to n8n:', {
                     MESSAGE_SENT: payload.message,
                     ATTACHMENTS_STATUS: {
-                        attachedFilesArray: attachedFiles,
-                        attachmentCount: attachedFiles.length,
-                        hasScreenshots: attachedFiles.some(f => f.isScreenshot),
+                        originalAttachedFiles: attachedFiles,
+                        filesToSend: filesToSend,
+                        attachmentCount: filesToSend.length,
+                        hasScreenshots: filesToSend.some(f => f.isScreenshot),
                         attachmentsInPayload: payload.attachments,
                         firstAttachment: payload.attachments[0] || null
                     },
@@ -2180,9 +2191,6 @@
                     body: JSON.stringify(payload),
                     signal: abortController.signal
                 });
-                
-                // Clear attachedFiles array AFTER sending the request
-                attachedFiles = [];
                 
                 // Remove typing indicator
                 if (chatMessages.contains(typingDiv)) {
@@ -2228,6 +2236,9 @@
                                 
                                 addMessage('bot', responseText, audioData);
                                 
+                                // Clear attachedFiles ONLY after successful response
+                                attachedFiles = [];
+                                
                 // If no audio data but in conversational mode, restart listening
                 if (!audioData && voiceInteractionActive) {
                     console.log('No audio data, restarting listening in conversational mode');
@@ -2268,8 +2279,7 @@
                 abortController = null;
             }
             
-            // Clear attached files
-            attachedFiles = [];
+            // Removed duplicate clearing - already cleared on line 2185
         }
 
         // Play audio response
