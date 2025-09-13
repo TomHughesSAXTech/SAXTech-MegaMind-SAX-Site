@@ -1107,8 +1107,16 @@
         const departmentFilter = document.getElementById('departmentFilter');
         if (departmentFilter) {
             departmentFilter.addEventListener('change', function() {
-                currentDepartment = this.value;
-                loadDepartmentDocuments();
+                const selectedDept = this.value;
+                currentDepartment = selectedDept;
+                
+                if (!selectedDept || selectedDept === '') {
+                    // Show all documents if "All Departments" is selected
+                    loadAllDocuments();
+                } else {
+                    // Filter to selected department
+                    filterDocumentsByDepartment(selectedDept);
+                }
             });
         }
         
@@ -1242,8 +1250,19 @@
             }
             
             const filteredDepartments = {};
-            if (window.allDocumentsData.departments[department]) {
-                filteredDepartments[department] = window.allDocumentsData.departments[department];
+            
+            // Try exact match first, then case-insensitive match
+            let foundDept = null;
+            Object.keys(window.allDocumentsData.departments).forEach(deptKey => {
+                if (deptKey === department) {
+                    foundDept = deptKey;
+                } else if (deptKey.toLowerCase() === department.toLowerCase()) {
+                    foundDept = deptKey;
+                }
+            });
+            
+            if (foundDept) {
+                filteredDepartments[foundDept] = window.allDocumentsData.departments[foundDept];
             }
             
             if (Object.keys(filteredDepartments).length > 0) {
@@ -1760,12 +1779,17 @@
                                     title: doc.title || doc.fileName,
                                     fileName: doc.fileName,
                                     description: doc.description || '',
-                                    lastModified: new Date(doc.uploadDate).toLocaleDateString(),
+                                    lastModified: doc.uploadDate || doc.lastModified,  // Pass the raw date string
+                                    uploadDate: doc.uploadDate,  // Add uploadDate field
                                     type: (doc.documentType || 'DOC').substring(0, 3).toUpperCase(),
-                                    author: 'SAX User',
-                                    size: 'N/A',
-                                    version: '1.0',
-                                    department: doc.department
+                                    author: doc.author || 'SAX User',
+                                    size: doc.size || doc.fileSize,
+                                    version: doc.version || '1.0',
+                                    department: doc.department,
+                                    indexed: doc.indexed,
+                                    vectorized: doc.vectorized,
+                                    chunkCount: doc.chunkCount,
+                                    isChunked: doc.isChunked
                                 });
                                 deptDiv.appendChild(docItem);
                             });
