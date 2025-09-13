@@ -120,7 +120,7 @@ function displayDocumentPreview(fileName, sasUrl) {
     
     // Determine display method by file type
     if (fileExt === 'pdf') {
-        previewContent = `<iframe src="${sasUrl}" style="width: 100%; height: 100%; border: none;"></iframe>`;
+        previewContent = `<iframe src="${sasUrl}" style="width: 100%; height: 100%; border: none; display: block;"></iframe>`;
     } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg'].includes(fileExt)) {
         previewContent = `
             <div class="image-preview">
@@ -282,12 +282,12 @@ function createPreviewModal() {
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
-                width: 80%;
-                max-width: 1000px;
-                height: 75vh;
-                background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+                width: 85%;
+                max-width: 1100px;
+                height: 85vh;
+                background: white;
                 border: 2px solid rgba(255, 215, 0, 0.3);
-                border-radius: 15px;
+                border-radius: 12px;
                 overflow: hidden;
                 box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5),
                            0 0 40px rgba(255, 215, 0, 0.2);
@@ -311,10 +311,12 @@ function createPreviewModal() {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                padding: 15px 20px;
-                background: linear-gradient(135deg, rgba(255, 215, 0, 0.1) 0%, rgba(255, 140, 0, 0.1) 100%);
-                border-bottom: 1px solid rgba(255, 215, 0, 0.2);
+                padding: 12px 20px;
+                background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+                border-bottom: 2px solid rgba(255, 215, 0, 0.3);
                 cursor: move;
+                flex-shrink: 0;
+                height: 50px;
             }
             
             .modal-title {
@@ -390,9 +392,12 @@ function createPreviewModal() {
             
             .modal-body {
                 flex: 1;
-                overflow: auto;
+                overflow: hidden;
                 background: white;
                 position: relative;
+                height: calc(100% - 50px);
+                display: flex;
+                flex-direction: column;
             }
             
             .modal-body.loading,
