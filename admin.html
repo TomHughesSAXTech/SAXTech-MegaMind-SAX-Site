@@ -1327,11 +1327,14 @@
                             
                             // Determine indexing method
                             let indexMethod = 'Standard';
+                            
+                            // First check if there's OCR text indicating OCR processing
                             if (doc.ocrText && doc.ocrText.trim().length > 0) {
                                 indexMethod = 'OCR';
                             } else if (doc.conversionMethod) {
                                 indexMethod = doc.conversionMethod;
                             } else if (doc.fileName) {
+                                // Infer method from file extension
                                 const ext = doc.fileName.toLowerCase().split('.').pop();
                                 if (['jpg', 'jpeg', 'png', 'gif', 'bmp'].includes(ext)) {
                                     indexMethod = 'OCR';
@@ -1339,12 +1342,27 @@
                                     indexMethod = 'Excel';
                                 } else if (['pdf'].includes(ext)) {
                                     indexMethod = 'PDF Extract';
+                                } else if (['docx', 'doc'].includes(ext)) {
+                                    indexMethod = 'Word Extract';
+                                } else if (['txt', 'md'].includes(ext)) {
+                                    indexMethod = 'Text';
+                                }
+                            }
+                            
+                            // Status override for Active documents
+                            if (doc.status === 'Active' || doc.status === 'indexed') {
+                                if (indexMethod === 'Standard') {
+                                    indexMethod = 'Indexed';
                                 }
                             }
                             
                             const methodColor = indexMethod === 'OCR' ? '#9333ea' : 
                                               indexMethod === 'Excel' ? '#16a34a' : 
-                                              indexMethod === 'PDF Extract' ? '#0891b2' : '#6b7280';
+                                              indexMethod === 'PDF Extract' ? '#0891b2' :
+                                              indexMethod === 'Word Extract' ? '#0369a1' :
+                                              indexMethod === 'Text' ? '#059669' :
+                                              indexMethod === 'Indexed' ? '#3b82f6' :
+                                              indexMethod === 'Active' ? '#3b82f6' : '#6b7280';
                             
                             return `
                             <tr style="border-bottom: 1px solid #eee;">
@@ -1364,7 +1382,7 @@
                                 </td>
                                 <td style="padding: 10px; text-align: center;">${formatSize(doc.fileSize)}</td>
                                 <td style="padding: 10px; text-align: center;">
-                                    ${(doc.vectorized === true || doc.status === 'indexed' || doc.status === 'Active') ? 
+                                    ${(doc.vectorized === true || doc.status === 'indexed' || doc.status === 'Active' || (doc.content && doc.content.length > 0)) ? 
                                         '<span style="color: #16a34a; font-weight: bold;">✓</span>' : 
                                         '<span style="color: #dc2626;">✗</span>'}
                                 </td>
@@ -1372,6 +1390,10 @@
                                 <td style="padding: 10px; text-align: center;">
                                     ${doc.chunkCount ? 
                                         `<span style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${doc.chunkCount} chunks</span>` : 
+                                        doc.contentLength ? 
+                                        `<span style="background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${doc.contentLength.toLocaleString()} chars</span>` :
+                                        doc.content && doc.content.length > 0 ?
+                                        `<span style="background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${doc.content.length.toLocaleString()} chars</span>` :
                                         '<span style="color: #999;">-</span>'}
                                 </td>
                                 <td style="padding: 10px; text-align: center;">

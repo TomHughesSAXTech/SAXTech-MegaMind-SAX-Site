@@ -3171,10 +3171,18 @@
             }
         }
 
-        // Document preview functionality with SAS token generation
-        async function openDocumentPreview(fileName) {
+        // Document preview functionality - renamed to avoid conflict with enhanced system
+        async function openDocumentPreviewInline(fileName) {
             console.log('Opening document preview for:', fileName);
             
+            // Use the enhanced preview system from document-preview-enhanced.js
+            if (window.openDocumentPreview && window.openDocumentPreview !== arguments.callee) {
+                // Call the enhanced version
+                window.openDocumentPreview(fileName);
+                return;
+            }
+            
+            // Fallback to inline implementation if enhanced not loaded
             const modal = document.getElementById('documentPreviewModal');
             const previewFrame = document.getElementById('previewFrame');
             const previewTitle = document.getElementById('previewTitle');
@@ -3368,8 +3376,8 @@
             }
         }
 
-        // Close preview modal
-        function closeDocumentPreview() {
+        // Close preview modal - renamed to avoid conflict with enhanced system
+        function closeDocumentPreviewInline() {
             const modal = document.getElementById('documentPreviewModal');
             if (modal) {
                 modal.style.display = 'none';
@@ -3387,23 +3395,26 @@
             return div.innerHTML;
         }
 
-        // Close modal when clicking outside
+        // Close modal when clicking outside - disabled as enhanced system handles this
+        /*
         window.addEventListener('click', function(event) {
             const modal = document.getElementById('documentPreviewModal');
             if (event.target === modal) {
-                closeDocumentPreview();
+                closeDocumentPreviewInline();
             }
         });
 
-        // Close modal with Escape key
+        // Close modal with Escape key - disabled as enhanced system handles this
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape') {
-                closeDocumentPreview();
+                closeDocumentPreviewInline();
             }
         })
+        */
     </script>
 
-    <!-- Document Preview Modal -->
+    <!-- Document Preview Modal - Commented out as enhanced system creates its own modal -->
+    <!-- 
     <div id="documentPreviewModal" class="modal" style="display: none;">
         <div class="modal-content" style="width: 90%; height: 90%; max-width: 1200px;">
             <div class="modal-header">
@@ -3415,6 +3426,7 @@
             </div>
         </div>
     </div>
+    -->
 
     <!-- Enhanced Document Preview System -->
     <script src="js/document-preview-enhanced.js"></script>
