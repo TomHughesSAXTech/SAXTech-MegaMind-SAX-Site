@@ -87,7 +87,7 @@ try {
                 exhaustive: true
             }
         ],
-        select: 'fileName,title,content,documentType,department,tags,createdDate',
+        select: 'fileName,title,content,documentType,department,tags,createdDate,blobUrl',
         top: 50,
         count: true
     };
@@ -143,7 +143,7 @@ try {
                 rerankerScore: doc['@search.rerankerScore'] || null,
                 chunks: [],
                 content: '',
-                : doc. || ''
+                blobUrl: doc.blobUrl || ''
             };
         }
 
