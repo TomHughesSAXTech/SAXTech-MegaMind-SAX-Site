@@ -1142,9 +1142,36 @@
                 <div class="side-button volume-down"></div>
                 
                 <div class="screen">
-                    <!-- Voice selector -->
+                    <!-- Voice selector and TTS toggle -->
                     <div class="voice-selector">
-                        <label for="voiceSelect">AI Voice</label>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                            <label style="margin: 0;">Audio Settings</label>
+                            <label class="switch" style="margin: 0;">
+                                <input type="checkbox" id="ttsToggle">
+                                <span class="slider" style="
+                                    position: relative;
+                                    display: inline-block;
+                                    width: 44px;
+                                    height: 24px;
+                                    background-color: #ccc;
+                                    border-radius: 24px;
+                                    transition: .3s;
+                                    cursor: pointer;
+                                ">
+                                    <span style="
+                                        position: absolute;
+                                        content: '';
+                                        height: 18px;
+                                        width: 18px;
+                                        left: 3px;
+                                        bottom: 3px;
+                                        background-color: white;
+                                        border-radius: 50%;
+                                        transition: .3s;
+                                    "></span>
+                                </span>
+                            </label>
+                        </div>
                         <select id="voiceSelect">
                             <option value="sarah">Sarah (Female Professional)</option>
                             <option value="daniel">Daniel (Male Professional)</option>
@@ -1152,6 +1179,7 @@
                             <option value="james">James (Deep Male)</option>
                             <option value="charlotte">Charlotte (Energetic Female)</option>
                         </select>
+                        <div id="ttsStatus" style="text-align: center; margin-top: 5px; font-size: 11px; color: rgba(255,255,255,0.6);">Audio: OFF</div>
                     </div>
                     
                     <!-- Speaker icon and status -->
@@ -1161,7 +1189,7 @@
                         </svg>
                     </div>
                     
-                    <div class="status-text" id="statusText">Tap speaker to start conversation</div>
+                    <div class="status-text" id="statusText">Turn on Audio, then tap speaker for voice mode</div>
                     
                     <!-- Volume bars for voice activity -->
                     <div class="volume-bars">
@@ -1298,6 +1326,7 @@
         let autoRestartTimer = null;
         let volumeAnimationFrame = null;
         let recognitionActive = false;  // Track actual recognition state
+        let voiceInteractionActive = false;  // Track voice interaction mode
         
         // AI Profile Management
         let currentAIProfile = 'sage';  // Start with SAX MegaMind as default
@@ -1382,6 +1411,50 @@
             
             // Initialize carousel visibility
             initializeCarousel();
+            
+            // Initialize TTS toggle handler
+            const ttsToggle = document.getElementById('ttsToggle');
+            const ttsStatus = document.getElementById('ttsStatus');
+            
+            ttsToggle.addEventListener('change', () => {
+                if (ttsToggle.checked) {
+                    ttsStatus.textContent = 'Audio: ON';
+                    ttsStatus.style.color = 'rgba(255,215,0,0.8)';
+                    statusText.textContent = 'Audio enabled. Tap speaker for voice mode';
+                } else {
+                    ttsStatus.textContent = 'Audio: OFF';
+                    ttsStatus.style.color = 'rgba(255,255,255,0.6)';
+                    statusText.textContent = 'Turn on Audio, then tap speaker for voice mode';
+                    
+                    // If voice mode is active, stop it
+                    if (voiceInteractionActive) {
+                        voiceInteractionActive = false;
+                        conversationStopped = true;
+                        
+                        // Stop any ongoing recognition
+                        if (recognition && recognitionActive) {
+                            recognition.stop();
+                        }
+                        
+                        // Stop any playing audio
+                        stopAudio();
+                        
+                        // Visual feedback
+                        speakerIcon.classList.remove('active', 'listening');
+                        conversationState.style.display = 'none';
+                        
+                        // Clear any timers
+                        if (autoRestartTimer) {
+                            clearTimeout(autoRestartTimer);
+                            autoRestartTimer = null;
+                        }
+                        if (silenceTimer) {
+                            clearTimeout(silenceTimer);
+                            silenceTimer = null;
+                        }
+                    }
+                }
+            });
             
             // Try immediate initialization first if msal is already available
             if (typeof msal !== 'undefined' && msal.PublicClientApplication) {
@@ -1696,9 +1769,6 @@
                 document.getElementById('personalityOverlay').classList.remove('show');
             }
         });
-
-        // Voice interaction mode tracking
-        let voiceInteractionActive = false;
         
         // Personality card selection
         document.addEventListener('click', (e) => {
@@ -1827,9 +1897,9 @@
                     message: message,
                     sessionId: sessionId,
                     profile: currentAIProfile,
-                    voice: voiceSelect.value || 'sarah',  // Default to sarah for ElevenLabs
-                    selectedVoice: voiceSelect.value || 'sarah',  // Ensure both fields are set
-                    enableTTS: true,  // Always enable TTS for voice responses
+                    voice: voiceSelect.value || 'sarah',  // Current voice selection
+                    selectedVoice: voiceSelect.value || 'sarah',  // Pass the selected voice
+                    enableTTS: document.getElementById('ttsToggle').checked,  // Use toggle state
                     attachments: attachedFiles.map(f => ({
                         name: f.name,
                         type: f.type,
@@ -2008,14 +2078,25 @@
         // Play audio response
         function playAudio(audioData) {
             try {
+                const ttsToggle = document.getElementById('ttsToggle');
+                
+                // Check if TTS is disabled
+                if (!ttsToggle.checked) {
+                    console.log('TTS is disabled, skipping audio playback');
+                    // Don't restart listening if TTS is off
+                    return;
+                }
+                
                 if (!audioData) {
                     console.warn('No audio data provided');
-                    // Still continue with continuous mode
-                    setTimeout(() => {
-                        if (!recognitionActive && !isAISpeaking) {
-                            startListening();
-                        }
-                    }, 1000);
+                    // Still continue with continuous mode if in voice interaction
+                    if (voiceInteractionActive) {
+                        setTimeout(() => {
+                            if (!recognitionActive && !isAISpeaking) {
+                                startListening();
+                            }
+                        }, 1000);
+                    }
                     return;
                 }
                 
@@ -2466,6 +2547,19 @@
         });
         
         speakerIcon.addEventListener('click', () => {
+            const ttsToggle = document.getElementById('ttsToggle');
+            
+            // Check if TTS is enabled before allowing voice interaction
+            if (!ttsToggle.checked) {
+                statusText.textContent = 'Please turn on Audio first';
+                // Flash the toggle to draw attention
+                ttsToggle.parentElement.style.animation = 'pulse 0.5s ease 2';
+                setTimeout(() => {
+                    ttsToggle.parentElement.style.animation = '';
+                }, 1000);
+                return;
+            }
+            
             // Toggle voice interaction mode
             if (!voiceInteractionActive) {
                 // Starting voice interaction
@@ -2517,6 +2611,7 @@
         async function sendPreviewMessage() {
             try {
                 const voiceSelect = document.getElementById('voiceSelect');
+                const ttsToggle = document.getElementById('ttsToggle');
                 const selectedVoice = voiceSelect.value || 'sarah';
                 
                 // Get user profile info for personalization
@@ -2526,7 +2621,7 @@
                     preview: true,  // This tells n8n to use the short greeting
                     selectedVoice: selectedVoice,  // Pass the selected voice
                     voice: selectedVoice,  // Also pass as 'voice' for compatibility
-                    enableTTS: true,
+                    enableTTS: ttsToggle.checked,  // Use the actual toggle state
                     sessionId: 'voice_' + Date.now(),
                     userProfile: {
                         name: userProfile?.displayName || '',
