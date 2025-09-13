@@ -1614,6 +1614,11 @@
                 metaItems.push(`<span class="meta-item chunks"><span style="font-size: 10px;">📑</span> ${doc.chunkCount} chunks</span>`);
             }
             
+            // Add chunked indicator if document is chunked
+            if (doc.isChunked) {
+                metaItems.push(`<span class="meta-item chunks" style="background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px;"><span style="font-size: 10px;">📑</span> Chunked</span>`);
+            }
+            
             // Add conversion method if available
             if (doc.conversionMethod) {
                 const methodIcon = doc.conversionMethod === 'OCR' ? '👁️' : doc.conversionMethod === 'Excel' ? '📊' : '📄';
