@@ -19,7 +19,7 @@ window.openDocumentPreview = async function(fileName) {
             },
             body: JSON.stringify({
                 fileName: fileName,
-                containerName: 'documents',
+                containerName: 'saxdocuments',
                 permissions: 'r',
                 expiryHours: 1
             })
@@ -240,17 +240,19 @@ function createPreviewModal() {
             }
             
             .modal-content {
-                position: absolute;
+                position: fixed;
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
-                width: 90%;
-                max-width: 1200px;
-                height: 85vh;
+                width: 85%;
+                max-width: 1100px;
+                height: 80vh;
                 background: white;
-                border-radius: 8px;
+                border-radius: 12px;
                 overflow: hidden;
-                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+                display: flex;
+                flex-direction: column;
             }
             
             .modal-header {
