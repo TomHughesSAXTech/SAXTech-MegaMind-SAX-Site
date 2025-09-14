@@ -1,4 +1,15 @@
-// Simple passthrough for "Prepare Context and Route" node
-// This just passes data from previous node to AI Agent
+// Prepare Context and Route - Ensures chatInput exists for AI Agent
 
-return $input.first().json;
+const data = $input.first().json;
+
+// Make absolutely sure chatInput exists
+if (!data.chatInput) {
+  // Try to find the message in various places
+  data.chatInput = data.message || 
+                   data.MESSAGE_SENT || 
+                   data.body?.message || 
+                   data.userMessage || 
+                   'Hello';
+}
+
+return data;
