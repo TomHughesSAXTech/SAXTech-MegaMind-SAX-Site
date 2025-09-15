@@ -2138,8 +2138,10 @@
                 });
                 
                 // Prepare comprehensive payload with full user context
+                // The message should always be sent, even for follow-ups
+                let enhancedMessage = message || '';
+                
                 // Add context if screenshot was pasted
-                let enhancedMessage = message;
                 if (filesToSend.length > 0 && filesToSend.some(f => f.isScreenshot)) {
                     const screenshotCount = filesToSend.filter(f => f.isScreenshot).length;
                     enhancedMessage = (message || '') + `\n\n[Context: User has pasted ${screenshotCount} screenshot(s). Image OCR processing is pending in n8n workflow. Please acknowledge the screenshot and ask the user to describe what they need help with regarding the image.]`;
@@ -2162,7 +2164,9 @@
                 }
 
                 const payload = {
-                    message: enhancedMessage,
+                    message: message || '',  // Original user message
+                    chatInput: enhancedMessage || message || '',  // Enhanced message for processing
+                    userMessage: message || '',  // User's actual input
                     sessionId: sessionId,
                     profile: currentAIProfile,
                     voice: ttsEnabled ? currentVoiceId : null,  // Only send voice ID if TTS is enabled
