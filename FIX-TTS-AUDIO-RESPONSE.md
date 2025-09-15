@@ -4,23 +4,38 @@
 The frontend is sending correct TTS settings (enableTTS=true, voice selection) but the webhook response doesn't include the audio data, even though the ElevenLabs TTS node is generating it.
 
 ## Root Cause
-The Merge node that combines the AI response with TTS audio is not properly passing the audio data through to the webhook response.
+1. **Simple Memory Input Fix** node is stripping out ALL TTS settings and only passing sessionId and chatInput
+2. **Format Agent Response** node then has no TTS settings to work with, defaulting to enableTTS: false
+3. The Merge node that combines the AI response with TTS audio is not properly passing the audio data through to the webhook response.
 
 ## Solution
 
-### Step 0: Fix the Format Agent Response Node (CRITICAL)
-The Format Agent Response node needs to properly extract TTS settings from the input.
+### Step 0: Fix the Simple Memory Input Node (MOST CRITICAL)
+The Simple Memory Input node is stripping out TTS settings. It MUST preserve them.
 
-**Node Name:** `Format Agent Response`
-**Code:** Copy from `n8n-format-agent-response-ULTIMATE.js`
+**Node Name:** `Simple Memory Input Fix`
+**Code:** Copy from `n8n-simple-memory-input-PRESERVE-TTS.js`
 
 This code:
-- Searches through ALL inputs to find TTS settings
-- Checks webhook data and context data
+- Preserves sessionId and chatInput for memory
+- PRESERVES all TTS settings (enableTTS, voiceId, voiceName, etc.)
+- Passes through user profile for personalization
+- Maintains all context needed downstream
+
+### Step 1: Fix the Format Agent Response Node (CRITICAL)
+The Format Agent Response node needs to properly merge AI output with TTS settings.
+
+**Node Name:** `Format Agent Response`
+**Code:** Copy from `n8n-format-agent-response-MERGE-FIX.js`
+
+This code:
+- Searches through ALL inputs to find both AI output AND TTS settings
+- Merges AI Agent output with preserved TTS settings from Simple Memory Input
+- Handles voiceId that's already an ID (like 'gWf6X7X75oO2lF1dH79K')
 - Properly sets enableTTS, voiceId, and sessionId
 - Returns all necessary fields for TTS processing
 
-### Step 1: Replace the Merge Node with a Code Node
+### Step 2: Replace the Merge Node with a Code Node
 Find the node that merges the Format Agent Response with the TTS output (usually called "Merge TTS with Response" or similar) and replace it with a Code node.
 
 **Node Name:** `Merge TTS Response`
@@ -32,7 +47,7 @@ This code:
 - Adds audio fields (audioBase64, audioData, audioUrl) from TTS
 - Handles cases where TTS is disabled or skipped
 
-### Step 2: Update the Webhook Response Node
+### Step 3: Update the Webhook Response Node
 Find the Code node right before "Respond to Webhook" and update it.
 
 **Node Name:** `Prepare Webhook Response` (or similar)
@@ -44,7 +59,7 @@ This code:
 - Handles preview requests with personalized greetings
 - Includes vision/OCR results if present
 
-### Step 3: Verify the Connection Flow
+### Step 4: Verify the Connection Flow
 Ensure your workflow follows this order:
 
 1. **Webhook Trigger** → receives request
@@ -58,7 +73,7 @@ Ensure your workflow follows this order:
 7. **Prepare Webhook Response** (Code node) → formats final response
 8. **Respond to Webhook** → sends response back to frontend
 
-### Step 4: Test the Fix
+### Step 5: Test the Fix
 
 1. Open browser console (F12)
 2. Enable TTS toggle
@@ -73,7 +88,7 @@ Ensure your workflow follows this order:
    ```
 5. Audio should play automatically
 
-### Step 5: Verify Audio Data Flow
+### Step 6: Verify Audio Data Flow
 
 In n8n workflow execution, check each node's output:
 
