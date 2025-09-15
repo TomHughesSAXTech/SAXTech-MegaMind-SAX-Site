@@ -1982,7 +1982,76 @@
             }
         }
 
-        // Send message
+        // ============ CONVERSATION CONTEXT MANAGEMENT ============
+        // Store conversation context globally for maintaining state between messages
+        let conversationContext = {
+            lastImageAnalysis: null,
+            lastVisionContent: null,
+            lastExtractedText: null,
+            conversationHistory: [],
+            lastAttachmentType: null,
+            lastAttachmentName: null
+        };
+
+        // Helper function to convert file to base64
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        // Helper function to determine file category
+        function getFileCategory(file) {
+            const name = file.name ? file.name.toLowerCase() : '';
+            const type = file.type ? file.type.toLowerCase() : '';
+            
+            // Check for images
+            if (type.includes('image') || name.match(/\.(jpg|jpeg|png|gif|bmp|webp|svg)$/)) {
+                return 'image';
+            }
+            
+            // Check for documents
+            if (type.includes('pdf') || name.endsWith('.pdf')) {
+                return 'pdf';
+            }
+            if (type.includes('word') || name.match(/\.(doc|docx)$/)) {
+                return 'word';
+            }
+            if (type.includes('excel') || type.includes('sheet') || name.match(/\.(xls|xlsx)$/)) {
+                return 'excel';
+            }
+            if (type.includes('powerpoint') || type.includes('presentation') || name.match(/\.(ppt|pptx)$/)) {
+                return 'powerpoint';
+            }
+            if (type.includes('text') || name.match(/\.(txt|csv|log|md)$/)) {
+                return 'text';
+            }
+            
+            return 'other';
+        }
+
+        // Function to clear conversation context (useful for starting new conversations)
+        window.clearConversationContext = function() {
+            conversationContext = {
+                lastImageAnalysis: null,
+                lastVisionContent: null,
+                lastExtractedText: null,
+                conversationHistory: [],
+                lastAttachmentType: null,
+                lastAttachmentName: null
+            };
+            console.log('Conversation context cleared');
+        };
+
+        // Function to get current context (for debugging)
+        window.getConversationContext = function() {
+            return conversationContext;
+        };
+
+        // Send message with enhanced context support
         async function sendMessage() {
             const message = messageInput.value.trim();
             
@@ -2076,6 +2145,22 @@
                     enhancedMessage = (message || '') + `\n\n[Context: User has pasted ${screenshotCount} screenshot(s). Image OCR processing is pending in n8n workflow. Please acknowledge the screenshot and ask the user to describe what they need help with regarding the image.]`;
                 }
                 
+                // Process attachments with file categorization
+                const processedAttachments = [];
+                for (const file of filesToSend) {
+                    const fileCategory = file.type ? getFileCategory(file) : 'other';
+                    processedAttachments.push({
+                        name: file.name || 'unnamed',
+                        type: file.type || 'application/octet-stream',
+                        size: file.size || 0,
+                        data: file.data || null,  // Include base64 data if available
+                        category: fileCategory,
+                        isScreenshot: file.isScreenshot || false,
+                        isDocument: ['pdf', 'word', 'excel', 'powerpoint', 'text'].includes(fileCategory),
+                        isImage: fileCategory === 'image'
+                    });
+                }
+
                 const payload = {
                     message: enhancedMessage,
                     sessionId: sessionId,
@@ -2089,13 +2174,9 @@
                     ttsSummarize: true,  // Force summarization for TTS to save tokens
                     // Send voice configuration for dynamic mapping
                     voiceConfig: JSON.parse(localStorage.getItem('megamind_voice_config') || '[]'),
-                    attachments: filesToSend.map(f => ({
-                        name: f.name,
-                        type: f.type,
-                        size: f.size,
-                        data: f.data || null,  // Include base64 data if available
-                        isScreenshot: f.isScreenshot || false
-                    })),
+                    attachments: processedAttachments,
+                    // Include conversation context for follow-up questions
+                    previousContext: conversationContext,
                     // Send enriched user profile for personalization
                     userProfile: {
                         // Basic info
@@ -2236,6 +2317,30 @@
                                 }
                                 
                                 addMessage('bot', responseText, audioData);
+                                
+                                // Update conversation context with the response
+                                if (result.visionAnalysis || result.extractedText || result.combinedText) {
+                                    conversationContext.lastVisionContent = result.visionAnalysis || conversationContext.lastVisionContent;
+                                    conversationContext.lastImageAnalysis = result.imageDescription || conversationContext.lastImageAnalysis;
+                                    conversationContext.lastExtractedText = result.extractedText || result.combinedText || conversationContext.lastExtractedText;
+                                }
+                                
+                                if (processedAttachments.length > 0) {
+                                    conversationContext.lastAttachmentType = processedAttachments[0].category;
+                                    conversationContext.lastAttachmentName = processedAttachments[0].name;
+                                }
+                                
+                                // Store conversation history (keep last 10 exchanges)
+                                conversationContext.conversationHistory.push({
+                                    message: message,
+                                    response: responseText,
+                                    attachments: processedAttachments.map(a => ({ name: a.name, type: a.category })),
+                                    timestamp: new Date().toISOString()
+                                });
+                                
+                                if (conversationContext.conversationHistory.length > 10) {
+                                    conversationContext.conversationHistory.shift();
+                                }
                                 
                                 // Clear attachedFiles ONLY after successful response
                                 window.attachedFiles = [];

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Attachment Test</title>
+</head>
+<body>
+    <h1>Test Attachment Handler</h1>
+    <input type="text" id="messageInput" placeholder="Paste image here">
+    <button id="sendBtn">Send</button>
+    <div id="attachments-preview"></div>
+    <div id="output"></div>
+
+    <script>
+        // Global attachments array
+        window.attachedFiles = [];
+        let attachedFiles = window.attachedFiles;
+
+        // Listen for paste events
+        document.getElementById('messageInput').addEventListener('paste', async (e) => {
+            console.log('PASTE EVENT TRIGGERED');
+            const items = e.clipboardData.items;
+            
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                console.log(`Item ${i}:`, item.type, item.kind);
+                
+                if (item.type.indexOf('image') !== -1) {
+                    console.log('IMAGE DETECTED');
+                    e.preventDefault();
+                    
+                    const blob = item.getAsFile();
+                    if (blob) {
+                        const reader = new FileReader();
+                        reader.onload = function(event) {
+                            const base64Data = event.target.result;
+                            
+                            // Add preview
+                            const preview = document.getElementById('attachments-preview');
+                            preview.innerHTML = `<img src="${base64Data}" style="max-width: 200px;">`;
+                            
+                            // Add to attachedFiles
+                            const fileObj = {
+                                name: `screenshot_${Date.now()}.png`,
+                                type: 'image/png',
+                                size: blob.size,
+                                data: base64Data,
+                                isScreenshot: true
+                            };
+                            
+                            console.log('BEFORE PUSH:', window.attachedFiles.length);
+                            window.attachedFiles.push(fileObj);
+                            attachedFiles = window.attachedFiles;
+                            console.log('AFTER PUSH:', window.attachedFiles.length);
+                            
+                            document.getElementById('output').innerHTML += 
+                                `<p>Attachment added. Total: ${window.attachedFiles.length}</p>`;
+                        };
+                        reader.readAsDataURL(blob);
+                    }
+                }
+            }
+        });
+
+        // Send button handler
+        document.getElementById('sendBtn').addEventListener('click', () => {
+            const filesToSend = [...window.attachedFiles];
+            console.log('SENDING:', {
+                attachedFiles: attachedFiles,
+                windowAttachedFiles: window.attachedFiles,
+                filesToSend: filesToSend,
+                count: filesToSend.length
+            });
+            
+            // Create payload like the main app
+            const payload = {
+                message: document.getElementById('messageInput').value || 'test',
+                attachments: filesToSend.map(f => ({
+                    name: f.name,
+                    type: f.type,
+                    size: f.size,
+                    data: f.data || null,
+                    isScreenshot: f.isScreenshot || false
+                }))
+            };
+            
+            document.getElementById('output').innerHTML += 
+                `<p><strong>Payload:</strong><br>
+                Message: ${payload.message}<br>
+                Attachments: ${payload.attachments.length}<br>
+                First attachment has data: ${payload.attachments[0]?.data ? 'YES' : 'NO'}</p>`;
+            
+            console.log('PAYLOAD:', payload);
+            
+            // Clear attachments after "sending"
+            window.attachedFiles = [];
+            attachedFiles = window.attachedFiles;
+            document.getElementById('attachments-preview').innerHTML = '';
+            document.getElementById('messageInput').value = '';
+        });
+    </script>
+</body>
+</html>
