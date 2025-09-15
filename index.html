@@ -2114,6 +2114,9 @@
             chatMessages.appendChild(typingDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
             
+            // Define webhook URL outside try block so it's accessible in catch block
+            const webhookUrl = `https://workflows.saxtechnology.com/webhook/${currentWebhook}`;
+            
             try {
                 // Create abort controller for this request
                 abortController = new AbortController();
@@ -2265,9 +2268,7 @@
                     payloadStructure: Object.keys(payload)
                 });
                 
-                // Construct webhook URL - always use saxtechnology.com as it's the only configured domain
-                // Always use HTTPS for the webhook to ensure security
-                const webhookUrl = `https://workflows.saxtechnology.com/webhook/${currentWebhook}`;
+                // Log webhook URL (already defined outside try block)
                 console.log('Using webhook:', webhookUrl, 'from host:', window.location.hostname);
                 
                 const response = await fetch(webhookUrl, {
