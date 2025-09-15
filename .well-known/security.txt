@@ -1,0 +1,22 @@
+# Security Policy for SAXTech MegaMind
+# This is a private application - no public access permitted
+
+Contact: security@saxtechnology.com
+Expires: 2026-12-31T23:59:59.000Z
+Preferred-Languages: en
+
+# Security Measures
+# - This application is not indexed by search engines
+# - All data transmission is encrypted via HTTPS
+# - Microsoft Entra ID authentication required
+# - No public access permitted
+# - Regular security updates applied
+
+# Policy
+# This is a private corporate application.
+# Unauthorized access is prohibited.
+# All access attempts are logged.
+
+# Disclosure Policy
+# Security issues should be reported directly to the contact above.
+# Do not publicly disclose security vulnerabilities.

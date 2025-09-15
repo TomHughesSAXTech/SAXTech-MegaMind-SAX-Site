@@ -4,9 +4,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Prevent search engine indexing and caching -->
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex, nocache">
+    <meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet, noimageindex, max-snippet:0, max-image-preview:none">
+    <meta name="bingbot" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+    <meta name="slurp" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+    <meta name="duckduckbot" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+    <meta name="baiduspider" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+    <meta name="yandexbot" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+    <!-- Prevent social media crawling -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Private Application">
+    <meta property="og:description" content="This is a private application. Access restricted.">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Private Application">
+    <meta name="twitter:description" content="This is a private application. Access restricted.">
+    <!-- Additional privacy headers -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, private">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>MegaMind SAX</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="alternate icon" href="/favicon.ico">
+    <script>
+        // Force HTTPS redirect
+        if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+            location.replace('https:' + window.location.href.substring(window.location.protocol.length));
+        }
+    </script>
     <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js" crossorigin="anonymous" onload="window.msalLoaded = true" onerror="window.msalLoaded = false"></script>
     <script>
         window.msalLoaded = false;

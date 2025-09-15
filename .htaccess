@@ -1,0 +1,41 @@
+# Block search engine crawlers
+Header set X-Robots-Tag "noindex, nofollow, noarchive, nosnippet, noimageindex, nocache, noodp, noydir"
+
+# Force HTTPS
+RewriteEngine On
+RewriteCond %{HTTPS} off
+RewriteCond %{HTTP_HOST} !^localhost
+RewriteCond %{HTTP_HOST} !^127\.0\.0\.1
+RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+
+# Security Headers
+Header always set X-Content-Type-Options "nosniff"
+Header always set X-Frame-Options "DENY"
+Header always set X-XSS-Protection "1; mode=block"
+Header always set Referrer-Policy "no-referrer"
+Header always set Permissions-Policy "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
+Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+
+# Prevent caching
+Header always set Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
+Header always set Pragma "no-cache"
+Header always set Expires "0"
+
+# Block specific user agents (crawlers)
+RewriteCond %{HTTP_USER_AGENT} (googlebot|bingbot|slurp|duckduckbot|baiduspider|yandexbot|facebookexternalhit|twitterbot|linkedinbot|whatsapp|applebot|ahrefsbot|semrushbot) [NC]
+RewriteRule .* - [F,L]
+
+# Disable directory browsing
+Options -Indexes
+
+# Protect sensitive files
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Block access to specific file types
+<FilesMatch "\.(env|log|sql|sqlite|db|git|gitignore|md|yml|yaml|json|lock|config)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>

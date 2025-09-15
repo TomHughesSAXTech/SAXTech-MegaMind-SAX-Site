@@ -22,6 +22,25 @@
   "globalHeaders": {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type"
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "X-XSS-Protection": "1; mode=block",
+    "Referrer-Policy": "no-referrer",
+    "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet, noimageindex, nocache, noodp, noydir",
+    "Permissions-Policy": "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()",
+    "Content-Security-Policy": "default-src 'self' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://alcdn.msauth.net https://login.microsoftonline.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://workflows.saxtechnology.com https://login.microsoftonline.com https://graph.microsoft.com https://saxtechmegamindfunctions.azurewebsites.net; frame-src 'self' https://login.microsoftonline.com https://view.officeapps.live.com;",
+    "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+    "Pragma": "no-cache",
+    "Expires": "0"
+  },
+  "responseOverrides": {
+    "400": {
+      "rewrite": "/index.html"
+    },
+    "404": {
+      "rewrite": "/index.html"
+    }
   }
 }

@@ -1,0 +1,14 @@
+/* PRIVATE APPLICATION */
+/* This is a private corporate application */
+/* Unauthorized access is prohibited */
+
+/* TEAM */
+    Organization: SAX Advisory Group
+    Location: Private
+
+/* SITE */
+    Status: Private Corporate Application
+    Access: Restricted - Authentication Required
+    Indexing: Disabled - Not for public access
+    Standards: HTML5, CSS3, JavaScript
+    Security: HTTPS, Entra ID Authentication
