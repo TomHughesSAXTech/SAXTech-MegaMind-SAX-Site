@@ -2165,15 +2165,15 @@
                     message: enhancedMessage,
                     sessionId: sessionId,
                     profile: currentAIProfile,
-                    voice: currentVoiceId,  // Send the actual ElevenLabs voice ID
-                    voiceId: currentVoiceId,  // Also send as voiceId for compatibility
-                    voiceName: currentVoiceName,  // Send the display name
-                    selectedVoice: currentVoice,  // Legacy field
+                    voice: ttsEnabled ? currentVoiceId : null,  // Only send voice ID if TTS is enabled
+                    voiceId: ttsEnabled ? currentVoiceId : null,  // Only send if TTS is enabled
+                    voiceName: ttsEnabled ? currentVoiceName : null,  // Only send if TTS is enabled
+                    selectedVoice: ttsEnabled ? currentVoice : null,  // Only send if TTS is enabled
                     enableTTS: ttsEnabled,  // Use toggle state
-                    ttsSummaryLength: 'short',  // Request short TTS summaries (5-10 seconds)
-                    ttsSummarize: true,  // Force summarization for TTS to save tokens
+                    ttsSummaryLength: ttsEnabled ? 'short' : null,  // Only request if TTS enabled
+                    ttsSummarize: ttsEnabled ? true : false,  // Only summarize if TTS enabled
                     // Send voice configuration for dynamic mapping
-                    voiceConfig: JSON.parse(localStorage.getItem('megamind_voice_config') || '[]'),
+                    voiceConfig: ttsEnabled ? JSON.parse(localStorage.getItem('megamind_voice_config') || '[]') : [],
                     attachments: processedAttachments,
                     // Include conversation context for follow-up questions
                     previousContext: conversationContext,
@@ -3334,6 +3334,21 @@
                 // Clear messages
                 chatMessages.innerHTML = '';
                 sessionStorage.removeItem('megamind_sax_messages');
+                
+                // Clear conversation context (for image/document memory)
+                if (window.clearConversationContext) {
+                    window.clearConversationContext();
+                } else {
+                    // Fallback if function doesn't exist yet
+                    conversationContext = {
+                        lastImageAnalysis: null,
+                        lastVisionContent: null,
+                        lastExtractedText: null,
+                        conversationHistory: [],
+                        lastAttachmentType: null,
+                        lastAttachmentName: null
+                    };
+                }
                 
                 // Clear any attachments
                 window.attachedFiles = [];
