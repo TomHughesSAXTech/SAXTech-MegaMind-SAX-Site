@@ -8,6 +8,18 @@ The Merge node that combines the AI response with TTS audio is not properly pass
 
 ## Solution
 
+### Step 0: Fix the Format Agent Response Node (CRITICAL)
+The Format Agent Response node needs to properly extract TTS settings from the input.
+
+**Node Name:** `Format Agent Response`
+**Code:** Copy from `n8n-format-agent-response-ULTIMATE.js`
+
+This code:
+- Searches through ALL inputs to find TTS settings
+- Checks webhook data and context data
+- Properly sets enableTTS, voiceId, and sessionId
+- Returns all necessary fields for TTS processing
+
 ### Step 1: Replace the Merge Node with a Code Node
 Find the node that merges the Format Agent Response with the TTS output (usually called "Merge TTS with Response" or similar) and replace it with a Code node.
 
