@@ -2770,7 +2770,7 @@
         }
         
         // Start listening
-        function startListening() {
+        async function startListening() {
             // Only start listening if in conversational mode
             if (!voiceInteractionActive) {
                 console.log('Not in conversational mode, skipping speech recognition');
@@ -2780,6 +2780,24 @@
             // Check if conversation is stopped
             if (conversationStopped) {
                 console.log('Conversation is stopped, not starting listening');
+                return;
+            }
+            
+            // First check for microphone permission
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                // Stop the stream immediately, we just needed to check permission
+                stream.getTracks().forEach(track => track.stop());
+            } catch (permError) {
+                console.error('Microphone permission denied:', permError);
+                statusText.textContent = 'Microphone access denied. Please allow microphone access.';
+                speakerIcon.classList.remove('listening', 'active');
+                voiceInteractionActive = false;
+                
+                // Show a more user-friendly message
+                if (permError.name === 'NotAllowedError' || permError.name === 'PermissionDeniedError') {
+                    alert('Microphone access is required for conversational mode. Please allow microphone access in your browser settings and try again.');
+                }
                 return;
             }
             
@@ -2812,6 +2830,7 @@
                         }
                     } else {
                         console.error('Error starting recognition:', error);
+                        statusText.textContent = 'Speech recognition error. Please try again.';
                     }
                 }
             }
