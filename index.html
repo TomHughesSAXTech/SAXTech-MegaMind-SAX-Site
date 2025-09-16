@@ -2938,15 +2938,19 @@
                 voiceInteractionActive = true;
                 conversationStopped = false;
                 
-                // Send preview message first
-                sendPreviewMessage();
-                
                 // Visual feedback
                 speakerIcon.classList.add('active');
-                statusText.textContent = 'Initializing conversational mode...';
+                statusText.textContent = 'Ready to listen...';
                 conversationState.style.display = 'none';
                 
-                console.log('Conversational mode activated - waiting for preview');
+                console.log('Conversational mode activated - starting listening');
+                
+                // Start listening directly without preview
+                setTimeout(() => {
+                    if (voiceInteractionActive && !isAISpeaking && !recognitionActive) {
+                        startListening();
+                    }
+                }, 500);
             } else {
                 // Stopping conversational mode
                 voiceInteractionActive = false;
