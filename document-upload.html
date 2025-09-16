@@ -1040,18 +1040,24 @@
             functionKey: 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw==', // Function key for authentication
             endpoints: {
                 listDocuments: '/documents/list',
-                uploadDocument: '/documents/upload-json',
+                uploadDocument: '/documents/upload-json-enhanced',  // Use enhanced endpoint
                 deleteDocument: '/documents/delete',  // Fixed route with slash
                 downloadDocument: '/documents/download',
                 previewDocument: '/documents/view',
                 search: '/documents/search',  // Correct route with slash
                 generateSAS: '/GenerateSASToken',
-                process: '/documents/upload-json',
+                process: '/documents/upload-json-enhanced',  // Use enhanced endpoint
                 indexMaintenance: '/index/maintenance'  // Correct route with slash
             },
             blobStorage: {
                 containerName: 'saxdocuments',
-                baseUrl: 'https://saxmegamind.blob.core.windows.net'
+                baseUrl: 'https://saxtechmegamind.blob.core.windows.net'
+            },
+            azureSearch: {
+                endpoint: 'https://saxmegamind-search.search.windows.net',
+                indexName: 'sop-documents',
+                apiKey: 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO',
+                apiVersion: '2023-11-01'
             },
             n8n: {
                 webhookUrl: 'https://workflows.saxtechnology.com/webhook/sop-document-upload',
