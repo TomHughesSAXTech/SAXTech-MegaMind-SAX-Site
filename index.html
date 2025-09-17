@@ -2520,8 +2520,8 @@
                     } else {
                         // Handle non-streaming response (existing code)
                         const responseText = await response.text();
-                    
-                    if (!responseText || responseText.trim() === '') {
+                        
+                        if (!responseText || responseText.trim() === '') {
                         console.log('Webhook returned empty response');
                         addMessage('bot', 'I apologize, but the service is currently being configured. Please try again later.');
                     } else {
@@ -2610,6 +2610,7 @@
                             addMessage('bot', 'I received an invalid response from the server.');
                         }
                     }
+                    } // Close the else block for non-streaming response
                 } else {
                     throw new Error(`Server responded with status ${response.status}`);
                 }
