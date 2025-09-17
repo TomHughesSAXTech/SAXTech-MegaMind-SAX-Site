@@ -2579,7 +2579,7 @@
             }
         }
         
-        // Delete document function
+        // Delete document function - deletes ALL chunks of a document
         async function deleteDocument(docId, title, event, department = null, fileName = null) {
             // Prevent default action
             if (event) {
@@ -2587,52 +2587,89 @@
                 event.stopPropagation();
             }
             
+            // Extract base document ID (without chunk suffix)
+            const baseDocId = docId.split('_chunk_')[0];
+            const baseFileName = fileName ? fileName.split('_chunk_')[0] : null;
+            
             // Confirm deletion
-            if (!confirm(`Are you sure you want to delete "${title}"?\n\nThis will remove the document from both the repository and cloud storage.`)) {
+            if (!confirm(`Are you sure you want to delete ALL chunks of "${title}"?\n\nThis will remove the entire document (all chunks) from both the repository and cloud storage.`)) {
                 return;
             }
             
             try {
-                console.log(`Attempting to delete document: ${docId} (${title})`);
-                console.log(`Department: ${department}, FileName: ${fileName}`);
+                console.log(`Attempting to delete ALL chunks of document: ${baseDocId} (${title})`);
+                console.log(`Department: ${department}, Base FileName: ${baseFileName}`);
                 
-                // Try to delete blob from storage using our new direct Azure Function
+                // Collect all chunk IDs to delete from index
+                let chunkIdsToDelete = [];
+                let blobsDeleted = 0;
+                
+                // Try to delete all blob chunks from storage
                 if (department && fileName) {
                     try {
-                        console.log('Attempting direct blob deletion via Azure Function');
+                        console.log('Attempting to delete all blob chunks via Azure Function');
                         const deleteBlobUrl = `${API_CONFIG.baseUrl}/DeleteBlob?code=${API_CONFIG.functionKey}`;
                         
-                        const blobResponse = await fetch(deleteBlobUrl, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'x-functions-key': API_CONFIG.functionKey
-                            },
-                            body: JSON.stringify({
-                                fileName: fileName,
-                                department: department,
-                                containerName: 'saxdocuments'
-                            })
-                        });
-                        
-                        if (blobResponse.ok) {
-                            const blobResult = await blobResponse.json();
-                            console.log('Direct blob deletion result:', blobResult);
-                            if (blobResult.deletedPaths && blobResult.deletedPaths.length > 0) {
-                                console.log('Blob(s) deleted successfully:', blobResult.deletedPaths);
+                        // Delete chunks with pattern matching - try up to 100 chunks
+                        for (let i = 0; i < 100; i++) {
+                            const chunkSuffix = i === 0 ? '' : `_chunk_${i}`;
+                            const chunkFileName = baseFileName + chunkSuffix + 
+                                                 (fileName.includes('.') ? fileName.substring(fileName.lastIndexOf('.')) : '');
+                            const chunkDocId = baseDocId + chunkSuffix;
+                            
+                            try {
+                                const blobResponse = await fetch(deleteBlobUrl, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'x-functions-key': API_CONFIG.functionKey
+                                    },
+                                    body: JSON.stringify({
+                                        fileName: chunkFileName,
+                                        department: department,
+                                        containerName: 'saxdocuments'
+                                    })
+                                });
+                                
+                                if (blobResponse.ok) {
+                                    const blobResult = await blobResponse.json();
+                                    console.log(`Blob chunk ${i} deleted:`, chunkFileName);
+                                    blobsDeleted++;
+                                    chunkIdsToDelete.push(chunkDocId);
+                                } else if (i === 0) {
+                                    // If first chunk fails, still try to delete from index
+                                    console.warn('First blob chunk deletion failed, continuing with index');
+                                    chunkIdsToDelete.push(chunkDocId);
+                                } else {
+                                    // No more chunks exist
+                                    break;
+                                }
+                            } catch (error) {
+                                if (i === 0) {
+                                    console.error('Error deleting first chunk, continuing:', error);
+                                    chunkIdsToDelete.push(chunkDocId);
+                                }
+                                break;
                             }
-                        } else {
-                            console.warn('Direct blob deletion failed, but continuing with index deletion');
+                        }
+                        
+                        if (blobsDeleted > 0) {
+                            console.log(`Successfully deleted ${blobsDeleted} blob chunk(s)`);
                         }
                     } catch (blobError) {
                         console.error('Error during blob deletion:', blobError);
                         // Continue with index deletion even if blob deletion fails
+                        // Add the base document ID at minimum
+                        chunkIdsToDelete.push(docId);
                     }
+                } else {
+                    // No blob info, just delete the provided docId from index
+                    chunkIdsToDelete.push(docId);
                 }
                 
-                // Now delete from search index using Azure Function
+                // Now delete all chunks from search index using Azure Function
+                console.log(`Deleting ${chunkIdsToDelete.length} document chunk(s) from search index`);
                 const batchDeleteUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.deleteDocument}`;
-                console.log('Deleting from search index:', batchDeleteUrl);
                 
                 const functionResponse = await fetch(batchDeleteUrl, {
                     method: 'POST',
@@ -2641,14 +2678,20 @@
                         'x-functions-key': API_CONFIG.functionKey
                     },
                     body: JSON.stringify({
-                        documentIds: [docId],
-                        // Include additional info for Azure Function blob deletion fallback
-                        documents: [{
-                            id: docId,
-                            department: department || '',
-                            fileName: fileName || '',
-                            blobPath: department && fileName ? `${department}/${fileName}` : ''
-                        }]
+                        documentIds: chunkIdsToDelete,
+                        // Include info for all chunks
+                        documents: chunkIdsToDelete.map((chunkId, index) => {
+                            const chunkSuffix = index === 0 ? '' : `_chunk_${index}`;
+                            const chunkFileName = baseFileName ? 
+                                baseFileName + chunkSuffix + (fileName && fileName.includes('.') ? 
+                                fileName.substring(fileName.lastIndexOf('.')) : '') : '';
+                            return {
+                                id: chunkId,
+                                department: department || '',
+                                fileName: chunkFileName || '',
+                                blobPath: department && chunkFileName ? `${department}/${chunkFileName}` : ''
+                            };
+                        })
                     })
                 });
                 
@@ -2660,17 +2703,19 @@
                     
                     // Check if deletion was successful
                     if (result.success && result.totalDeleted > 0) {
-                        console.log('Document successfully deleted from index');
+                        console.log(`Successfully deleted ${result.totalDeleted} document chunk(s) from index`);
                     } else if (result.results && result.results.length > 0) {
                         // Only check individual results if overall success is false
                         const failed = result.results.filter(r => !r.success);
                         if (failed.length > 0 && !result.success) {
-                            console.warn('Some deletions failed:', failed);
-                            throw new Error(`Failed to delete document: ${failed[0].message || 'Unknown error'}`);
+                            console.warn('Some chunk deletions failed:', failed);
+                            throw new Error(`Failed to delete all chunks: ${failed[0].message || 'Unknown error'}`);
                         }
                     }
                     
                     // Show success message with cleaner notification
+                    const totalDeleted = result.totalDeleted || chunkIdsToDelete.length;
+                    const chunkText = totalDeleted > 1 ? `${totalDeleted} chunks` : '1 document';
                     const successDiv = document.createElement('div');
                     successDiv.style.cssText = `
                         position: fixed;
@@ -2684,7 +2729,7 @@
                         z-index: 10000;
                         animation: slideIn 0.3s ease-out;
                     `;
-                    successDiv.innerHTML = `✓ Document "${title}" deleted successfully. Refreshing...`;
+                    successDiv.innerHTML = `✓ Document "${title}" (${chunkText}) deleted successfully. Refreshing...`;
                     document.body.appendChild(successDiv);
                     
                     // Refresh the entire page after a short delay to ensure everything is updated
