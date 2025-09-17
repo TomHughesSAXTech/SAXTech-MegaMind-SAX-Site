@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MegaMind Admin - System Configuration with Streaming</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            background: white;
+            padding: 10px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 12px 24px;
+            border: none;
+            background: transparent;
+            color: #666;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .admin-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .admin-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .admin-card.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .admin-card h2 {
+            color: #333;
+            font-size: 20px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        /* Streaming Chat Styles */
+        .streaming-chat-container {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+            height: 600px;
+        }
+
+        .chat-main {
+            background: white;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .message.user .message-avatar {
+            background: #667eea;
+            color: white;
+        }
+
+        .message.assistant .message-avatar {
+            background: #764ba2;
+            color: white;
+        }
+
+        .message-content {
+            background: white;
+            padding: 12px 16px;
+            border-radius: 12px;
+            max-width: 70%;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .message.assistant .message-content {
+            background: white;
+            color: #333;
+        }
+
+        .message-content.streaming::after {
+            content: '▋';
+            animation: blink 1s infinite;
+            color: #667eea;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .chat-input-container {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .chat-input-wrapper {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .chat-send-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+
+        .chat-send-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .chat-send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .chat-sidebar {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .chat-settings-group {
+            margin-bottom: 25px;
+        }
+
+        .chat-settings-group h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #555;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-right: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f93b1d 0%, #ea1e63 100%);
+            color: white;
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
+            color: #333;
+        }
+
+        .status-message {
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .status-message.show {
+            display: block;
+        }
+
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+            margin-left: 10px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+
+        .stream-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 12px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 20px;
+            font-size: 12px;
+        }
+
+        .stream-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ccc;
+        }
+
+        .stream-status.streaming .stream-status-dot {
+            background: #38ef7d;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .typing-indicator {
+            display: inline-flex;
+            gap: 4px;
+            padding: 8px 12px;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #667eea;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+            }
+            30% {
+                transform: translateY(-10px);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .streaming-chat-container {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+
+            .chat-sidebar {
+                order: -1;
+            }
+
+            .chat-main {
+                height: 500px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 MegaMind Admin Console</h1>
+            <p>System Configuration & Management Dashboard</p>
+            <div id="statusMessage" class="status-message"></div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('voice')">Voice Management</button>
+            <button class="tab-btn" onclick="switchTab('index')">Index Management</button>
+            <button class="tab-btn" onclick="switchTab('api')">API Settings</button>
+            <button class="tab-btn" onclick="switchTab('system')">System Info</button>
+            <button class="tab-btn" onclick="switchTab('conversation')">ElevenLabs Conversational AI</button>
+            <button class="tab-btn" onclick="switchTab('streaming')">Streaming Chat (NEW)</button>
+        </div>
+
+        <!-- Voice Management Tab (keeping your original) -->
+        <div id="voice-tab" class="tab-content active">
+            <!-- Your existing voice management content here -->
+            <div class="admin-grid">
+                <div class="admin-card">
+                    <h2>🎙️ Voice Configuration</h2>
+                    <div class="voice-list" id="voiceList"></div>
+                    <button class="btn btn-primary" onclick="addNewVoice()">Add New Voice</button>
+                    <button class="btn btn-success" onclick="saveVoiceConfig()">Save to Cloud</button>
+                    <button class="btn btn-warning" onclick="resetToDefaults()">Reset to Defaults</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Streaming Chat Tab (NEW) -->
+        <div id="streaming-tab" class="tab-content">
+            <div class="streaming-chat-container">
+                <div class="chat-main">
+                    <div class="chat-header">
+                        <h3>Azure OpenAI Streaming Chat</h3>
+                        <div class="stream-status" id="streamStatus">
+                            <span class="stream-status-dot"></span>
+                            <span id="streamStatusText">Ready</span>
+                        </div>
+                    </div>
+                    <div class="chat-messages" id="streamingChatMessages">
+                        <!-- Messages will appear here -->
+                    </div>
+                    <div class="chat-input-container">
+                        <div class="chat-input-wrapper">
+                            <input 
+                                type="text" 
+                                class="chat-input" 
+                                id="streamingChatInput" 
+                                placeholder="Type your message here..."
+                                onkeypress="handleStreamingKeyPress(event)"
+                            >
+                            <button 
+                                class="chat-send-btn" 
+                                id="streamingSendBtn" 
+                                onclick="sendStreamingMessage()"
+                            >
+                                ➤
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-sidebar">
+                    <div class="chat-settings-group">
+                        <h3>Azure OpenAI Settings</h3>
+                        
+                        <div class="form-group">
+                            <label>API Endpoint:</label>
+                            <input 
+                                type="text" 
+                                id="azureEndpoint" 
+                                placeholder="https://your-resource.openai.azure.com"
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label>API Key:</label>
+                            <input 
+                                type="password" 
+                                id="azureApiKey" 
+                                placeholder="Your Azure OpenAI API Key"
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label>Deployment Name:</label>
+                            <input 
+                                type="text" 
+                                id="azureDeployment" 
+                                placeholder="gpt-4" 
+                                value="gpt-4"
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label>API Version:</label>
+                            <select id="azureApiVersion">
+                                <option value="2024-08-01-preview">2024-08-01-preview</option>
+                                <option value="2024-06-01">2024-06-01</option>
+                                <option value="2024-02-01">2024-02-01</option>
+                                <option value="2023-12-01-preview">2023-12-01-preview</option>
+                            </select>
+                        </div>
+
+                        <button class="btn btn-primary" onclick="saveStreamingSettings()">
+                            Save Settings
+                        </button>
+                        <button class="btn btn-success" onclick="testStreamingConnection()">
+                            Test Connection
+                        </button>
+                    </div>
+
+                    <div class="chat-settings-group">
+                        <h3>Model Parameters</h3>
+                        
+                        <div class="form-group">
+                            <label>
+                                Temperature: 
+                                <span id="tempValue">0.7</span>
+                            </label>
+                            <input 
+                                type="range" 
+                                id="temperature" 
+                                min="0" 
+                                max="2" 
+                                step="0.1" 
+                                value="0.7"
+                                oninput="document.getElementById('tempValue').textContent = this.value"
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label>
+                                Max Tokens: 
+                                <span id="maxTokensValue">2000</span>
+                            </label>
+                            <input 
+                                type="range" 
+                                id="maxTokens" 
+                                min="100" 
+                                max="4000" 
+                                step="100" 
+                                value="2000"
+                                oninput="document.getElementById('maxTokensValue').textContent = this.value"
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="streamingEnabled" checked>
+                                <span class="toggle-switch">
+                                    <span class="toggle-slider"></span>
+                                </span>
+                                Enable Streaming
+                            </label>
+                        </div>
+
+                        <div class="form-group">
+                            <label>System Prompt:</label>
+                            <textarea 
+                                id="systemPrompt" 
+                                placeholder="You are a helpful assistant..."
+                            >You are SAX MegaMind, an intelligent assistant for SAX Advisory Group. You provide helpful, professional, and friendly responses.</textarea>
+                        </div>
+                    </div>
+
+                    <div class="chat-settings-group">
+                        <h3>Chat Actions</h3>
+                        <button class="btn btn-danger" onclick="clearStreamingChat()">
+                            Clear Chat
+                        </button>
+                        <button class="btn btn-warning" onclick="exportStreamingChat()">
+                            Export Chat
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Keep your other tabs here -->
+        <div id="index-tab" class="tab-content">
+            <!-- Your existing index management content -->
+        </div>
+
+        <div id="api-tab" class="tab-content">
+            <!-- Your existing API settings content -->
+        </div>
+
+        <div id="system-tab" class="tab-content">
+            <!-- Your existing system info content -->
+        </div>
+
+        <div id="conversation-tab" class="tab-content">
+            <!-- Your existing ElevenLabs conversational AI content -->
+        </div>
+    </div>
+
+    <script>
+        // ========= STREAMING CHAT FUNCTIONALITY =========
+        let streamController = null;
+        let conversationHistory = [];
+        
+        // Load settings on page load
+        window.addEventListener('load', () => {
+            loadStreamingSettings();
+            initializeStreamingChat();
+        });
+
+        function loadStreamingSettings() {
+            const saved = localStorage.getItem('azure_streaming_settings');
+            if (saved) {
+                const settings = JSON.parse(saved);
+                document.getElementById('azureEndpoint').value = settings.endpoint || '';
+                document.getElementById('azureApiKey').value = settings.apiKey || '';
+                document.getElementById('azureDeployment').value = settings.deployment || 'gpt-4';
+                document.getElementById('azureApiVersion').value = settings.apiVersion || '2024-08-01-preview';
+                document.getElementById('temperature').value = settings.temperature || 0.7;
+                document.getElementById('maxTokens').value = settings.maxTokens || 2000;
+                document.getElementById('systemPrompt').value = settings.systemPrompt || 'You are SAX MegaMind, an intelligent assistant for SAX Advisory Group.';
+                document.getElementById('streamingEnabled').checked = settings.streamingEnabled !== false;
+            }
+        }
+
+        function saveStreamingSettings() {
+            const settings = {
+                endpoint: document.getElementById('azureEndpoint').value,
+                apiKey: document.getElementById('azureApiKey').value,
+                deployment: document.getElementById('azureDeployment').value,
+                apiVersion: document.getElementById('azureApiVersion').value,
+                temperature: parseFloat(document.getElementById('temperature').value),
+                maxTokens: parseInt(document.getElementById('maxTokens').value),
+                systemPrompt: document.getElementById('systemPrompt').value,
+                streamingEnabled: document.getElementById('streamingEnabled').checked
+            };
+            
+            localStorage.setItem('azure_streaming_settings', JSON.stringify(settings));
+            showStatus('Streaming settings saved successfully', 'success');
+        }
+
+        async function testStreamingConnection() {
+            const endpoint = document.getElementById('azureEndpoint').value;
+            const apiKey = document.getElementById('azureApiKey').value;
+            const deployment = document.getElementById('azureDeployment').value;
+            const apiVersion = document.getElementById('azureApiVersion').value;
+
+            if (!endpoint || !apiKey || !deployment) {
+                showStatus('Please fill in all Azure OpenAI settings', 'error');
+                return;
+            }
+
+            showStatus('Testing connection...', 'info');
+
+            try {
+                const response = await fetch(
+                    `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'api-key': apiKey
+                        },
+                        body: JSON.stringify({
+                            messages: [
+                                { role: 'system', content: 'You are a test.' },
+                                { role: 'user', content: 'Say "Connection successful!"' }
+                            ],
+                            max_tokens: 10,
+                            stream: false
+                        })
+                    }
+                );
+
+                if (response.ok) {
+                    const data = await response.json();
+                    showStatus('Connection successful! Response: ' + data.choices[0].message.content, 'success');
+                } else {
+                    throw new Error(`API Error: ${response.status} - ${response.statusText}`);
+                }
+            } catch (error) {
+                showStatus('Connection failed: ' + error.message, 'error');
+            }
+        }
+
+        function initializeStreamingChat() {
+            // Add welcome message
+            addStreamingMessage('assistant', 'Welcome to the Azure OpenAI Streaming Chat! Configure your settings in the sidebar and start chatting.');
+        }
+
+        function addStreamingMessage(role, content, isStreaming = false) {
+            const messagesContainer = document.getElementById('streamingChatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            const avatarDiv = document.createElement('div');
+            avatarDiv.className = 'message-avatar';
+            avatarDiv.textContent = role === 'user' ? 'U' : 'AI';
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = `message-content ${isStreaming ? 'streaming' : ''}`;
+            contentDiv.innerHTML = formatMessage(content);
+            
+            messageDiv.appendChild(avatarDiv);
+            messageDiv.appendChild(contentDiv);
+            messagesContainer.appendChild(messageDiv);
+            
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            
+            return contentDiv;
+        }
+
+        function formatMessage(content) {
+            // Convert markdown to HTML (basic)
+            return content
+                .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code class="language-$1">$2</code></pre>')
+                .replace(/`([^`]+)`/g, '<code>$1</code>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/\n/g, '<br>');
+        }
+
+        function updateStreamingMessage(element, content) {
+            element.innerHTML = formatMessage(content);
+            const messagesContainer = document.getElementById('streamingChatMessages');
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function handleStreamingKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendStreamingMessage();
+            }
+        }
+
+        async function sendStreamingMessage() {
+            const input = document.getElementById('streamingChatInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+
+            const endpoint = document.getElementById('azureEndpoint').value;
+            const apiKey = document.getElementById('azureApiKey').value;
+            const deployment = document.getElementById('azureDeployment').value;
+            const apiVersion = document.getElementById('azureApiVersion').value;
+
+            if (!endpoint || !apiKey || !deployment) {
+                showStatus('Please configure Azure OpenAI settings first', 'error');
+                return;
+            }
+
+            // Add user message
+            addStreamingMessage('user', message);
+            input.value = '';
+
+            // Disable send button
+            const sendBtn = document.getElementById('streamingSendBtn');
+            sendBtn.disabled = true;
+
+            // Update conversation history
+            conversationHistory.push({ role: 'user', content: message });
+
+            // Check if streaming is enabled
+            const streamingEnabled = document.getElementById('streamingEnabled').checked;
+
+            if (streamingEnabled) {
+                await sendStreamingRequest(endpoint, apiKey, deployment, apiVersion);
+            } else {
+                await sendRegularRequest(endpoint, apiKey, deployment, apiVersion);
+            }
+
+            // Re-enable send button
+            sendBtn.disabled = false;
+        }
+
+        async function sendStreamingRequest(endpoint, apiKey, deployment, apiVersion) {
+            const systemPrompt = document.getElementById('systemPrompt').value;
+            const temperature = parseFloat(document.getElementById('temperature').value);
+            const maxTokens = parseInt(document.getElementById('maxTokens').value);
+
+            // Update status
+            updateStreamStatus('streaming', 'Streaming response...');
+
+            // Add placeholder for streaming message
+            const messageElement = addStreamingMessage('assistant', '', true);
+            let accumulatedContent = '';
+
+            try {
+                const response = await fetch(
+                    `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'api-key': apiKey
+                        },
+                        body: JSON.stringify({
+                            messages: [
+                                { role: 'system', content: systemPrompt },
+                                ...conversationHistory
+                            ],
+                            max_tokens: maxTokens,
+                            temperature: temperature,
+                            stream: true
+                        })
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.status}`);
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+                            if (data === '[DONE]') {
+                                messageElement.classList.remove('streaming');
+                                updateStreamStatus('ready', 'Ready');
+                                // Add to conversation history
+                                conversationHistory.push({ role: 'assistant', content: accumulatedContent });
+                                return;
+                            }
+
+                            try {
+                                const parsed = JSON.parse(data);
+                                const delta = parsed.choices[0]?.delta?.content;
+                                if (delta) {
+                                    accumulatedContent += delta;
+                                    updateStreamingMessage(messageElement, accumulatedContent);
+                                }
+                            } catch (e) {
+                                console.error('Error parsing SSE data:', e);
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Streaming error:', error);
+                updateStreamingMessage(messageElement, 'Error: ' + error.message);
+                messageElement.classList.remove('streaming');
+                updateStreamStatus('ready', 'Ready');
+            }
+        }
+
+        async function sendRegularRequest(endpoint, apiKey, deployment, apiVersion) {
+            const systemPrompt = document.getElementById('systemPrompt').value;
+            const temperature = parseFloat(document.getElementById('temperature').value);
+            const maxTokens = parseInt(document.getElementById('maxTokens').value);
+
+            // Update status
+            updateStreamStatus('streaming', 'Waiting for response...');
+
+            // Add typing indicator
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message assistant';
+            typingDiv.innerHTML = `
+                <div class="message-avatar">AI</div>
+                <div class="typing-indicator">
+                    <span class="typing-dot"></span>
+                    <span class="typing-dot"></span>
+                    <span class="typing-dot"></span>
+                </div>
+            `;
+            const messagesContainer = document.getElementById('streamingChatMessages');
+            messagesContainer.appendChild(typingDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            try {
+                const response = await fetch(
+                    `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'api-key': apiKey
+                        },
+                        body: JSON.stringify({
+                            messages: [
+                                { role: 'system', content: systemPrompt },
+                                ...conversationHistory
+                            ],
+                            max_tokens: maxTokens,
+                            temperature: temperature,
+                            stream: false
+                        })
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const content = data.choices[0].message.content;
+
+                // Remove typing indicator
+                messagesContainer.removeChild(typingDiv);
+
+                // Add assistant message
+                addStreamingMessage('assistant', content);
+                
+                // Add to conversation history
+                conversationHistory.push({ role: 'assistant', content: content });
+
+                updateStreamStatus('ready', 'Ready');
+            } catch (error) {
+                // Remove typing indicator
+                if (messagesContainer.contains(typingDiv)) {
+                    messagesContainer.removeChild(typingDiv);
+                }
+                
+                console.error('Request error:', error);
+                addStreamingMessage('assistant', 'Error: ' + error.message);
+                updateStreamStatus('ready', 'Ready');
+            }
+        }
+
+        function updateStreamStatus(status, text) {
+            const statusEl = document.getElementById('streamStatus');
+            const statusText = document.getElementById('streamStatusText');
+            
+            statusEl.className = `stream-status ${status}`;
+            statusText.textContent = text;
+        }
+
+        function clearStreamingChat() {
+            if (confirm('Are you sure you want to clear the chat history?')) {
+                document.getElementById('streamingChatMessages').innerHTML = '';
+                conversationHistory = [];
+                initializeStreamingChat();
+                showStatus('Chat cleared', 'success');
+            }
+        }
+
+        function exportStreamingChat() {
+            const chatContent = conversationHistory.map(msg => 
+                `${msg.role.toUpperCase()}: ${msg.content}`
+            ).join('\n\n');
+            
+            const blob = new Blob([chatContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `chat-export-${new Date().toISOString()}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            showStatus('Chat exported successfully', 'success');
+        }
+
+        // ========= GENERAL FUNCTIONS =========
+        function switchTab(tab) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            
+            // Show selected tab
+            document.getElementById(`${tab}-tab`).classList.add('active');
+            event.target.classList.add('active');
+            
+            // Initialize specific tabs if needed
+            if (tab === 'streaming') {
+                // Streaming tab is already initialized on load
+            }
+            // Add your other tab initialization here
+        }
+
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = `status-message ${type} show`;
+            
+            setTimeout(() => {
+                statusEl.className = 'status-message';
+            }, 5000);
+        }
+
+        // ========= PLACEHOLDER FUNCTIONS FOR OTHER TABS =========
+        // Add your existing functions here for voice management, index management, etc.
+        
+        function addNewVoice() {
+            showStatus('Add new voice functionality', 'info');
+        }
+
+        function saveVoiceConfig() {
+            showStatus('Voice config saved', 'success');
+        }
+
+        function resetToDefaults() {
+            showStatus('Reset to defaults', 'warning');
+        }
+    </script>
+</body>
+</html>
