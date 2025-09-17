@@ -2147,11 +2147,10 @@
             if (!currentAccount || !currentAccount.username) return;
             
             try {
-                const response = await fetch('https://saxtechmegamindfunctions.azurewebsites.net/api/SaveConversationLog', {
+                const response = await fetch('https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?code=ty_yoF3BbOmuv_ydG0-oIPBa3AvzZgpl5kBb510gIvnXAzFuPzEr-w==', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'x-functions-key': '_YOUR_FUNCTION_KEY_HERE_'  // Add your function key
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         action: 'save',
