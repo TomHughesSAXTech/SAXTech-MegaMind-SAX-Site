@@ -852,13 +852,30 @@
             flex-direction: row-reverse;
         }
 
-        .message-bubble {
+.message-bubble {
             max-width: 75%;
             padding: 15px 20px;
             border-radius: 20px;
-            word-wrap: break-word;
+            word-wrap: break-word; /* legacy */
+            overflow-wrap: anywhere; /* modern */
+            word-break: break-word;
+            white-space: pre-wrap; /* preserve line breaks without stretching */
             line-height: 1.5;
             box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+        
+        .message-bubble a {
+            color: #0084ff;
+            text-decoration: underline;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+        }
+        
+        .message-bubble img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 8px;
         }
 
         .message.user .message-bubble {
