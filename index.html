@@ -1020,6 +1020,47 @@
                 opacity: 1;
             }
         }
+        
+        /* ChatGPT-style streaming message */
+        .message.streaming .message-bubble {
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            padding: 0;
+            backdrop-filter: none;
+        }
+        
+        .streaming-text {
+            color: rgba(255, 255, 255, 0.95);
+            font-size: 16px;
+            line-height: 1.7;
+            letter-spacing: 0.3px;
+            font-weight: 400;
+        }
+        
+        /* Character fade-in animation */
+        @keyframes fadeInWord {
+            0% {
+                opacity: 0;
+                filter: blur(2px);
+                transform: translateY(3px);
+            }
+            50% {
+                opacity: 0.6;
+                filter: blur(1px);
+            }
+            100% {
+                opacity: 1;
+                filter: blur(0);
+                transform: translateY(0);
+            }
+        }
+        
+        .fade-in-word {
+            display: inline;
+            opacity: 0;
+            animation: fadeInWord 0.4s ease-out forwards;
+        }
 
         /* Legacy typing dots (kept for compatibility) */
         .typing-dot {
@@ -2704,22 +2745,21 @@
                                 if (hasMultipleJsonLines) {
                                     console.log('Detected NDJSON format (multiple JSON objects separated by newlines)');
                                     
-                                    // Create message element for streaming display
+                                    // Create message element for ChatGPT-style streaming display
                                     const messageDiv = document.createElement('div');
-                                    messageDiv.className = 'message bot';
+                                    messageDiv.className = 'message bot streaming';
                                     messageDiv.innerHTML = `
                                         <div class="message-avatar">
                                             <img src="${aiProfiles[currentAIProfile].robotImage}" alt="${aiProfiles[currentAIProfile].name}" 
                                                  onerror="this.style.display='none'; this.parentNode.innerHTML='${aiProfiles[currentAIProfile].avatar}';">
                                         </div>
-                                        <div class="message-bubble" id="streaming-ndjson-message"></div>
+                                        <div class="message-bubble streaming-bubble" id="streaming-ndjson-message">
+                                            <span class="streaming-text"></span>
+                                        </div>
                                     `;
                                     chatMessages.appendChild(messageDiv);
-                                    const streamingContent = messageDiv.querySelector('#streaming-ndjson-message');
-                                    
-                                    // Create a text node for smooth streaming
-                                    const textNode = document.createTextNode('');
-                                    streamingContent.appendChild(textNode);
+                                    const streamingContent = messageDiv.querySelector('.streaming-text');
+                                    const bubbleDiv = messageDiv.querySelector('.message-bubble');
                                     
                                     let fullContent = '';
                                     let audioData = null;
@@ -2743,11 +2783,21 @@
                                                 
                                                 // Handle different message types
                                                 if (jsonObj.type === 'item' && jsonObj.content) {
-                                                    // Add content immediately to fullContent for tracking
+                                                    // Add content with fade-in effect
+                                                    const words = jsonObj.content.split(' ');
+                                                    words.forEach((word, index) => {
+                                                        if (word.trim()) {
+                                                            setTimeout(() => {
+                                                                const wordSpan = document.createElement('span');
+                                                                wordSpan.className = 'fade-in-word';
+                                                                wordSpan.textContent = word + ' ';
+                                                                wordSpan.style.animationDelay = `${index * 0.05}s`;
+                                                                streamingContent.appendChild(wordSpan);
+                                                                chatMessages.scrollTop = chatMessages.scrollHeight;
+                                                            }, index * 30);
+                                                        }
+                                                    });
                                                     fullContent += jsonObj.content;
-                                                    // Update text node directly for smooth streaming
-                                                    textNode.textContent = fullContent;
-                                                    chatMessages.scrollTop = chatMessages.scrollHeight;
                                                 } else if (jsonObj.type === 'end') {
                                                     console.log('Stream ended');
                                                     // Extract metrics if available
@@ -2767,7 +2817,7 @@
                                                     if (fullContent.includes('<') && fullContent.includes('>')) {
                                                         streamingContent.innerHTML = fullContent;
                                                     } else {
-                                                        textNode.textContent = fullContent;
+                                                        streamingContent.textContent = fullContent;
                                                     }
                                                 } else if (jsonObj.text) {
                                                     fullContent = jsonObj.text;
@@ -2775,7 +2825,7 @@
                                                     if (fullContent.includes('<') && fullContent.includes('>')) {
                                                         streamingContent.innerHTML = fullContent;
                                                     } else {
-                                                        textNode.textContent = fullContent;
+                                                        streamingContent.textContent = fullContent;
                                                     }
                                                 }
                                                 
@@ -2800,14 +2850,29 @@
                                     }
                                     
                                     // Finalize after processing all chunks
-                                    if (fullContent) {
-                                        console.log('Assembled full response:', fullContent);
-                                        
-                                        // Check if final content is HTML and update display if needed
-                                        if (fullContent.includes('<div>') || fullContent.includes('<p>') || fullContent.includes('<span>')) {
-                                            streamingContent.innerHTML = fullContent;
-                                            isHTML = true;
-                                        }
+                                    setTimeout(() => {
+                                        if (fullContent) {
+                                            console.log('Assembled full response:', fullContent);
+                                            
+                                            // Transition from streaming to final styled message
+                                            messageDiv.classList.remove('streaming');
+                                            
+                                            // Check if final content is HTML
+                                            if (fullContent.includes('<div>') || fullContent.includes('<p>') || fullContent.includes('<span>')) {
+                                                bubbleDiv.innerHTML = fullContent;
+                                                isHTML = true;
+                                            } else {
+                                                // Apply final styling to the message
+                                                bubbleDiv.classList.remove('streaming-bubble');
+                                                bubbleDiv.style.background = 'rgba(255,255,255,0.9)';
+                                                bubbleDiv.style.padding = '15px 20px';
+                                                bubbleDiv.style.border = '1px solid rgba(255,215,0,0.2)';
+                                                bubbleDiv.style.borderRadius = '20px';
+                                                bubbleDiv.style.borderBottomLeftRadius = '5px';
+                                                bubbleDiv.style.boxShadow = '0 3px 10px rgba(0,0,0,0.1)';
+                                                streamingContent.classList.remove('streaming-text');
+                                                streamingContent.style.color = '#1a1a1a';
+                                            }
                                             // Message already displayed via streaming, just track it
                                             
                                             // Track metrics if available
@@ -2853,12 +2918,13 @@
                                                     }
                                                 }, 1000);
                                             }
-                                    } else if (!hasError) {
-                                        // Only add error message if we didn't already show content
-                                        if (!streamingContent.innerHTML) {
-                                            streamingContent.innerHTML = 'I received a response but couldn\'t extract the message.';
+                                        } else if (!hasError) {
+                                            // Only add error message if we didn't already show content
+                                            if (!streamingContent.innerHTML) {
+                                                streamingContent.innerHTML = 'I received a response but couldn\'t extract the message.';
+                                            }
                                         }
-                                    }
+                                    }, 1500); // Wait for streaming animation to complete
                                     
                                 } else {
                                     // Try to parse as single JSON object
