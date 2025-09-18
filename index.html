@@ -1697,25 +1697,42 @@
                 // Display conversations
                 let html = '';
                 sessions.forEach((session, index) => {
-                    // Handle both conversation format and messages format
-                    const messages = session.conversation?.messages || session.messages || [];
+                    // Parse the conversation data - it's stored as a JSON string
+                    let conversationData = null;
+                    try {
+                        if (typeof session.conversation === 'string') {
+                            conversationData = JSON.parse(session.conversation);
+                        } else {
+                            conversationData = session.conversation || {};
+                        }
+                    } catch (e) {
+                        console.error('Error parsing conversation:', e);
+                        conversationData = {};
+                    }
+                    
+                    // Get messages from parsed data
+                    const messages = conversationData.messages || session.messages || [];
                     const firstUserMessage = messages.find(m => m.role === 'user');
                     const firstBotResponse = messages.find(m => m.role === 'assistant');
                     
-                    // Generate title
+                    // Generate title from first user message
                     let title = 'Conversation';
                     if (session.summary) {
                         title = session.summary;
                     } else if (firstUserMessage && firstUserMessage.content) {
-                        title = firstUserMessage.content.substring(0, 50);
-                        if (firstUserMessage.content.length > 50) title += '...';
+                        // Clean up the content for display
+                        const cleanContent = firstUserMessage.content.replace(/\n/g, ' ').trim();
+                        title = cleanContent.substring(0, 50);
+                        if (cleanContent.length > 50) title += '...';
                     }
                     
-                    // Generate preview
+                    // Generate preview from bot response
                     let preview = '';
                     if (firstBotResponse && firstBotResponse.content) {
-                        preview = firstBotResponse.content.substring(0, 100);
-                        if (firstBotResponse.content.length > 100) preview += '...';
+                        // Clean up the content for display
+                        const cleanContent = firstBotResponse.content.replace(/\n/g, ' ').replace(/<[^>]*>/g, '').trim();
+                        preview = cleanContent.substring(0, 100);
+                        if (cleanContent.length > 100) preview += '...';
                     }
                     
                     const timestamp = new Date(session.timestamp || session.createdAt || Date.now());
@@ -1748,19 +1765,55 @@
         // Load a specific conversation from Azure
         async function loadConversationFromAzure(sessionId) {
             try {
-                const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=getSession&sessionId=${encodeURIComponent(sessionId)}&email=${encodeURIComponent(currentAccount.username)}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`, {
+                console.log('Loading conversation:', sessionId);
+                
+                // First get all sessions, then find the specific one
+                // The API doesn't support getting individual sessions directly
+                const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=get&email=${encodeURIComponent(currentAccount.username)}&range=all&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`, {
                     method: 'GET',
                     headers: {}
                 });
                 
                 if (!response.ok) {
-                    throw new Error('Failed to load conversation');
+                    throw new Error('Failed to load conversations');
                 }
                 
                 const data = await response.json();
-                // Handle multiple possible response formats
-                const conversation = data.conversation || data.session || data;
-                const messages = conversation.messages || conversation.conversation?.messages || [];
+                
+                // Find the specific session
+                let sessions = [];
+                if (Array.isArray(data)) {
+                    sessions = data;
+                } else if (data.sessions) {
+                    sessions = data.sessions;
+                } else if (data.conversations) {
+                    sessions = data.conversations;
+                }
+                
+                const targetSession = sessions.find(s => 
+                    s.sessionId === sessionId || 
+                    s.id === sessionId || 
+                    s._id === sessionId
+                );
+                
+                if (!targetSession) {
+                    throw new Error('Session not found');
+                }
+                
+                // Parse the conversation data
+                let conversationData = null;
+                try {
+                    if (typeof targetSession.conversation === 'string') {
+                        conversationData = JSON.parse(targetSession.conversation);
+                    } else {
+                        conversationData = targetSession.conversation || {};
+                    }
+                } catch (e) {
+                    console.error('Error parsing conversation:', e);
+                    conversationData = {};
+                }
+                
+                const messages = conversationData.messages || targetSession.messages || [];
                 
                 if (messages && messages.length > 0) {
                     // Clear current chat
