@@ -25,7 +25,8 @@ class AzureSearchIndexFixer:
     def __init__(self, service_name: str, resource_group: str):
         self.service_name = service_name
         self.resource_group = resource_group
-        self.api_version = "2023-11-01"
+        # Use preview API that supports vectorizers
+        self.api_version = "2024-05-01-preview"
         self.api_key = None
         
     def get_search_key(self) -> str:
@@ -66,13 +67,15 @@ class AzureSearchIndexFixer:
         
         # Check fields
         for field in schema.get('fields', []):
-            # Check for invalid normalizers
+            # Check for invalid normalizers (but accept custom ones like 'sax_normalizer')
             if 'normalizer' in field:
-                if field['normalizer'] not in ['standard', 'lowercase', 'uppercase', 'asciifolding']:
-                    issues['normalizer_issues'].append({
-                        'field': field['name'],
-                        'invalid_normalizer': field['normalizer']
-                    })
+                # Custom normalizers are allowed, just check for truly invalid ones
+                if field['normalizer'] and not field['normalizer'].startswith('sax_'):
+                    if field['normalizer'] not in ['standard', 'lowercase', 'uppercase', 'asciifolding']:
+                        issues['normalizer_issues'].append({
+                            'field': field['name'],
+                            'invalid_normalizer': field['normalizer']
+                        })
             
             # Track vector fields
             if field.get('type') == 'Collection(Edm.Single)':
@@ -101,19 +104,17 @@ class AzureSearchIndexFixer:
         """Create a fixed version of the index schema"""
         fixed_schema = current_schema.copy()
         
-        # Fix normalizer issues
+        # DO NOT modify existing fields - they cannot be changed
+        # Only update configuration that can be changed without modifying fields
         for field in fixed_schema.get('fields', []):
-            # Remove invalid normalizers
-            if 'normalizer' in field and field.get('normalizer') not in ['standard', 'lowercase', 'uppercase', 'asciifolding']:
-                del field['normalizer']
+            # Keep existing normalizers, even custom ones - fields can't be changed
+            # The 'sax_normalizer' is a custom normalizer that must be preserved
             
-            # Add lowercase normalizer for appropriate fields
-            if (field.get('type') == 'Edm.String' and 
-                field.get('filterable') == True and 
-                field.get('searchable') != True and
-                field.get('key') != True and
-                'normalizer' not in field):
-                field['normalizer'] = 'lowercase'
+            # Update vector fields to use new vectorizer profile if not set
+            if field.get('type') == 'Collection(Edm.Single)' and field.get('dimensions'):
+                # Ensure the field has vectorSearchProfile set
+                if not field.get('vectorSearchProfile'):
+                    field['vectorSearchProfile'] = 'vector-profile'
         
         # Add/Fix vector search configuration
         if 'vectorSearch' not in fixed_schema:
@@ -137,7 +138,7 @@ class AzureSearchIndexFixer:
                 }
             })
         
-        # Add vectorizers for text-embedding-3-small
+        # Add vectorizers for text-embedding-3-small (supported in 2024-05-01-preview)
         if 'vectorizers' not in fixed_schema['vectorSearch']:
             fixed_schema['vectorSearch']['vectorizers'] = []
         
@@ -150,8 +151,8 @@ class AzureSearchIndexFixer:
                 "azureOpenAIParameters": {
                     "resourceUri": "https://saxmegamindopenai.openai.azure.com",
                     "deploymentId": "text-embedding-3-small",
-                    "apiKey": "<Will use managed identity or key vault>",
-                    "modelName": "text-embedding-3-small"
+                    "modelName": "text-embedding-3-small",
+                    "apiKey": "<use-key-vault>"
                 }
             })
         
@@ -163,7 +164,8 @@ class AzureSearchIndexFixer:
         profile_updated = False
         for profile in fixed_schema['vectorSearch']['profiles']:
             if profile.get('name') in ['vector-profile', 'vector-config']:
-                profile['algorithmConfigurationName'] = 'hnsw-algorithm'
+                # Set algorithm and vectorizer
+                profile['algorithm'] = profile.get('algorithm', 'hnsw-algorithm')
                 profile['vectorizer'] = 'openai-text-embedding-3-small'
                 profile_updated = True
                 break
@@ -171,7 +173,7 @@ class AzureSearchIndexFixer:
         if not profile_updated:
             fixed_schema['vectorSearch']['profiles'].append({
                 "name": "vector-profile",
-                "algorithmConfigurationName": "hnsw-algorithm", 
+                "algorithm": "hnsw-algorithm",
                 "vectorizer": "openai-text-embedding-3-small"
             })
         
