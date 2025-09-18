@@ -1335,7 +1335,7 @@
     </div>
 
     <!-- Report AI Issue Button -->
-    <button onclick="window.location.href='#report-ai-issue'" style="
+    <button onclick="window.location.href='https://help.saxtechnology.com/app/service/report/363'" style="
         position: fixed;
         bottom: 20px;
         right: 20px;
@@ -1435,6 +1435,11 @@
         let conversationHistory = [];
         let userSessionId = null;
         
+        // Generate unique session ID on page load
+        function generateSessionId() {
+            return 'session-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        }
+        
         // AI Profile Management
         let currentAIProfile = 'sage';  // Start with SAX MegaMind as default
         let currentWebhook = 'megamind-chat';
@@ -1521,6 +1526,10 @@
         // Initialize application
         async function initialize() {
             console.log('Initializing MegaMind SAX...');
+            
+            // Generate new session ID for this page load
+            sessionId = generateSessionId();
+            console.log('New session ID:', sessionId);
             
             // Initialize carousel visibility
             initializeCarousel();
@@ -2129,7 +2138,7 @@
             if (!currentAccount || !currentAccount.username) return;
             
             try {
-                const response = await fetch('https://saxtechmegamindfunctions.azurewebsites.net/api/SaveConversationLog', {
+                const response = await fetch('https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -2424,46 +2433,21 @@
                         addMessage('bot', 'I apologize, but the service is currently being configured. Please try again later.');
                     } else {
                         try {
-                            let result = JSON.parse(responseText);
-                            
-                            // Handle array response from n8n (unwrap if needed)
-                            if (Array.isArray(result) && result.length > 0) {
-                                console.log('Received array response from n8n, unwrapping first element');
-                                result = result[0];
-                            }
-                            
+                            const result = JSON.parse(responseText);
                             if (result.errorMessage) {
                                 console.error('n8n error:', result);
                                 addMessage('bot', `Configuration error: ${result.errorMessage}`);
                             } else {
-                                // Handle response - check for HTML or text content
-                                let displayContent = result.text || result.response || 'I received your message but couldn\'t generate a response.';
-                                
-                                // If there's HTML content, use that for display
-                                if (result.hasHtml && result.htmlResponse) {
-                                    // Extract just the body content from HTML
-                                    const htmlMatch = result.htmlResponse.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-                                    if (htmlMatch) {
-                                        displayContent = htmlMatch[1].trim();
-                                    } else {
-                                        displayContent = result.htmlResponse;
-                                    }
-                                }
+                                // Handle response with audio
+                                const responseText = result.response || 'I received your message but couldn\'t generate a response.';
                                 
                                 // Try to get audio data from various possible fields
                                 let audioData = null;
-                                
-                                // Check for TTS error first
-                                if (result.ttsError) {
-                                    console.warn('TTS Error:', result.ttsError, 'Type:', result.ttsErrorType);
-                                    if (result.ttsError.includes('401')) {
-                                        console.error('ElevenLabs API authentication failed - check API key in n8n workflow');
-                                    }
-                                } else if (result.audioBase64 && typeof result.audioBase64 === 'string') {
+                                if (result.audioBase64 && typeof result.audioBase64 === 'string') {
                                     audioData = result.audioBase64;
                                 } else if (result.audioData && typeof result.audioData === 'string') {
                                     audioData = result.audioData;
-                                } else if (result.audioUrl && typeof result.audioUrl === 'string' && result.audioUrl.includes('base64,')) {
+                                } else if (result.audioUrl && result.audioUrl.includes('base64,')) {
                                     // Extract base64 from data URL
                                     const base64Match = result.audioUrl.match(/base64,(.+)/);
                                     if (base64Match) {
@@ -2474,16 +2458,16 @@
                                 // Log what we received for debugging
                                 if (audioData) {
                                     console.log('Audio data received, length:', audioData.length);
-                                } else if (!result.ttsError) {
-                                    console.log('No audio data in response (TTS may be disabled)');
+                                } else {
+                                    console.log('No audio data in response');
                                 }
                                 
-                                addMessage('bot', displayContent, audioData);
+                                addMessage('bot', responseText, audioData);
                                 
                                 // Add to conversation history
                                 conversationHistory.push({
                                     role: 'assistant',
-                                    content: displayContent,
+                                    content: responseText,
                                     timestamp: new Date().toISOString()
                                 });
                                 
@@ -2505,7 +2489,7 @@
                                 // Store conversation history (keep last 10 exchanges)
                                 conversationContext.conversationHistory.push({
                                     message: message,
-                                    response: displayContent,
+                                    response: responseText,
                                     attachments: processedAttachments.map(a => ({ name: a.name, type: a.category })),
                                     timestamp: new Date().toISOString()
                                 });
