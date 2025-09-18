@@ -1639,7 +1639,7 @@
                     const timeStr = timestamp.toLocaleString();
                     
                     html += `
-                        <div class="history-item" onclick="loadConversationFromAzure('${session.sessionId || session.id || session._id}')">`
+                        <div class="history-item" onclick="loadConversationFromAzure('${session.sessionId || session.id || session._id}')">
                             <div class="history-item-title">${escapeHtml(title)}</div>
                             <div class="history-item-time">${timeStr}</div>
                             ${preview ? `<div class="history-item-preview">${escapeHtml(preview)}</div>` : ''}

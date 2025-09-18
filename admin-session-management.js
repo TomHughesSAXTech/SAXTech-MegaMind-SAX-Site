@@ -431,28 +431,22 @@ window.loadUserSessions = async function() {
     if (loading) loading.style.display = 'block';
     
     try {
-        const response = await fetch('https://saxtechmegamindfunctions.azurewebsites.net/api/sessions/user-history', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-functions-key': 'w6PUFV_kP4lcJVkK9p8AknKd1pwpIPQEK9gph6iz9kYJAzFuWfzgbg=='
-            },
-            body: JSON.stringify({
-                userEmail: userEmail,
-                dateRange: range,
-                includeMetrics: true,
-                includeFullConversation: true
-            })
+        const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=get&email=${encodeURIComponent(userEmail)}&range=${range}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`, {
+            method: 'GET',
+            headers: {}
         });
         
         const data = await response.json();
         
-        if (data.success && data.sessions) {
-            currentSessionsData = data.sessions;
+        // Handle the response format from SaveConversationLog
+        const sessions = data.sessions || data.conversations || [];
+        
+        if (sessions && sessions.length > 0) {
+            currentSessionsData = sessions;
             populateUserFilter(currentSessionsData);
-            displaySessionsEnhanced(data.sessions, false);
-            updateSessionStats(data.sessions);
-            showStatus(`Loaded ${data.sessions.length} sessions for ${userEmail}`, 'success');
+            displaySessionsEnhanced(sessions, false);
+            updateSessionStats(sessions);
+            showStatus(`Loaded ${sessions.length} sessions for ${userEmail}`, 'success');
         } else {
             showStatus('No sessions found for this user', 'info');
             currentSessionsData = [];
@@ -476,28 +470,22 @@ window.loadAllRecentSessions = async function() {
     if (loading) loading.style.display = 'block';
     
     try {
-        const response = await fetch('https://saxtechmegamindfunctions.azurewebsites.net/api/sessions/recent', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-functions-key': 'w6PUFV_kP4lcJVkK9p8AknKd1pwpIPQEK9gph6iz9kYJAzFuWfzgbg=='
-            },
-            body: JSON.stringify({
-                dateRange: range,
-                limit: 100,
-                includeMetrics: true,
-                includeFullConversation: true
-            })
+        const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=recent&range=${range}&limit=100&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`, {
+            method: 'GET',
+            headers: {}
         });
         
         const data = await response.json();
         
-        if (data.success && data.sessions) {
-            currentSessionsData = data.sessions;
+        // Handle the response format from SaveConversationLog
+        const sessions = data.sessions || data.conversations || [];
+        
+        if (sessions && sessions.length > 0) {
+            currentSessionsData = sessions;
             populateUserFilter(currentSessionsData);
-            displaySessionsEnhanced(data.sessions, true);
-            updateSessionStats(data.sessions);
-            showStatus(`Loaded ${data.sessions.length} recent sessions`, 'success');
+            displaySessionsEnhanced(sessions, true);
+            updateSessionStats(sessions);
+            showStatus(`Loaded ${sessions.length} recent sessions`, 'success');
         } else {
             showStatus('No recent sessions found', 'info');
             currentSessionsData = [];
