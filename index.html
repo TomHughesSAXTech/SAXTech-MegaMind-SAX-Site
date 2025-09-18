@@ -1531,6 +1531,12 @@
             sessionId = generateSessionId();
             console.log('New session ID:', sessionId);
             
+            // Initialize ElevenLabs API key if not set
+            if (!localStorage.getItem('elevenlabs_api_key')) {
+                localStorage.setItem('elevenlabs_api_key', 'sk_94c95a3f46355ef03ad7cc214059cccfd2c492fc1571a2bf');
+                console.log('ElevenLabs API key initialized');
+            }
+            
             // Initialize carousel visibility
             initializeCarousel();
             
@@ -2321,6 +2327,8 @@
                     ttsSummarize: ttsEnabled ? true : false,  // Only summarize if TTS enabled
                     // Send voice configuration for dynamic mapping
                     voiceConfig: ttsEnabled ? JSON.parse(localStorage.getItem('megamind_voice_config') || '[]') : [],
+                    // Send ElevenLabs API key for TTS
+                    elevenLabsApiKey: ttsEnabled ? (localStorage.getItem('elevenlabs_api_key') || 'sk_94c95a3f46355ef03ad7cc214059cccfd2c492fc1571a2bf') : null,
                     attachments: processedAttachments,
                     // Include conversation context for follow-up questions
                     previousContext: conversationContext,

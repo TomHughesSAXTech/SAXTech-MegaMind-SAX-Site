@@ -1039,6 +1039,12 @@
 
         // Load saved configuration on page load
         window.addEventListener('load', () => {
+            // Initialize ElevenLabs API key if not set
+            if (!localStorage.getItem('elevenlabs_api_key')) {
+                localStorage.setItem('elevenlabs_api_key', 'sk_94c95a3f46355ef03ad7cc214059cccfd2c492fc1571a2bf');
+                console.log('ElevenLabs API key initialized');
+            }
+            
             loadVoiceConfig();
             loadAPISettings();
             updateSystemInfo();
@@ -1411,6 +1417,11 @@
             const apiKey = localStorage.getItem('elevenlabs_api_key');
             if (apiKey) {
                 document.getElementById('elevenLabsKey').value = apiKey;
+            } else {
+                // Set default API key
+                const defaultKey = 'sk_94c95a3f46355ef03ad7cc214059cccfd2c492fc1571a2bf';
+                localStorage.setItem('elevenlabs_api_key', defaultKey);
+                document.getElementById('elevenLabsKey').value = defaultKey;
             }
         }
 
@@ -2452,7 +2463,7 @@
         }
 
         // Store session data for export
-        let currentSessionsData = [];
+        // currentSessionsData is declared in admin-session-management.js
         window.storeSessionData = function(sessions) {
             currentSessionsData = sessions;
         };
