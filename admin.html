@@ -2862,9 +2862,10 @@ You are a helpful assistant for SAX Advisory Group. Be professional, friendly, a
         }
 
         // User Sessions Functions
-        let allLoadedSessions = [];
-        let selectedSessions = new Set();
-        let currentFilteredUser = null;
+        // Variables are already declared in admin-session-fixes.js:
+        // let allLoadedSessions = [];
+        // let selectedSessions = new Set();
+        // let currentFilteredUser = null;
         async function loadSessionStats() {
             try {
                 const response = await fetch('https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=stats&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==', {
@@ -2954,7 +2955,7 @@ You are a helpful assistant for SAX Advisory Group. Be professional, friendly, a
             document.getElementById('sessionResults').style.display = 'none';
 
             try {
-                const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=get&email=${encodeURIComponent(email)}&range=${dateRange}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`, {
+                const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=get&email=${encodeURIComponent(userEmail)}&range=${dateRange}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`, {
                     headers: {
                     }
                 });
