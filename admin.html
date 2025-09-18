@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://login.microsoftonline.com https://alcdn.msauth.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://workflows.saxtechnology.com https://login.microsoftonline.com https://graph.microsoft.com https://saxtechmegamindfunctions.azurewebsites.net https://saxtech-docprocessor.azurewebsites.net https://saxtechmegamind.blob.core.windows.net https://api.elevenlabs.io https://saxtechconversationlogs.azurewebsites.net; frame-src 'self' https://login.microsoftonline.com;">
     <title>MegaMind Admin - System Configuration</title>
     <style>
         * {
@@ -2457,7 +2458,7 @@ You are a helpful assistant for SAX Advisory Group. Be professional, friendly, a
             const saved = localStorage.getItem('elevenlabs_conversation_config');
             if (saved) {
                 const config = JSON.parse(saved);
-                document.getElementById('elevenLabsAgentId').value = config.agentId || '';
+                document.getElementById('elevenLabsAgentId').value = config.agentId || 'saxtech-megamind-assistant';
                 document.getElementById('conversationWebhookUrl').value = config.webhookUrl || 'https://workflows.saxtechnology.com/webhook/elevenlabs-conversation-init';
                 document.getElementById('maxConversationDuration').value = config.maxDuration || 600;
                 
@@ -2475,6 +2476,11 @@ You are a helpful assistant for SAX Advisory Group. Be professional, friendly, a
                     document.getElementById('rateValue').textContent = (config.settings.rate || 1) + 'x';
                     document.getElementById('stabilityValue').textContent = config.settings.stability || 0.5;
                 }
+            } else {
+                // Set default values if no saved config
+                document.getElementById('elevenLabsAgentId').value = 'saxtech-megamind-assistant';
+                document.getElementById('conversationWebhookUrl').value = 'https://workflows.saxtechnology.com/webhook/elevenlabs-conversation-init';
+                document.getElementById('maxConversationDuration').value = 600;
             }
         }
 
