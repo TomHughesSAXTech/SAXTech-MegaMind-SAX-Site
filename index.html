@@ -2533,6 +2533,9 @@
         function displayHistoryList(sessions) {
             const historyList = document.getElementById('historyList');
             
+            // Store sessions globally so loadSession can access them
+            window.loadedHistorySessions = sessions;
+            
             if (sessions.length === 0) {
                 historyList.innerHTML = '<div class="history-empty">No conversations yet</div>';
                 return;
@@ -2548,9 +2551,13 @@
                 const date = new Date(session.timestamp);
                 const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 
-                const preview = session.conversation && session.conversation.length > 0 
-                    ? session.conversation[0].content.substring(0, 50) + '...' 
-                    : 'Empty conversation';
+                // Get preview from first message content
+                let preview = 'Empty conversation';
+                if (session.conversation && session.conversation.length > 0) {
+                    const firstMessage = session.conversation[0];
+                    const content = firstMessage.content || firstMessage.message || firstMessage.response || '';
+                    preview = content.substring(0, 50) + (content.length > 50 ? '...' : '');
+                }
                 
                 item.innerHTML = `
                     <div class="history-date">${dateStr}</div>
@@ -2563,42 +2570,73 @@
         }
         
         async function loadSession(sessionId) {
-            try {
-                const response = await fetch('https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        action: 'load',
-                        sessionId: sessionId,
-                        userEmail: currentAccount.username
-                    })
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.conversation) {
-                        // Clear current chat
-                        chatMessages.innerHTML = '';
-                        conversationHistory = data.conversation;
-                        currentSessionId = sessionId;
-                        
-                        // Restore messages
-                        conversationHistory.forEach(msg => {
-                            if (msg.role === 'user') {
-                                addMessage('user', msg.content, null, false);
-                            } else if (msg.role === 'assistant') {
-                                addMessage('bot', msg.content, null, false);
-                            }
-                        });
-                        
-                        // Close history menu
-                        document.getElementById('historyMenu').classList.remove('show');
-                    }
+            console.log('Loading session:', sessionId);
+            
+            // First, try to get the session from the history data we already loaded
+            const historyList = document.getElementById('historyList');
+            const historyItems = historyList.querySelectorAll('.history-item');
+            
+            // Try to find the session in our already loaded data
+            let sessionFound = false;
+            
+            // Check if we have the session data stored in the history dropdown data
+            if (window.loadedHistorySessions) {
+                const session = window.loadedHistorySessions.find(s => s.sessionId === sessionId);
+                if (session && session.conversation) {
+                    // Clear current chat
+                    chatMessages.innerHTML = '';
+                    conversationHistory = [];
+                    currentSessionId = sessionId;
+                    
+                    // Restore messages
+                    session.conversation.forEach(msg => {
+                        if (msg.role === 'user' || msg.type === 'user') {
+                            addMessage('user', msg.content || msg.message, null, false);
+                            conversationHistory.push({role: 'user', content: msg.content || msg.message});
+                        } else if (msg.role === 'assistant' || msg.type === 'bot') {
+                            addMessage('bot', msg.content || msg.response || msg.message, null, false);
+                            conversationHistory.push({role: 'assistant', content: msg.content || msg.response || msg.message});
+                        }
+                    });
+                    
+                    // Close history menu
+                    document.getElementById('historyMenu').classList.remove('show');
+                    sessionFound = true;
+                    console.log('Session loaded from cached data');
                 }
-            } catch (error) {
-                console.error('Failed to load session:', error);
+            }
+            
+            // If not found in cache, try to load from localStorage as fallback
+            if (!sessionFound) {
+                try {
+                    const localData = localStorage.getItem(sessionId);
+                    if (localData) {
+                        const sessionData = JSON.parse(localData);
+                        if (sessionData && sessionData.messages) {
+                            // Clear current chat
+                            chatMessages.innerHTML = '';
+                            conversationHistory = [];
+                            currentSessionId = sessionId;
+                            
+                            // Restore messages
+                            sessionData.messages.forEach(msg => {
+                                if (msg.role === 'user' || msg.type === 'user') {
+                                    addMessage('user', msg.content || msg.message, null, false);
+                                    conversationHistory.push({role: 'user', content: msg.content || msg.message});
+                                } else if (msg.role === 'assistant' || msg.type === 'bot') {
+                                    addMessage('bot', msg.content || msg.response || msg.message, null, false);
+                                    conversationHistory.push({role: 'assistant', content: msg.content || msg.response || msg.message});
+                                }
+                            });
+                            
+                            // Close history menu
+                            document.getElementById('historyMenu').classList.remove('show');
+                            console.log('Session loaded from localStorage');
+                        }
+                    }
+                } catch (error) {
+                    console.error('Failed to load session from localStorage:', error);
+                }
             }
         }
         
