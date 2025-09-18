@@ -1189,6 +1189,18 @@
             }
         }
 
+        /* Fade in animation for thinking indicator */
+        @keyframes fadeIn {
+            0% {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
         @media (max-width: 1400px) {
             .big-carousel-container {
                 width: 90%;
@@ -2790,16 +2802,15 @@
             // Add thinking indicator WITHOUT bubble
             const thinkingDiv = document.createElement('div');
             thinkingDiv.className = 'message bot thinking';
+            thinkingDiv.style.opacity = '0';
+            thinkingDiv.style.animation = 'fadeIn 0.8s ease-in forwards';
             thinkingDiv.innerHTML = `
                 <div class="message-avatar">
                     <img src="${aiProfiles[currentAIProfile].robotImage}" alt="${aiProfiles[currentAIProfile].name}" 
                          onerror="this.style.display='none'; this.parentNode.innerHTML='${aiProfiles[currentAIProfile].avatar}';">
                 </div>
                 <div class="thinking-container" style="flex: 1; padding-left: 15px;">
-                    <span class="thinking-text" style="color: rgba(255, 255, 255, 0.6); font-size: 14px; font-style: italic;">
-                        <span class="thinking-dot" style="display: inline-block; width: 6px; height: 6px; background: rgba(255,255,255,0.6); border-radius: 50%; margin: 0 2px; animation: thinking-pulse 1.4s infinite;"></span>
-                        <span class="thinking-dot" style="display: inline-block; width: 6px; height: 6px; background: rgba(255,255,255,0.6); border-radius: 50%; margin: 0 2px; animation: thinking-pulse 1.4s infinite; animation-delay: 0.2s;"></span>
-                        <span class="thinking-dot" style="display: inline-block; width: 6px; height: 6px; background: rgba(255,255,255,0.6); border-radius: 50%; margin: 0 2px; animation: thinking-pulse 1.4s infinite; animation-delay: 0.4s;"></span>
+                    <span class="thinking-text" style="color: rgba(255, 255, 255, 0.5); font-size: 14px; font-style: italic;">
                         Thinking...
                     </span>
                 </div>
@@ -3002,13 +3013,13 @@
                     signal: abortController.signal
                 });
                 
-                // Fade out typing indicator smoothly
-                if (chatMessages.contains(typingDiv)) {
-                    typingDiv.style.transition = 'opacity 0.5s ease-out';
-                    typingDiv.style.opacity = '0';
+                // Fade out thinking indicator smoothly
+                if (chatMessages.contains(thinkingDiv)) {
+                    thinkingDiv.style.transition = 'opacity 0.5s ease-out';
+                    thinkingDiv.style.opacity = '0';
                     setTimeout(() => {
-                        if (chatMessages.contains(typingDiv)) {
-                            chatMessages.removeChild(typingDiv);
+                        if (chatMessages.contains(thinkingDiv)) {
+                            chatMessages.removeChild(thinkingDiv);
                         }
                     }, 500);
                 }
@@ -3689,9 +3700,9 @@
                     throw new Error(`Server responded with status ${response.status}`);
                 }
             } catch (error) {
-                // Remove typing indicator if it still exists
-                if (chatMessages.contains(typingDiv)) {
-                    chatMessages.removeChild(typingDiv);
+                // Remove thinking indicator if it still exists
+                if (chatMessages.contains(thinkingDiv)) {
+                    chatMessages.removeChild(thinkingDiv);
                 }
                 
                 // Enhanced error logging for SSL/connection issues
