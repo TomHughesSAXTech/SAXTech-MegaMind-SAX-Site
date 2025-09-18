@@ -1157,7 +1157,7 @@
         }
         
         .history-menu {
-            position: fixed;  /* Will be set dynamically */
+            position: fixed !important;  /* Force fixed positioning */
             background: rgba(255, 255, 255, 0.98);
             border: 2px solid rgba(255,215,0,0.3);
             border-radius: 12px;
@@ -1168,7 +1168,7 @@
             max-height: 400px;  /* Fixed max height for better control */
             overflow-y: auto;
             backdrop-filter: blur(10px);
-            z-index: 100000;  /* Highest z-index to ensure it's on top */
+            z-index: 999999;  /* Highest z-index to ensure it's on top */
         }
         
         .history-menu.active {
@@ -1431,7 +1431,7 @@
                 
                 <!-- History Dropdown -->
                 <div class="history-dropdown">
-                    <button class="history-btn" id="historyBtn" onclick="toggleHistoryMenu()">
+                    <button class="history-btn" id="historyBtn">
                         📚 History
                     </button>
                     <div class="history-menu" id="historyMenu">
@@ -1569,9 +1569,12 @@
         // History dropdown functions
         window.toggleHistoryMenu = function() {
             try {
-                console.log('toggleHistoryMenu called');
+                console.log('toggleHistoryMenu called at', new Date().toISOString());
                 const menu = document.getElementById('historyMenu');
                 const btn = document.getElementById('historyBtn');
+                
+                console.log('Menu element:', menu);
+                console.log('Button element:', btn);
                 
                 if (!menu) {
                     console.error('History menu element not found');
@@ -1583,12 +1586,17 @@
                 }
                 
                 historyMenuOpen = !historyMenuOpen;
-                console.log('History menu open state:', historyMenuOpen);
+                console.log('History menu open state changed to:', historyMenuOpen);
                 
                 if (historyMenuOpen) {
+                    // First make menu visible with display block
+                    menu.style.display = 'block';
+                    
                     // Position the menu based on button location
                     const btnRect = btn.getBoundingClientRect();
                     console.log('Button position:', btnRect);
+                    
+                    // Force fixed positioning
                     menu.style.position = 'fixed';
                     menu.style.top = (btnRect.bottom + 10) + 'px';  // 10px below button
                     
@@ -1604,15 +1612,32 @@
                         menu.style.right = 'auto';
                     }
                     
+                    // Force high z-index
+                    menu.style.zIndex = '999999';
+                    
+                    // Add active class
                     menu.classList.add('active');
-                    console.log('Menu positioned at - top:', menu.style.top, 'right:', menu.style.right, 'left:', menu.style.left);
-                    loadHistoryFromAzure();  // Changed to load from Azure
+                    
+                    console.log('Menu CSS after positioning:', {
+                        display: menu.style.display,
+                        position: menu.style.position,
+                        top: menu.style.top, 
+                        right: menu.style.right, 
+                        left: menu.style.left,
+                        zIndex: menu.style.zIndex,
+                        classList: menu.classList.toString()
+                    });
+                    
+                    // Load history data
+                    loadHistoryFromAzure();
                 } else {
                     menu.classList.remove('active');
-                    console.log('Menu closed');
+                    menu.style.display = 'none';
+                    console.log('Menu closed and hidden');
                 }
             } catch (error) {
                 console.error('Error in toggleHistoryMenu:', error);
+                console.error('Stack:', error.stack);
             }
         }
         
@@ -4176,6 +4201,35 @@
         // Initialize on page load
         window.addEventListener('load', async () => {
             console.log('Page loaded, initializing application...');
+            
+            // Setup history button
+            const historyBtn = document.getElementById('historyBtn');
+            const historyMenu = document.getElementById('historyMenu');
+            
+            if (historyBtn) {
+                console.log('History button found during initialization');
+                // Remove any existing onclick attribute and use event listener
+                historyBtn.removeAttribute('onclick');
+                historyBtn.addEventListener('click', function(e) {
+                    console.log('History button clicked');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.toggleHistoryMenu();
+                });
+            } else {
+                console.error('History button not found during initialization!');
+            }
+            
+            if (historyMenu) {
+                console.log('History menu found during initialization');
+                // Ensure menu is hidden initially
+                historyMenu.style.display = 'none';
+                historyMenu.classList.remove('active');
+                historyMenuOpen = false;
+            } else {
+                console.error('History menu not found during initialization!');
+            }
+            
             loadVoiceDropdown();  // Load custom voices
             await initialize();  // Call the main initialize function, not just initializeMSAL
         });
