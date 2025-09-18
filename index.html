@@ -2597,9 +2597,15 @@
                     signal: abortController.signal
                 });
                 
-                // Remove typing indicator
+                // Fade out typing indicator smoothly
                 if (chatMessages.contains(typingDiv)) {
-                    chatMessages.removeChild(typingDiv);
+                    typingDiv.style.transition = 'opacity 0.5s ease-out';
+                    typingDiv.style.opacity = '0';
+                    setTimeout(() => {
+                        if (chatMessages.contains(typingDiv)) {
+                            chatMessages.removeChild(typingDiv);
+                        }
+                    }, 500);
                 }
                 
                 if (response.ok) {
@@ -2796,25 +2802,41 @@
                                                 
                                                 // Handle different message types
                                                 if (jsonObj.type === 'item' && jsonObj.content) {
-                                                    // Add content with fade-in effect
-                                                    const words = jsonObj.content.split(' ');
-                                                    words.forEach((word, index) => {
-                                                        if (word.trim()) {
-                                                            setTimeout(() => {
-                                                                const wordSpan = document.createElement('span');
-                                                                wordSpan.className = 'fade-in-word';
-                                                                wordSpan.textContent = word + ' ';
-                                                                wordSpan.style.animationDelay = `${index * 0.05}s`;
-                                                                streamingContent.appendChild(wordSpan);
-                                                                chatMessages.scrollTop = chatMessages.scrollHeight;
-                                                            }, index * 30);
-                                                        }
-                                                    });
+                                                    // Store content for later streaming
                                                     fullContent += jsonObj.content;
                                                 } else if (jsonObj.type === 'end') {
-                                                    console.log('Stream ended, checking for audio in end message:', jsonObj);
+                                                    console.log('Stream ended, end message structure:', JSON.stringify(jsonObj, null, 2));
                                                     
-                                                    // Check for audio in the end message
+                                                    // Check all possible audio fields in the end message
+                                                    const audioFields = ['audioBase64', 'audioData', 'audio', 'audioUrl', 'ttsAudio', 'voiceAudio'];
+                                                    
+                                                    // Check root level
+                                                    for (const field of audioFields) {
+                                                        if (jsonObj[field]) {
+                                                            console.log(`Found ${field} at root level, type: ${typeof jsonObj[field]}, length: ${jsonObj[field].length || 'N/A'}`);
+                                                            if (!audioData && typeof jsonObj[field] === 'string') {
+                                                                audioData = jsonObj[field];
+                                                                console.log(`Using ${field} as audio data`);
+                                                                break;
+                                                            }
+                                                        }
+                                                    }
+                                                    
+                                                    // Check metadata level
+                                                    if (jsonObj.metadata) {
+                                                        for (const field of audioFields) {
+                                                            if (jsonObj.metadata[field]) {
+                                                                console.log(`Found ${field} in metadata, type: ${typeof jsonObj.metadata[field]}, length: ${jsonObj.metadata[field].length || 'N/A'}`);
+                                                                if (!audioData && typeof jsonObj.metadata[field] === 'string') {
+                                                                    audioData = jsonObj.metadata[field];
+                                                                    console.log(`Using metadata.${field} as audio data`);
+                                                                    break;
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                    
+                                                    // Legacy check for audio in the end message
                                                     if (!audioData) {
                                                         if (jsonObj.audioBase64) {
                                                             console.log('Found audioBase64 in end message, length:', jsonObj.audioBase64.length);
@@ -2894,10 +2916,37 @@
                                         }
                                     }
                                     
-                                    // Finalize after processing all chunks
-                                    setTimeout(() => {
-                                        if (fullContent) {
-                                            console.log('Assembled full response:', fullContent);
+                                    // Stream the content character by character with fade-in effect
+                                    if (fullContent) {
+                                        console.log('Assembled full response:', fullContent);
+                                        
+                                        // Split content into words for streaming
+                                        const words = fullContent.replace(/<[^>]*>/g, '').split(' ');
+                                        let currentIndex = 0;
+                                        
+                                        // Function to add next word with fade-in
+                                        const addNextWord = () => {
+                                            if (currentIndex < words.length) {
+                                                const word = words[currentIndex];
+                                                if (word.trim()) {
+                                                    const wordSpan = document.createElement('span');
+                                                    wordSpan.className = 'fade-in-word';
+                                                    wordSpan.textContent = word + ' ';
+                                                    wordSpan.style.opacity = '0';
+                                                    streamingContent.appendChild(wordSpan);
+                                                    
+                                                    // Trigger animation
+                                                    setTimeout(() => {
+                                                        wordSpan.style.opacity = '1';
+                                                    }, 10);
+                                                    
+                                                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                                                }
+                                                currentIndex++;
+                                                setTimeout(addNextWord, 50); // 50ms between words
+                                            } else {
+                                                // Streaming complete, finalize the message
+                                                setTimeout(() => {
                                             
                                             // Transition from streaming to final styled message
                                             messageDiv.classList.remove('streaming');
@@ -2970,13 +3019,23 @@
                                                     }, 1000);
                                                 }
                                             }
-                                        } else if (!hasError) {
-                                            // Only add error message if we didn't already show content
-                                            if (!streamingContent.innerHTML) {
-                                                streamingContent.innerHTML = 'I received a response but couldn\'t extract the message.';
+                                                }, 500); // Small delay before finalizing
+                                            }
+                                        };
+                                        
+                                        // Start the streaming animation
+                                        addNextWord();
+                                        
+                                    } else if (!hasError) {
+                                        // Only add error message if we didn't already show content
+                                        if (!streamingContent || !streamingContent.innerHTML) {
+                                            const errorMsg = document.createElement('div');
+                                            errorMsg.textContent = 'I received a response but couldn\'t extract the message.';
+                                            if (streamingContent) {
+                                                streamingContent.appendChild(errorMsg);
                                             }
                                         }
-                                    }, 1500); // Wait for streaming animation to complete
+                                    }
                                     
                                 } else {
                                     // Try to parse as single JSON object
