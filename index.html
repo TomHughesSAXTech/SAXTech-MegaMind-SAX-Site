@@ -2132,9 +2132,16 @@
         
         function saveSessionHistory() {
             if (userSessionId && currentAccount) {
+                // Get real metrics from the tracker
+                let metrics = {};
+                if (window.metricsTracker) {
+                    metrics = window.metricsTracker.getMetrics();
+                }
+                
                 const sessionData = {
                     messages: conversationHistory,
-                    lastUpdated: new Date().toISOString()
+                    lastUpdated: new Date().toISOString(),
+                    metrics: metrics
                 };
                 localStorage.setItem(userSessionId, JSON.stringify(sessionData));
                 
@@ -2152,7 +2159,9 @@
             if (window.metricsTracker) {
                 metrics = window.metricsTracker.getMetrics();
                 // End the session for final metrics
-                window.metricsTracker.sessionMetrics.sessionEndTime = new Date().toISOString();
+                if (!metrics.sessionEndTime) {
+                    metrics.sessionEndTime = new Date().toISOString();
+                }
             }
             
             try {
@@ -2167,46 +2176,55 @@
                         userEmail: currentAccount.username,
                         userName: currentAccount.name || currentAccount.username,
                         conversation: messages,
+                        timestamp: new Date().toISOString(),
                         department: userProfile?.department || null,
                         location: userProfile?.location || userProfile?.officeLocation || userProfile?.city || null,
                         aiProfile: currentAIProfile || 'default',
                         
-                        // Add REAL metrics from the tracker
-                        sessionStartTime: metrics.sessionStartTime,
-                        sessionEndTime: metrics.sessionEndTime,
+                        // Include metadata for better tracking
+                        metadata: {
+                            sessionStartTime: metrics.sessionStartTime || sessionStartTime,
+                            sessionEndTime: metrics.sessionEndTime || new Date().toISOString(),
+                            aiProfile: currentAIProfile,
+                            userAgent: navigator.userAgent,
+                            platform: navigator.platform
+                        },
                         
-                        // Model metrics
-                        modelsUsed: metrics.modelsUsed || [],
-                        modelSwitches: metrics.modelSwitches || 0,
-                        
-                        // Token metrics
-                        totalTokens: metrics.totalTokens || 0,
-                        inputTokens: metrics.inputTokens || 0,
-                        outputTokens: metrics.outputTokens || 0,
-                        tokensByModel: metrics.tokensByModel || {},
-                        
-                        // Tool and search metrics
-                        toolsUsed: metrics.toolsUsed || [],
-                        indexQueries: metrics.indexQueries || 0,
-                        documentsRetrieved: metrics.documentsRetrieved || 0,
-                        searchQueries: metrics.searchQueries || [],
-                        
-                        // Voice metrics
-                        voiceAgentUsed: metrics.voiceAgentUsed || false,
-                        voiceAgentName: metrics.voiceAgentName || null,
-                        voiceDuration: metrics.voiceDuration || 0,
-                        voiceInterruptions: metrics.voiceInterruptions || 0,
-                        
-                        // Performance metrics
-                        avgResponseTime: metrics.avgResponseTime || null,
-                        confidenceScores: metrics.confidenceScores || [],
-                        avgConfidence: metrics.avgConfidence || null,
-                        
-                        // User interaction metrics
-                        userFeedback: metrics.userFeedback || [],
-                        regenerations: metrics.regenerations || 0,
-                        attachments: metrics.attachments || [],
-                        errorCount: metrics.errorCount || 0
+                        // Properly structured metrics
+                        metrics: {
+                            // Model metrics
+                            modelsUsed: metrics.modelsUsed || [],
+                            modelSwitches: metrics.modelSwitches || 0,
+                            
+                            // Token metrics
+                            totalTokens: metrics.totalTokens || 0,
+                            inputTokens: metrics.inputTokens || 0,
+                            outputTokens: metrics.outputTokens || 0,
+                            tokensByModel: metrics.tokensByModel || {},
+                            
+                            // Tool and search metrics
+                            toolsUsed: metrics.toolsUsed || [],
+                            indexQueries: metrics.indexQueries || 0,
+                            documentsRetrieved: metrics.documentsRetrieved || 0,
+                            searchQueries: metrics.searchQueries || [],
+                            
+                            // Voice metrics
+                            voiceAgentUsed: metrics.voiceAgentUsed || false,
+                            voiceAgentName: metrics.voiceAgentName || null,
+                            voiceDuration: metrics.voiceDuration || 0,
+                            voiceInterruptions: metrics.voiceInterruptions || 0,
+                            
+                            // Performance metrics
+                            avgResponseTime: metrics.avgResponseTime || null,
+                            confidenceScores: metrics.confidenceScores || [],
+                            avgConfidence: metrics.avgConfidence || null,
+                            
+                            // User interaction metrics
+                            userFeedback: metrics.userFeedback || [],
+                            regenerations: metrics.regenerations || 0,
+                            attachments: metrics.attachments || [],
+                            errorCount: metrics.errorCount || 0
+                        }
                     })
                 });
                 
@@ -2657,11 +2675,35 @@
                                 
                                 if (hasMultipleJsonLines) {
                                     console.log('Detected NDJSON format (multiple JSON objects separated by newlines)');
+                                    
+                                    // Create message element for streaming display
+                                    const messageDiv = document.createElement('div');
+                                    messageDiv.className = 'message bot';
+                                    messageDiv.innerHTML = `
+                                        <div class="message-avatar">
+                                            <img src="${aiProfiles[currentAIProfile].robotImage}" alt="${aiProfiles[currentAIProfile].name}" 
+                                                 onerror="this.style.display='none'; this.parentNode.innerHTML='${aiProfiles[currentAIProfile].avatar}';">
+                                        </div>
+                                        <div class="message-bubble" id="streaming-ndjson-message"></div>
+                                    `;
+                                    chatMessages.appendChild(messageDiv);
+                                    const streamingContent = messageDiv.querySelector('#streaming-ndjson-message');
+                                    
                                     let fullContent = '';
                                     let audioData = null;
                                     let hasError = false;
+                                    let streamDelay = 0;
                                     
-                                    // Parse each line as a separate JSON object
+                                    // Track metrics for this response
+                                    let responseMetrics = {
+                                        model: null,
+                                        inputTokens: 0,
+                                        outputTokens: 0,
+                                        tools: [],
+                                        confidence: null
+                                    };
+                                    
+                                    // Parse each line as a separate JSON object with simulated streaming
                                     for (const line of lines) {
                                         if (line.trim()) {
                                             try {
@@ -2669,15 +2711,33 @@
                                                 
                                                 // Handle different message types
                                                 if (jsonObj.type === 'item' && jsonObj.content) {
-                                                    fullContent += jsonObj.content;
+                                                    // Simulate streaming by adding content with small delays
+                                                    const content = jsonObj.content;
+                                                    setTimeout(() => {
+                                                        fullContent += content;
+                                                        streamingContent.innerHTML = fullContent;
+                                                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                                                    }, streamDelay);
+                                                    streamDelay += 50; // Add 50ms delay between chunks
                                                 } else if (jsonObj.type === 'end') {
                                                     console.log('Stream ended');
+                                                    // Extract metrics if available
+                                                    if (jsonObj.metadata) {
+                                                        responseMetrics.model = jsonObj.metadata.model || responseMetrics.model;
+                                                        responseMetrics.inputTokens = jsonObj.metadata.inputTokens || responseMetrics.inputTokens;
+                                                        responseMetrics.outputTokens = jsonObj.metadata.outputTokens || responseMetrics.outputTokens;
+                                                    }
                                                 } else if (jsonObj.type === 'begin') {
                                                     console.log('Stream started from node:', jsonObj.metadata?.nodeName);
+                                                    if (jsonObj.metadata?.model) {
+                                                        responseMetrics.model = jsonObj.metadata.model;
+                                                    }
                                                 } else if (jsonObj.response) {
                                                     fullContent = jsonObj.response;
+                                                    streamingContent.innerHTML = fullContent;
                                                 } else if (jsonObj.text) {
                                                     fullContent = jsonObj.text;
+                                                    streamingContent.innerHTML = fullContent;
                                                 }
                                                 
                                                 // Check for audio data
@@ -2700,30 +2760,62 @@
                                         }
                                     }
                                     
-                                    if (fullContent) {
-                                        console.log('Assembled full response:', fullContent);
-                                        addMessage('bot', fullContent, audioData);
-                                        
-                                        // Track metrics if available
-                                        if (window.metricsTracker) {
-                                            window.metricsTracker.trackMessage('assistant', fullContent);
-                                            window.metricsTracker.endRequest();
+                                    // Wait for streaming to complete, then finalize
+                                    setTimeout(() => {
+                                        if (fullContent) {
+                                            console.log('Assembled full response:', fullContent);
+                                            // Message already displayed via streaming, just track it
+                                            
+                                            // Track metrics if available
+                                            if (window.metricsTracker) {
+                                                window.metricsTracker.trackMessage('assistant', fullContent);
+                                                if (responseMetrics.model) {
+                                                    window.metricsTracker.trackModel(responseMetrics.model);
+                                                }
+                                                if (responseMetrics.inputTokens || responseMetrics.outputTokens) {
+                                                    window.metricsTracker.trackTokens(
+                                                        responseMetrics.inputTokens,
+                                                        responseMetrics.outputTokens,
+                                                        responseMetrics.model
+                                                    );
+                                                }
+                                                if (responseMetrics.tools.length > 0) {
+                                                    responseMetrics.tools.forEach(tool => window.metricsTracker.trackTool(tool));
+                                                }
+                                                if (responseMetrics.confidence) {
+                                                    window.metricsTracker.trackConfidence(responseMetrics.confidence);
+                                                }
+                                                window.metricsTracker.endRequest();
+                                            }
+                                            
+                                            // Save to conversation history
+                                            conversationHistory.push({
+                                                role: 'assistant',
+                                                content: fullContent,
+                                                timestamp: new Date().toISOString(),
+                                                metrics: responseMetrics
+                                            });
+                                            saveSessionHistory();
+                                            
+                                            // Clear attachedFiles after successful response
+                                            window.attachedFiles = [];
+                                            attachedFiles = window.attachedFiles;
+                                            
+                                            // If voice interaction is active, restart listening
+                                            if (voiceInteractionActive && !audioData) {
+                                                setTimeout(() => {
+                                                    if (!recognitionActive && !isAISpeaking) {
+                                                        startListening();
+                                                    }
+                                                }, 1000);
+                                            }
+                                        } else if (!hasError) {
+                                            // Only add error message if we didn't already show content
+                                            if (!streamingContent.innerHTML) {
+                                                streamingContent.innerHTML = 'I received a response but couldn\'t extract the message.';
+                                            }
                                         }
-                                        
-                                        // Save to conversation history
-                                        conversationHistory.push({
-                                            role: 'assistant',
-                                            content: fullContent,
-                                            timestamp: new Date().toISOString()
-                                        });
-                                        saveSessionHistory();
-                                        
-                                        // Clear attachedFiles after successful response
-                                        window.attachedFiles = [];
-                                        attachedFiles = window.attachedFiles;
-                                    } else if (!hasError) {
-                                        addMessage('bot', 'I received a response but couldn\'t extract the message.');
-                                    }
+                                    }, streamDelay + 500); // Wait for all chunks to display plus buffer
                                     
                                 } else {
                                     // Try to parse as single JSON object
