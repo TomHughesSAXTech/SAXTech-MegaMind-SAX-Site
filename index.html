@@ -2653,7 +2653,22 @@
                             } else {
                                 // Try to parse as JSON
                                 try {
-                                    const result = JSON.parse(responseText);
+                                    // Log the raw response for debugging
+                                    console.log('Raw response (first 500 chars):', responseText.substring(0, 500));
+                                    
+                                    // Check if response might contain multiple JSON objects
+                                    const jsonMatch = responseText.match(/^\s*\{[\s\S]*?\}(?:\s*$)?/);
+                                    let result;
+                                    
+                                    if (jsonMatch) {
+                                        // Try to parse just the first JSON object
+                                        console.log('Attempting to parse first JSON object');
+                                        result = JSON.parse(jsonMatch[0]);
+                                    } else {
+                                        // Try parsing the whole response
+                                        result = JSON.parse(responseText);
+                                    }
+                                    
                             if (result.errorMessage) {
                                 console.error('n8n error:', result);
                                 addMessage('bot', `Configuration error: ${result.errorMessage}`);
@@ -2763,7 +2778,47 @@
                             }
                         } catch (jsonError) {
                             console.error('Invalid JSON response:', jsonError);
-                            addMessage('bot', 'I received an invalid response from the server.');
+                            console.log('Failed to parse response as JSON. Raw response:', responseText);
+                            
+                            // Check if it's plain text that we can display
+                            if (responseText && responseText.trim().length > 0) {
+                                // Check if it looks like it might be a plain text response
+                                if (!responseText.trim().startsWith('{') && !responseText.trim().startsWith('[')) {
+                                    // Likely plain text response
+                                    console.log('Treating response as plain text');
+                                    addMessage('bot', responseText);
+                                    
+                                    // Save to conversation history
+                                    conversationHistory.push({
+                                        role: 'assistant',
+                                        content: responseText,
+                                        timestamp: new Date().toISOString()
+                                    });
+                                    saveSessionHistory();
+                                } else {
+                                    // It looks like JSON but failed to parse
+                                    // Try to extract any readable content
+                                    const textMatch = responseText.match(/"(?:response|text|message|content)"\s*:\s*"([^"]*)"/i);
+                                    if (textMatch && textMatch[1]) {
+                                        console.log('Extracted text from malformed JSON:', textMatch[1]);
+                                        addMessage('bot', textMatch[1]);
+                                        
+                                        // Save to conversation history
+                                        conversationHistory.push({
+                                            role: 'assistant',
+                                            content: textMatch[1],
+                                            timestamp: new Date().toISOString()
+                                        });
+                                        saveSessionHistory();
+                                    } else {
+                                        // Last resort - show error with details
+                                        console.error('Could not extract meaningful content from response');
+                                        addMessage('bot', 'I received a response but it appears to be malformed. Please check your n8n workflow configuration.');
+                                    }
+                                }
+                            } else {
+                                addMessage('bot', 'I received an empty or invalid response from the server.');
+                            }
                         }
                     }
                     } // Close the else block for non-streaming response
