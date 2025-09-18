@@ -1158,21 +1158,25 @@
         
         .history-menu {
             position: fixed !important;  /* Force fixed positioning */
-            background: rgba(255, 255, 255, 0.98);
-            border: 2px solid rgba(255,215,0,0.3);
+            background: white !important;  /* Solid white background */
+            border: 2px solid #FFD700;
             border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
             display: none;
             min-width: 350px;
             max-width: 450px;
             max-height: 400px;  /* Fixed max height for better control */
             overflow-y: auto;
-            backdrop-filter: blur(10px);
-            z-index: 999999;  /* Highest z-index to ensure it's on top */
+            z-index: 999999 !important;  /* Highest z-index to ensure it's on top */
+            opacity: 1 !important;
+            visibility: visible !important;
+            padding: 10px 0;  /* Add padding for content */
         }
         
         .history-menu.active {
-            display: block;
+            display: block !important;
+            opacity: 1 !important;
+            visibility: visible !important;
         }
         
         .history-item {
@@ -1600,20 +1604,26 @@
                     menu.style.position = 'fixed';
                     menu.style.top = (btnRect.bottom + 10) + 'px';  // 10px below button
                     
-                    // Calculate position - if button is on the right side, show menu to the left
+                    // Simple positioning - align with button's right edge, extending left
                     const menuWidth = 400; // Approximate menu width
-                    if (btnRect.right > window.innerWidth - menuWidth) {
-                        // Button is on right side, show menu to the left of button
-                        menu.style.right = (window.innerWidth - btnRect.left) + 'px';
-                        menu.style.left = 'auto';
-                    } else {
-                        // Button has space on right, show menu aligned with button
-                        menu.style.left = btnRect.left + 'px';
+                    
+                    // Position menu to extend left from the button's right edge
+                    const rightPosition = window.innerWidth - btnRect.right;
+                    menu.style.right = rightPosition + 'px';
+                    menu.style.left = 'auto';
+                    
+                    // Ensure menu doesn't go off the left edge of screen
+                    const menuLeft = btnRect.right - menuWidth;
+                    if (menuLeft < 10) {
+                        // If menu would go off left edge, align it with left edge instead
+                        menu.style.left = '10px';
                         menu.style.right = 'auto';
                     }
                     
-                    // Force high z-index
+                    // Force high z-index and ensure visibility
                     menu.style.zIndex = '999999';
+                    menu.style.opacity = '1';
+                    menu.style.visibility = 'visible';
                     
                     // Add active class
                     menu.classList.add('active');
