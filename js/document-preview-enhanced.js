@@ -50,6 +50,7 @@ window.openDocumentPreview = async function(fileName, department) {
         
         try {
             // Try to get the actual source URL from the search API
+            // Use a broader search to ensure we get results
             const searchResponse = await fetch('https://saxtechmegamindfunctions.azurewebsites.net/api/documents/search', {
                 method: 'POST',
                 headers: {
@@ -57,17 +58,31 @@ window.openDocumentPreview = async function(fileName, department) {
                     'x-functions-key': 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw=='
                 },
                 body: JSON.stringify({
-                    query: fileName,
+                    query: fileName.replace('.txt', ''),  // Remove .txt extension for better matching
                     filter: `fileName eq '${fileName}'`,
                     top: 10,
                     searchMode: 'all',
-                    select: 'fileName,title,sourceUrl,url,websiteUrl,pageUrl,content,department,metadata'
+                    select: '*',  // Get all fields to see what's available
+                    includeTotalCount: true
                 })
             });
             
             if (searchResponse.ok) {
                 const searchData = await searchResponse.json();
+                console.log('Search response data:', {
+                    totalCount: searchData['@odata.count'],
+                    resultCount: searchData.value?.length || 0
+                });
+                
                 const results = searchData.value || [];
+                
+                // Log all results to see what we're getting
+                console.log('Search results:', results.map(r => ({
+                    fileName: r.fileName,
+                    pageURL: r.pageURL,
+                    pageUrl: r.pageUrl,
+                    hasContent: !!r.content
+                })));
                 
                 // Find the exact document
                 const matchingDoc = results.find(doc => 
@@ -78,9 +93,22 @@ window.openDocumentPreview = async function(fileName, department) {
                     console.log('Found matching document with fields:', Object.keys(matchingDoc));
                     console.log('Document data:', JSON.stringify(matchingDoc, null, 2));
                     
+                    // Log specific URL fields for debugging
+                    console.log('URL field values:', {
+                        pageURL: matchingDoc.pageURL,
+                        pageUrl: matchingDoc.pageUrl,
+                        sourceUrl: matchingDoc.sourceUrl,
+                        url: matchingDoc.url,
+                        websiteUrl: matchingDoc.websiteUrl
+                    });
+                    
                     // Try to get the actual page URL from various possible fields
-                    let pageUrl = matchingDoc.sourceUrl || matchingDoc.url || 
-                                 matchingDoc.websiteUrl || matchingDoc.pageUrl;
+                    // Priority: pageURL (case-sensitive) > pageUrl > sourceUrl > url > websiteUrl
+                    let pageUrl = matchingDoc.pageURL || matchingDoc.pageUrl || 
+                                 matchingDoc.sourceUrl || matchingDoc.url || 
+                                 matchingDoc.websiteUrl;
+                    
+                    console.log('Selected pageUrl:', pageUrl);
                     
                     // Check title field for URLs (often contains the page title and URL)
                     if (!pageUrl && matchingDoc.title) {
@@ -96,8 +124,9 @@ window.openDocumentPreview = async function(fileName, department) {
                         try {
                             const metadata = typeof matchingDoc.metadata === 'string' ? 
                                            JSON.parse(matchingDoc.metadata) : matchingDoc.metadata;
-                            pageUrl = metadata.sourceUrl || metadata.url || metadata.websiteUrl || 
-                                     metadata.pageUrl || metadata.source_url || metadata.page_url;
+                            pageUrl = metadata.pageURL || metadata.pageUrl || metadata.sourceUrl || 
+                                     metadata.url || metadata.websiteUrl || 
+                                     metadata.source_url || metadata.page_url;
                             
                             if (!pageUrl && metadata.title) {
                                 const metaTitleUrlMatch = metadata.title.match(/(https?:\/\/[^\s]+)/i);
@@ -108,6 +137,20 @@ window.openDocumentPreview = async function(fileName, department) {
                             }
                         } catch (e) {
                             console.log('Could not parse metadata:', e);
+                        }
+                    }
+                    
+                    // If no URL found in standard fields, check all fields for URL patterns
+                    if (!pageUrl) {
+                        console.log('No URL in standard fields, checking all fields...');
+                        for (const [key, value] of Object.entries(matchingDoc)) {
+                            if (typeof value === 'string' && value.includes('http')) {
+                                console.log(`Found potential URL in field '${key}':`, value);
+                                if (value.startsWith('http://') || value.startsWith('https://')) {
+                                    pageUrl = value;
+                                    break;
+                                }
+                            }
                         }
                     }
                     
