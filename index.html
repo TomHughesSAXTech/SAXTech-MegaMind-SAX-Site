@@ -2424,21 +2424,46 @@
                         addMessage('bot', 'I apologize, but the service is currently being configured. Please try again later.');
                     } else {
                         try {
-                            const result = JSON.parse(responseText);
+                            let result = JSON.parse(responseText);
+                            
+                            // Handle array response from n8n (unwrap if needed)
+                            if (Array.isArray(result) && result.length > 0) {
+                                console.log('Received array response from n8n, unwrapping first element');
+                                result = result[0];
+                            }
+                            
                             if (result.errorMessage) {
                                 console.error('n8n error:', result);
                                 addMessage('bot', `Configuration error: ${result.errorMessage}`);
                             } else {
-                                // Handle response with audio
-                                const responseText = result.response || 'I received your message but couldn\'t generate a response.';
+                                // Handle response - check for HTML or text content
+                                let displayContent = result.text || result.response || 'I received your message but couldn\'t generate a response.';
+                                
+                                // If there's HTML content, use that for display
+                                if (result.hasHtml && result.htmlResponse) {
+                                    // Extract just the body content from HTML
+                                    const htmlMatch = result.htmlResponse.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+                                    if (htmlMatch) {
+                                        displayContent = htmlMatch[1].trim();
+                                    } else {
+                                        displayContent = result.htmlResponse;
+                                    }
+                                }
                                 
                                 // Try to get audio data from various possible fields
                                 let audioData = null;
-                                if (result.audioBase64 && typeof result.audioBase64 === 'string') {
+                                
+                                // Check for TTS error first
+                                if (result.ttsError) {
+                                    console.warn('TTS Error:', result.ttsError, 'Type:', result.ttsErrorType);
+                                    if (result.ttsError.includes('401')) {
+                                        console.error('ElevenLabs API authentication failed - check API key in n8n workflow');
+                                    }
+                                } else if (result.audioBase64 && typeof result.audioBase64 === 'string') {
                                     audioData = result.audioBase64;
                                 } else if (result.audioData && typeof result.audioData === 'string') {
                                     audioData = result.audioData;
-                                } else if (result.audioUrl && result.audioUrl.includes('base64,')) {
+                                } else if (result.audioUrl && typeof result.audioUrl === 'string' && result.audioUrl.includes('base64,')) {
                                     // Extract base64 from data URL
                                     const base64Match = result.audioUrl.match(/base64,(.+)/);
                                     if (base64Match) {
@@ -2449,16 +2474,16 @@
                                 // Log what we received for debugging
                                 if (audioData) {
                                     console.log('Audio data received, length:', audioData.length);
-                                } else {
-                                    console.log('No audio data in response');
+                                } else if (!result.ttsError) {
+                                    console.log('No audio data in response (TTS may be disabled)');
                                 }
                                 
-                                addMessage('bot', responseText, audioData);
+                                addMessage('bot', displayContent, audioData);
                                 
                                 // Add to conversation history
                                 conversationHistory.push({
                                     role: 'assistant',
-                                    content: responseText,
+                                    content: displayContent,
                                     timestamp: new Date().toISOString()
                                 });
                                 
@@ -2480,7 +2505,7 @@
                                 // Store conversation history (keep last 10 exchanges)
                                 conversationContext.conversationHistory.push({
                                     message: message,
-                                    response: responseText,
+                                    response: displayContent,
                                     attachments: processedAttachments.map(a => ({ name: a.name, type: a.category })),
                                     timestamp: new Date().toISOString()
                                 });
