@@ -1567,21 +1567,40 @@
         }
         
         // History dropdown functions
-        function toggleHistoryMenu() {
-            const menu = document.getElementById('historyMenu');
-            const btn = document.getElementById('historyBtn');
-            historyMenuOpen = !historyMenuOpen;
-            
-            if (historyMenuOpen) {
-                // Position the menu based on button location
-                const btnRect = btn.getBoundingClientRect();
-                menu.style.position = 'fixed';
-                menu.style.top = (btnRect.bottom + 10) + 'px';  // 10px below button
-                menu.style.right = (window.innerWidth - btnRect.right) + 'px';  // Align with button right edge
-                menu.classList.add('active');
-                loadHistoryFromAzure();  // Changed to load from Azure
-            } else {
-                menu.classList.remove('active');
+        window.toggleHistoryMenu = function() {
+            try {
+                console.log('toggleHistoryMenu called');
+                const menu = document.getElementById('historyMenu');
+                const btn = document.getElementById('historyBtn');
+                
+                if (!menu) {
+                    console.error('History menu element not found');
+                    return;
+                }
+                if (!btn) {
+                    console.error('History button element not found');
+                    return;
+                }
+                
+                historyMenuOpen = !historyMenuOpen;
+                console.log('History menu open state:', historyMenuOpen);
+                
+                if (historyMenuOpen) {
+                    // Position the menu based on button location
+                    const btnRect = btn.getBoundingClientRect();
+                    console.log('Button position:', btnRect);
+                    menu.style.position = 'fixed';
+                    menu.style.top = (btnRect.bottom + 10) + 'px';  // 10px below button
+                    menu.style.right = (window.innerWidth - btnRect.right) + 'px';  // Align with button right edge
+                    menu.classList.add('active');
+                    console.log('Menu positioned and active class added');
+                    loadHistoryFromAzure();  // Changed to load from Azure
+                } else {
+                    menu.classList.remove('active');
+                    console.log('Menu closed');
+                }
+            } catch (error) {
+                console.error('Error in toggleHistoryMenu:', error);
             }
         }
         
