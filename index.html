@@ -1157,10 +1157,7 @@
         }
         
         .history-menu {
-            position: fixed;  /* Keep this fixed to escape parent container */
-            top: 50%;  /* Center vertically */
-            right: 380px;  /* Position to the left of the chat window */
-            transform: translateY(-50%);  /* Center adjustment */
+            position: fixed;  /* Will be set dynamically */
             background: rgba(255, 255, 255, 0.98);
             border: 2px solid rgba(255,215,0,0.3);
             border-radius: 12px;
@@ -1168,7 +1165,7 @@
             display: none;
             min-width: 350px;
             max-width: 450px;
-            max-height: 500px;
+            max-height: 400px;  /* Fixed max height for better control */
             overflow-y: auto;
             backdrop-filter: blur(10px);
             z-index: 100000;  /* Highest z-index to ensure it's on top */
@@ -1576,6 +1573,11 @@
             historyMenuOpen = !historyMenuOpen;
             
             if (historyMenuOpen) {
+                // Position the menu based on button location
+                const btnRect = btn.getBoundingClientRect();
+                menu.style.position = 'fixed';
+                menu.style.top = (btnRect.bottom + 10) + 'px';  // 10px below button
+                menu.style.right = (window.innerWidth - btnRect.right) + 'px';  // Align with button right edge
                 menu.classList.add('active');
                 loadHistoryFromAzure();  // Changed to load from Azure
             } else {
