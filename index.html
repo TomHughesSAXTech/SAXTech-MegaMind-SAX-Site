@@ -1110,10 +1110,12 @@
         }
         
         @keyframes thinking-pulse {
-            0%, 100% {
-                opacity: 0.7;
+            0%, 60%, 100% {
+                transform: translateY(0);
+                opacity: 0.4;
             }
-            50% {
+            30% {
+                transform: translateY(-10px);
                 opacity: 1;
             }
         }
@@ -2785,9 +2787,25 @@
             sendBtn.title = 'Stop generating';
             sendBtn.classList.add('stop-mode');
             
-            // DISABLED - No typing indicator bubble
-            const typingDiv = null;
-            
+            // Add thinking indicator WITHOUT bubble
+            const thinkingDiv = document.createElement('div');
+            thinkingDiv.className = 'message bot thinking';
+            thinkingDiv.innerHTML = `
+                <div class="message-avatar">
+                    <img src="${aiProfiles[currentAIProfile].robotImage}" alt="${aiProfiles[currentAIProfile].name}" 
+                         onerror="this.style.display='none'; this.parentNode.innerHTML='${aiProfiles[currentAIProfile].avatar}';">
+                </div>
+                <div class="thinking-container" style="flex: 1; padding-left: 15px;">
+                    <span class="thinking-text" style="color: rgba(255, 255, 255, 0.6); font-size: 14px; font-style: italic;">
+                        <span class="thinking-dot" style="display: inline-block; width: 6px; height: 6px; background: rgba(255,255,255,0.6); border-radius: 50%; margin: 0 2px; animation: thinking-pulse 1.4s infinite;"></span>
+                        <span class="thinking-dot" style="display: inline-block; width: 6px; height: 6px; background: rgba(255,255,255,0.6); border-radius: 50%; margin: 0 2px; animation: thinking-pulse 1.4s infinite; animation-delay: 0.2s;"></span>
+                        <span class="thinking-dot" style="display: inline-block; width: 6px; height: 6px; background: rgba(255,255,255,0.6); border-radius: 50%; margin: 0 2px; animation: thinking-pulse 1.4s infinite; animation-delay: 0.4s;"></span>
+                        Thinking...
+                    </span>
+                </div>
+            `;
+            chatMessages.appendChild(thinkingDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
             // Add to conversation history for persistence
             conversationHistory.push({
                 role: 'user',
@@ -3082,6 +3100,12 @@
                         const responseText = await response.text();
                         console.log('Non-streaming response received, length:', responseText.length);
                         
+                        // Remove thinking indicator if present
+                        const thinkingElement = chatMessages.querySelector('.message.thinking');
+                        if (thinkingElement) {
+                            thinkingElement.remove();
+                        }
+                        
                         if (!responseText || responseText.trim() === '') {
                             console.log('Webhook returned empty response');
                             addMessage('bot', 'I apologize, but the service is currently being configured. Please try again later.');
@@ -3150,6 +3174,12 @@
                                 
                                 if (hasMultipleJsonLines) {
                                     console.log('Detected NDJSON format (multiple JSON objects separated by newlines)');
+                                    
+                                    // Remove thinking indicator if present
+                                    const thinkingElement = chatMessages.querySelector('.message.thinking');
+                                    if (thinkingElement) {
+                                        thinkingElement.remove();
+                                    }
                                     
                                     // Create message element WITHOUT BUBBLE for clean streaming
                                     const messageDiv = document.createElement('div');
@@ -3327,8 +3357,10 @@
                                                 }
                                             }
                                             
-                                            // Display the HTML content
-                                            bubbleDiv.innerHTML = htmlContent;
+                                            // Display the HTML content directly in streaming container
+                                            if (streamingContent) {
+                                                streamingContent.innerHTML = htmlContent;
+                                            }
                                             messageDiv.classList.remove('streaming');
                                             isHTML = true;
                                             
@@ -3387,7 +3419,9 @@
                                             
                                             // Check if final content is HTML
                                             if (fullContent.includes('<div>') || fullContent.includes('<p>') || fullContent.includes('<span>')) {
-                                                bubbleDiv.innerHTML = fullContent;
+                                                if (streamingContent) {
+                                                    streamingContent.innerHTML = fullContent;
+                                                }
                                                 isHTML = true;
                                             } else {
                                                 // Just clean up the streaming state
