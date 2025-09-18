@@ -647,6 +647,7 @@
             transform: translateY(-1px);
         }
     </style>
+    <script src="js/session-export.js"></script>
 </head>
 <body>
     <div class="container">
@@ -863,8 +864,20 @@
         <div id="sessions-tab" class="tab-content">
             <div class="admin-grid">
                 <div class="admin-card full-width">
-                    <h2>👥 User Conversation Sessions</h2>
-                    <p style="color: #666; margin-bottom: 20px;">View and manage user conversation histories stored in the database</p>
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 20px;">
+                        <div>
+                            <h2 style="margin: 0;">👥 User Conversation Sessions</h2>
+                            <p style="color: #666; margin-top: 10px;">View and manage user conversation histories with comprehensive metrics</p>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-success" onclick="exportToExcel()" title="Export data to Excel">
+                                📊 Export Excel
+                            </button>
+                            <button class="btn btn-danger" onclick="exportToPDF()" title="Generate PDF report">
+                                📄 Export PDF
+                            </button>
+                        </div>
+                    </div>
                     
                     <div class="form-group" style="display: flex; gap: 10px; align-items: flex-end;">
                         <div style="flex: 1;">
@@ -2835,9 +2848,64 @@ You are a helpful assistant for SAX Advisory Group. Be professional, friendly, a
                     document.getElementById('totalMessages').textContent = data.totalMessages || '0';
                     document.getElementById('activeUsers').textContent = data.uniqueUsers || '0';
                     document.getElementById('avgSessionLength').textContent = data.avgSessionLength || '0';
+                    
+                    // Calculate and display additional metrics if we have session data
+                    if (data.sessions && data.sessions.length > 0) {
+                        const metrics = calculateAggregateMetrics(data.sessions);
+                        updateMetricsDisplay(metrics);
+                    }
                 }
             } catch (error) {
                 console.error('Failed to load session stats:', error);
+            }
+        }
+        
+        function calculateAggregateMetrics(sessions) {
+            let totalTokens = 0;
+            let totalConfidence = 0;
+            let confidenceCount = 0;
+            const modelsUsed = new Set();
+            const toolsUsed = new Set();
+            let voiceSessionCount = 0;
+            
+            sessions.forEach(session => {
+                const metrics = session.metrics || {};
+                totalTokens += metrics.totalTokens || 0;
+                if (metrics.avgConfidence) {
+                    totalConfidence += metrics.avgConfidence;
+                    confidenceCount++;
+                }
+                (metrics.modelsUsed || []).forEach(model => modelsUsed.add(model));
+                (metrics.toolsUsed || []).forEach(tool => toolsUsed.add(tool));
+                if (metrics.voiceAgentUsed) voiceSessionCount++;
+            });
+            
+            return {
+                totalTokens,
+                avgConfidence: confidenceCount > 0 ? (totalConfidence / confidenceCount * 100).toFixed(1) : 'N/A',
+                uniqueModels: modelsUsed.size,
+                uniqueTools: toolsUsed.size,
+                voiceSessionCount
+            };
+        }
+        
+        function updateMetricsDisplay(metrics) {
+            // Add metrics to the stats grid if elements exist
+            const statsGrid = document.querySelector('.stats-grid');
+            if (statsGrid && metrics.totalTokens > 0) {
+                // Check if additional metric elements already exist
+                if (!document.getElementById('totalTokensUsed')) {
+                    statsGrid.innerHTML += `
+                        <div class="stat-item">
+                            <div class="value" id="totalTokensUsed">${metrics.totalTokens.toLocaleString()}</div>
+                            <div class="label">Total Tokens</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="value" id="avgConfidenceScore">${metrics.avgConfidence}%</div>
+                            <div class="label">Avg Confidence</div>
+                        </div>
+                    `;
+                }
             }
         }
 
@@ -2902,6 +2970,11 @@ You are a helpful assistant for SAX Advisory Group. Be professional, friendly, a
         function displaySessions(sessions, showUser = false) {
             const container = document.getElementById('sessionsList');
             
+            // Store sessions for export functionality
+            if (window.storeSessionData) {
+                window.storeSessionData(sessions);
+            }
+            
             if (!sessions || sessions.length === 0) {
                 container.innerHTML = '<p style="color: #999; text-align: center;">No sessions found</p>';
                 document.getElementById('sessionResults').style.display = 'block';
@@ -2913,6 +2986,19 @@ You are a helpful assistant for SAX Advisory Group. Be professional, friendly, a
                 const timestamp = new Date(session.timestamp).toLocaleString();
                 const messages = session.conversation || [];
                 const messageCount = messages.length;
+                const metrics = session.metrics || {};
+                const metadata = session.metadata || {};
+                
+                // Calculate session duration
+                let duration = 'N/A';
+                if (metadata.sessionStartTime && metadata.sessionEndTime) {
+                    const start = new Date(metadata.sessionStartTime);
+                    const end = new Date(metadata.sessionEndTime);
+                    const durationMs = end - start;
+                    const minutes = Math.floor(durationMs / 60000);
+                    const seconds = Math.floor((durationMs % 60000) / 1000);
+                    duration = `${minutes}m ${seconds}s`;
+                }
                 
                 html += `
                     <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: #f9f9f9;">
@@ -2921,13 +3007,28 @@ You are a helpful assistant for SAX Advisory Group. Be professional, friendly, a
                                 ${showUser ? `<strong>User:</strong> ${session.userEmail || 'Unknown'}<br>` : ''}
                                 <strong>Session:</strong> ${session.sessionId || 'N/A'}<br>
                                 <small style="color: #666;">${timestamp}</small>
+                                ${metadata.aiProfile ? `<br><small style="color: #667eea;">AI: ${metadata.aiProfile}</small>` : ''}
                             </div>
                             <div style="text-align: right;">
                                 <span style="background: #667eea; color: white; padding: 3px 8px; border-radius: 12px; font-size: 12px;">
                                     ${messageCount} messages
                                 </span>
+                                ${metrics.totalTokens ? `<br><span style="background: #fbbf24; color: #333; padding: 3px 8px; border-radius: 12px; font-size: 12px; margin-top: 5px; display: inline-block;">${metrics.totalTokens} tokens</span>` : ''}
                             </div>
                         </div>
+                        
+                        <!-- Metrics Bar -->
+                        ${(metrics.totalTokens || metrics.modelsUsed?.length || metrics.toolsUsed?.length) ? `
+                        <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
+                            ${duration !== 'N/A' ? `<span style="background: #e0f2fe; color: #075985; padding: 4px 8px; border-radius: 6px; font-size: 12px;">🕰️ ${duration}</span>` : ''}
+                            ${metrics.modelsUsed?.length ? `<span style="background: #f3e8ff; color: #6b21a8; padding: 4px 8px; border-radius: 6px; font-size: 12px;">🤖 ${metrics.modelsUsed.join(', ')}</span>` : ''}
+                            ${metrics.avgConfidence ? `<span style="background: #dcfce7; color: #166534; padding: 4px 8px; border-radius: 6px; font-size: 12px;">🎯 ${(metrics.avgConfidence * 100).toFixed(0)}% confidence</span>` : ''}
+                            ${metrics.toolsUsed?.length ? `<span style="background: #fed7aa; color: #9a3412; padding: 4px 8px; border-radius: 6px; font-size: 12px;">🔧 ${metrics.toolsUsed.length} tools</span>` : ''}
+                            ${metrics.indexQueries > 0 ? `<span style="background: #fecaca; color: #991b1b; padding: 4px 8px; border-radius: 6px; font-size: 12px;">🔍 ${metrics.indexQueries} searches</span>` : ''}
+                            ${metrics.voiceAgentUsed ? `<span style="background: #c7d2fe; color: #3730a3; padding: 4px 8px; border-radius: 6px; font-size: 12px;">🎤 Voice: ${metrics.voiceAgentName || 'Used'}</span>` : ''}
+                        </div>
+                        ` : ''}
+                        
                         <div style="max-height: 200px; overflow-y: auto; border-top: 1px solid #e0e0e0; padding-top: 10px;">
                 `;
                 

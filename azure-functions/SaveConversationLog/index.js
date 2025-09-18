@@ -58,7 +58,7 @@ module.exports = async function (context, req) {
                     return;
                 }
 
-                // Create document with proper structure
+                // Create document with enhanced metrics structure
                 const document = {
                     id: `${sessionData.sessionId || Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                     userEmail: sessionData.userEmail,
@@ -71,7 +71,43 @@ module.exports = async function (context, req) {
                         location: sessionData.location || null,
                         messageCount: (sessionData.conversation || []).length,
                         duration: sessionData.duration || null,
-                        aiProfile: sessionData.aiProfile || 'default'
+                        aiProfile: sessionData.aiProfile || 'default',
+                        sessionStartTime: sessionData.sessionStartTime || null,
+                        sessionEndTime: sessionData.sessionEndTime || null
+                    },
+                    metrics: {
+                        // Model usage metrics
+                        modelsUsed: sessionData.modelsUsed || [],
+                        modelSwitches: sessionData.modelSwitches || 0,
+                        
+                        // Token usage metrics
+                        totalTokens: sessionData.totalTokens || 0,
+                        inputTokens: sessionData.inputTokens || 0,
+                        outputTokens: sessionData.outputTokens || 0,
+                        tokensByModel: sessionData.tokensByModel || {},
+                        
+                        // Tool and index usage
+                        toolsUsed: sessionData.toolsUsed || [],
+                        indexQueries: sessionData.indexQueries || 0,
+                        documentsRetrieved: sessionData.documentsRetrieved || 0,
+                        searchQueries: sessionData.searchQueries || [],
+                        
+                        // Voice agent metrics
+                        voiceAgentUsed: sessionData.voiceAgentUsed || false,
+                        voiceAgentName: sessionData.voiceAgentName || null,
+                        voiceDuration: sessionData.voiceDuration || 0,
+                        voiceInterruptions: sessionData.voiceInterruptions || 0,
+                        
+                        // Performance metrics
+                        avgResponseTime: sessionData.avgResponseTime || null,
+                        confidenceScores: sessionData.confidenceScores || [],
+                        avgConfidence: sessionData.avgConfidence || null,
+                        
+                        // User interaction metrics
+                        userFeedback: sessionData.userFeedback || [],
+                        regenerations: sessionData.regenerations || 0,
+                        attachments: sessionData.attachments || [],
+                        errorCount: sessionData.errorCount || 0
                     }
                 };
 
