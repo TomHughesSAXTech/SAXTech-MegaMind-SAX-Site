@@ -1607,7 +1607,7 @@
                     menu.classList.add('active');
                     console.log('Menu positioned at - top:', menu.style.top, 'right:', menu.style.right, 'left:', menu.style.left);
                     loadHistoryFromAzure();  // Changed to load from Azure
-                }
+                } else {
                     menu.classList.remove('active');
                     console.log('Menu closed');
                 }
