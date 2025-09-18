@@ -648,6 +648,7 @@
         }
     </style>
     <script src="js/session-export.js"></script>
+    <script src="admin-session-fixes.js"></script>
 </head>
 <body>
     <div class="container">
@@ -881,7 +882,14 @@
                     
                     <div class="form-group" style="display: flex; gap: 10px; align-items: flex-end;">
                         <div style="flex: 1;">
-                            <label>User Email:</label>
+                            <label>Filter by User:</label>
+                            <select id="userFilterDropdown" onchange="filterSessionsByUser()">
+                                <option value="">All Users</option>
+                                <!-- Will be populated dynamically -->
+                            </select>
+                        </div>
+                        <div style="flex: 1;">
+                            <label>Or Enter Email:</label>
                             <input type="email" id="sessionUserEmail" placeholder="user@example.com">
                         </div>
                         <div style="flex: 1;">
@@ -895,6 +903,22 @@
                         </div>
                         <button class="btn btn-primary" onclick="loadUserSessions()">Load Sessions</button>
                         <button class="btn btn-warning" onclick="loadAllRecentSessions()">Recent Activity (All Users)</button>
+                    </div>
+                    
+                    <div class="form-group" style="margin-top: 15px; padding: 15px; background: #fff3cd; border-radius: 8px; display: none;" id="deleteControls">
+                        <label style="color: #856404; font-weight: 600; margin-bottom: 10px; display: block;">⚠️ Session Management</label>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <button class="btn btn-danger" onclick="deleteSelectedSessions()" id="deleteSelectedBtn" disabled>
+                                🗑️ Delete Selected Sessions
+                            </button>
+                            <button class="btn btn-danger" onclick="deleteAllUserSessions()" id="deleteUserSessionsBtn">
+                                🗑️ Delete All Sessions for Current User
+                            </button>
+                            <button class="btn btn-danger" onclick="confirmDeleteAllSessions()" style="background: #a00; border-color: #800;">
+                                ⚠️ Delete ALL Sessions (All Users)
+                            </button>
+                            <span id="selectedCount" style="margin-left: auto; color: #666;">0 sessions selected</span>
+                        </div>
                     </div>
 
                     <div class="stats-grid" style="margin-top: 20px;">
@@ -2837,7 +2861,10 @@ You are a helpful assistant for SAX Advisory Group. Be professional, friendly, a
             }
         }
 
-        // User Sessions Tab Functions
+        // User Sessions Functions
+        let allLoadedSessions = [];
+        let selectedSessions = new Set();
+        let currentFilteredUser = null;
         async function loadSessionStats() {
             try {
                 const response = await fetch('https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=stats&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==', {
@@ -2912,13 +2939,16 @@ You are a helpful assistant for SAX Advisory Group. Be professional, friendly, a
         }
 
         async function loadUserSessions() {
-            const email = document.getElementById('sessionUserEmail').value.trim();
+            const userEmail = document.getElementById('sessionUserEmail').value.trim() || 
+                            document.getElementById('userFilterDropdown').value;
             const dateRange = document.getElementById('sessionDateRange').value;
             
-            if (!email) {
-                showStatus('Please enter a user email address', 'error');
+            if (!userEmail) {
+                showStatus('Please enter a user email address or select from dropdown', 'error');
                 return;
             }
+            
+            currentFilteredUser = userEmail;
 
             document.getElementById('sessionLoading').style.display = 'block';
             document.getElementById('sessionResults').style.display = 'none';
