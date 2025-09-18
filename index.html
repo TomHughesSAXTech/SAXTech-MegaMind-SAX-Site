@@ -994,11 +994,12 @@
         }
         
         .thinking-text {
-            color: #FFA500;
+            color: #FFA500 !important;
             font-weight: 600;
             font-size: 14px;
             letter-spacing: 0.5px;
             animation: thinking-pulse 1.5s ease-in-out infinite;
+            display: inline-block;
         }
         
         @keyframes thinking-glow {
@@ -1155,9 +1156,21 @@
             width: 100%;
             height: 100%;
             background-color: rgba(0, 0, 0, 0.5);
-            display: flex;
+            display: none !important; /* Force hide modals by default */
             align-items: center;
             justify-content: center;
+        }
+        
+        /* Specifically hide document preview modals */
+        #documentPreviewModal,
+        .document-preview-modal {
+            display: none !important;
+        }
+        
+        /* Override any 'show' class */
+        .modal.show,
+        .document-preview-modal.show {
+            display: none !important;
         }
 
         .modal-content {
@@ -4255,6 +4268,14 @@
         // Initialize on page load
         window.addEventListener('load', async () => {
             console.log('Page loaded, initializing application...');
+            
+            // Hide any lingering modals
+            const modal = document.getElementById('documentPreviewModal');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.classList.remove('show');
+            }
+            
             loadVoiceDropdown();  // Load custom voices
             await initialize();  // Call the main initialize function, not just initializeMSAL
         });
