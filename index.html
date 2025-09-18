@@ -2603,14 +2603,7 @@
             
             const bubbleDiv = document.createElement('div');
             bubbleDiv.className = 'message-bubble';
-            
-            // Parse markdown for bot messages
-            if (sender === 'bot') {
-                bubbleDiv.innerHTML = parseMarkdownToHTML(text);
-            } else {
-                // For user messages, just display as-is but escape HTML to prevent injection
-                bubbleDiv.innerHTML = text;
-            }
+            bubbleDiv.innerHTML = text;
             messageDiv.appendChild(avatarDiv);
             messageDiv.appendChild(bubbleDiv);
             
@@ -2700,115 +2693,10 @@
             return conversationContext;
         };
 
-        // Parse markdown text to HTML with proper formatting
+        // Simple function - just return text as-is like before
         function parseMarkdownToHTML(text) {
-            if (!text) return '';
-            
-            let formatted = text;
-            
-            // Convert markdown links [text](url) to HTML links
-            formatted = formatted.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color: #0084ff; text-decoration: underline;">$1</a>');
-            
-            // Convert **bold** to <strong>
-            formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-            
-            // Convert *italic* to <em> (but not if it's part of bold)
-            formatted = formatted.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
-            
-            // Process lists and document cards - wrap consecutive bullet/numbered items in list tags
-            const lines = formatted.split('\n');
-            const processedLines = [];
-            let inBulletList = false;
-            let inNumberedList = false;
-            let inDocumentCard = false;
-            
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i].trim();
-                const isBullet = /^[•\-\*] /.test(line);
-                const isNumbered = /^\d+\. /.test(line);
-                const isDocumentTitle = line.includes('📄'); // 📄 emoji
-                const isMetadata = line.startsWith('Type:') || line.startsWith('Department:') || line.startsWith('Author:') || line.startsWith('Date:');
-                const isPreviewButton = line.includes('Preview Document');
-                
-                // Start document card if we see the document emoji
-                if (isDocumentTitle) {
-                    inDocumentCard = true;
-                    processedLines.push('<div style="background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; margin: 8px 0;">');
-                    processedLines.push(`<div style="font-weight: bold; margin-bottom: 4px;">${line}</div>`);
-                } else if (inDocumentCard && isMetadata) {
-                    // Compact metadata on same line with separator
-                    processedLines.push(`<div style="color: #666; font-size: 0.9em;">${line}</div>`);
-                } else if (inDocumentCard && isPreviewButton) {
-                    // Add preview button and close card
-                    processedLines.push(`<div style="margin-top: 8px;">${line}</div>`);
-                    processedLines.push('</div>');
-                    inDocumentCard = false;
-                } else if (isBullet) {
-                    if (inDocumentCard) {
-                        processedLines.push('</div>');
-                        inDocumentCard = false;
-                    }
-                    if (!inBulletList) {
-                        processedLines.push('<ul style="margin: 10px 0; padding-left: 20px;">');
-                        inBulletList = true;
-                    }
-                    if (inNumberedList) {
-                        processedLines.push('</ol>');
-                        inNumberedList = false;
-                    }
-                    const content = line.replace(/^[•\-\*] /, '');
-                    processedLines.push(`<li>${content}</li>`);
-                } else if (isNumbered) {
-                    if (inDocumentCard) {
-                        processedLines.push('</div>');
-                        inDocumentCard = false;
-                    }
-                    if (!inNumberedList) {
-                        processedLines.push('<ol style="margin: 10px 0; padding-left: 20px;">');
-                        inNumberedList = true;
-                    }
-                    if (inBulletList) {
-                        processedLines.push('</ul>');
-                        inBulletList = false;
-                    }
-                    const content = line.replace(/^\d+\. /, '');
-                    processedLines.push(`<li>${content}</li>`);
-                } else {
-                    // Not a list item - close any open lists
-                    if (inBulletList) {
-                        processedLines.push('</ul>');
-                        inBulletList = false;
-                    }
-                    if (inNumberedList) {
-                        processedLines.push('</ol>');
-                        inNumberedList = false;
-                    }
-                    // Add line with appropriate spacing
-                    if (line) {
-                        processedLines.push(line);
-                    } else if (i < lines.length - 1 && !inDocumentCard) {
-                        // Only add break for empty lines between content (not in document cards)
-                        processedLines.push('<br>');
-                    }
-                }
-            }
-            
-            // Close any remaining open lists
-            if (inBulletList) processedLines.push('</ul>');
-            if (inNumberedList) processedLines.push('</ol>');
-            
-            formatted = processedLines.join('\n');
-            
-            // Convert inline code ` with proper wrapping
-            formatted = formatted.replace(/`([^`]+)`/g, '<code style="background: #f4f4f4; padding: 2px 4px; border-radius: 3px; word-break: break-word;">$1</code>');
-            
-            // Convert remaining newlines to <br> tags (but not within lists)
-            formatted = formatted.replace(/\n(?![\s]*<(?:li|ul|ol|\/))/g, '<br>');
-            
-            // Convert plain URLs to clickable links (if not already in an HTML tag)
-            formatted = formatted.replace(/(^|[^=">])(https?:\/\/[^\s<]+)(?![^<]*>)/g, '$1<a href="$2" target="_blank" style="color: #0084ff; text-decoration: underline; word-break: break-all;">$2</a>');
-            
-            return formatted;
+            // Just return the text unchanged - let n8n handle the formatting
+            return text || '';
         }
         
         // Session History Management Functions
@@ -2891,13 +2779,12 @@
             messageDiv.className = `message ${role}`;
             
             if (role === 'bot') {
-                const formattedContent = parseMarkdownToHTML(content);
                 messageDiv.innerHTML = `
                     <div class="message-avatar">
                         <img src="${aiProfiles[currentAIProfile].robotImage}" alt="${aiProfiles[currentAIProfile].name}" 
                              onerror="this.style.display='none'; this.parentNode.innerHTML='${aiProfiles[currentAIProfile].avatar}';">
                     </div>
-                    <div class="message-content">${formattedContent}</div>
+                    <div class="message-content">${content}</div>
                 `;
             } else {
                 messageDiv.innerHTML = `<div class="message-content">${content}</div>`;
