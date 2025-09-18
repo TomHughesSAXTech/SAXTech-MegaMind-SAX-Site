@@ -2059,12 +2059,22 @@
                 role: 'Tax & Accounting Expert',
                 customInterface: {
                     onSelect: function() {
-                        // Add Tax Search button to chat interface for CPA profile
-                        const chatHeader = document.querySelector('.chat-header-content');
-                        if (!document.getElementById('taxSearchToggleBtn')) {
+                        // Add Tax Search button under History button for CPA profile
+                        const chatHeader = document.querySelector('.chat-header');
+                        if (!document.getElementById('taxSearchDropdown')) {
+                            // Create tax search dropdown container
+                            const taxSearchDropdown = document.createElement('div');
+                            taxSearchDropdown.id = 'taxSearchDropdown';
+                            taxSearchDropdown.className = 'history-dropdown';
+                            taxSearchDropdown.style.cssText = `
+                                position: absolute;
+                                right: 20px;
+                                top: 60px;
+                            `;
+                            
                             const taxSearchBtn = document.createElement('button');
                             taxSearchBtn.id = 'taxSearchToggleBtn';
-                            taxSearchBtn.className = 'tax-search-btn';
+                            taxSearchBtn.className = 'history-btn';
                             taxSearchBtn.innerHTML = '📚 Tax Dictionary';
                             taxSearchBtn.style.cssText = `
                                 padding: 8px 16px;
@@ -2075,7 +2085,6 @@
                                 font-size: 14px;
                                 font-weight: 600;
                                 cursor: pointer;
-                                margin-left: 10px;
                                 transition: transform 0.2s, box-shadow 0.2s;
                             `;
                             taxSearchBtn.onmouseover = function() {
@@ -2105,18 +2114,17 @@
                                 }
                             };
                             
-                            // Insert button after personality indicator
-                            const headerText = chatHeader.querySelector('.header-text');
-                            if (headerText) {
-                                headerText.appendChild(taxSearchBtn);
-                            }
+                            taxSearchDropdown.appendChild(taxSearchBtn);
+                            
+                            // Insert after the chat header
+                            chatHeader.appendChild(taxSearchDropdown);
                         }
                     },
                     onDeselect: function() {
-                        // Remove Tax Search button and hide container
-                        const taxSearchBtn = document.getElementById('taxSearchToggleBtn');
-                        if (taxSearchBtn) {
-                            taxSearchBtn.remove();
+                        // Remove Tax Search dropdown and hide container
+                        const taxSearchDropdown = document.getElementById('taxSearchDropdown');
+                        if (taxSearchDropdown) {
+                            taxSearchDropdown.remove();
                         }
                         const taxSearchContainer = document.getElementById('taxSearchContainer');
                         if (taxSearchContainer) {
