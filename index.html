@@ -2560,17 +2560,37 @@
                 const date = new Date(session.timestamp);
                 const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 
-                // Get preview from first message content
+                // Get a meaningful preview from conversation
                 let preview = 'Empty conversation';
+                let summaryTitle = null;
+                
                 if (session.conversation && session.conversation.length > 0) {
-                    const firstMessage = session.conversation[0];
-                    const content = firstMessage.content || firstMessage.message || firstMessage.response || '';
-                    preview = content.substring(0, 50) + (content.length > 50 ? '...' : '');
+                    // Try to get first user message as title
+                    const firstUserMessage = session.conversation.find(m => m.role === 'user' || m.type === 'user');
+                    if (firstUserMessage) {
+                        const content = firstUserMessage.content || firstUserMessage.message || '';
+                        // Clean HTML and special characters
+                        const cleanContent = content.replace(/<[^>]*>/g, '').replace(/\[.*?\]/g, '').trim();
+                        preview = cleanContent.substring(0, 50) + (cleanContent.length > 50 ? '...' : '');
+                        // Generate a short title (first 20 chars or first sentence)
+                        const firstSentence = cleanContent.match(/^[^.!?]*[.!?]/) || [cleanContent.substring(0, 30)];
+                        summaryTitle = firstSentence[0].substring(0, 30).trim();
+                    } else {
+                        // Fallback to first message if no user message
+                        const firstMessage = session.conversation[0];
+                        const content = firstMessage.content || firstMessage.message || firstMessage.response || '';
+                        const cleanContent = content.replace(/<[^>]*>/g, '').replace(/\[.*?\]/g, '').trim();
+                        preview = cleanContent.substring(0, 50) + (cleanContent.length > 50 ? '...' : '');
+                        summaryTitle = cleanContent.substring(0, 20).trim();
+                    }
                 }
+                
+                // Use summaryTitle or sessionSummary if available from the session data
+                const displayTitle = session.summaryTitle || session.sessionSummary || summaryTitle || preview;
                 
                 item.innerHTML = `
                     <div class="history-date">${dateStr}</div>
-                    <div class="history-preview">${preview}</div>
+                    <div class="history-preview">${displayTitle}</div>
                     <div class="history-messages">${session.conversation ? session.conversation.length : 0} messages</div>
                 `;
                 
