@@ -2812,12 +2812,33 @@
                                                     });
                                                     fullContent += jsonObj.content;
                                                 } else if (jsonObj.type === 'end') {
-                                                    console.log('Stream ended');
+                                                    console.log('Stream ended, checking for audio in end message:', jsonObj);
+                                                    
+                                                    // Check for audio in the end message
+                                                    if (!audioData) {
+                                                        if (jsonObj.audioBase64) {
+                                                            console.log('Found audioBase64 in end message, length:', jsonObj.audioBase64.length);
+                                                            audioData = jsonObj.audioBase64;
+                                                        } else if (jsonObj.audioData) {
+                                                            console.log('Found audioData in end message, length:', jsonObj.audioData.length);
+                                                            audioData = jsonObj.audioData;
+                                                        } else if (jsonObj.audio) {
+                                                            console.log('Found audio in end message, length:', jsonObj.audio.length);
+                                                            audioData = jsonObj.audio;
+                                                        }
+                                                    }
+                                                    
                                                     // Extract metrics if available
                                                     if (jsonObj.metadata) {
                                                         responseMetrics.model = jsonObj.metadata.model || responseMetrics.model;
                                                         responseMetrics.inputTokens = jsonObj.metadata.inputTokens || responseMetrics.inputTokens;
                                                         responseMetrics.outputTokens = jsonObj.metadata.outputTokens || responseMetrics.outputTokens;
+                                                        
+                                                        // Also check metadata for audio
+                                                        if (!audioData && jsonObj.metadata.audioBase64) {
+                                                            console.log('Found audioBase64 in end metadata, length:', jsonObj.metadata.audioBase64.length);
+                                                            audioData = jsonObj.metadata.audioBase64;
+                                                        }
                                                     }
                                                 } else if (jsonObj.type === 'begin') {
                                                     console.log('Stream started from node:', jsonObj.metadata?.nodeName);
@@ -2842,11 +2863,22 @@
                                                     }
                                                 }
                                                 
-                                                // Check for audio data
-                                                if (jsonObj.audioBase64) {
+                                                // Check for audio data in various possible locations
+                                                if (jsonObj.audioBase64 && typeof jsonObj.audioBase64 === 'string') {
+                                                    console.log('Found audioBase64 in NDJSON line, length:', jsonObj.audioBase64.length);
                                                     audioData = jsonObj.audioBase64;
-                                                } else if (jsonObj.audioData) {
+                                                } else if (jsonObj.audioData && typeof jsonObj.audioData === 'string') {
+                                                    console.log('Found audioData in NDJSON line, length:', jsonObj.audioData.length);
                                                     audioData = jsonObj.audioData;
+                                                } else if (jsonObj.audio && typeof jsonObj.audio === 'string') {
+                                                    console.log('Found audio in NDJSON line, length:', jsonObj.audio.length);
+                                                    audioData = jsonObj.audio;
+                                                } else if (jsonObj.metadata?.audioBase64) {
+                                                    console.log('Found audioBase64 in metadata, length:', jsonObj.metadata.audioBase64.length);
+                                                    audioData = jsonObj.metadata.audioBase64;
+                                                } else if (jsonObj.metadata?.audioData) {
+                                                    console.log('Found audioData in metadata, length:', jsonObj.metadata.audioData.length);
+                                                    audioData = jsonObj.metadata.audioData;
                                                 }
                                                 
                                                 // Check for error
@@ -2923,13 +2955,20 @@
                                             window.attachedFiles = [];
                                             attachedFiles = window.attachedFiles;
                                             
-                                            // If voice interaction is active, restart listening
-                                            if (voiceInteractionActive && !audioData) {
-                                                setTimeout(() => {
-                                                    if (!recognitionActive && !isAISpeaking) {
-                                                        startListening();
-                                                    }
-                                                }, 1000);
+                                            // Play audio if available
+                                            if (audioData) {
+                                                console.log('Playing audio from NDJSON response, length:', audioData.length);
+                                                playAudio(audioData);
+                                            } else {
+                                                console.log('No audio data in NDJSON response');
+                                                // If voice interaction is active and no audio, restart listening
+                                                if (voiceInteractionActive) {
+                                                    setTimeout(() => {
+                                                        if (!recognitionActive && !isAISpeaking) {
+                                                            startListening();
+                                                        }
+                                                    }, 1000);
+                                                }
                                             }
                                         } else if (!hasError) {
                                             // Only add error message if we didn't already show content
