@@ -12,6 +12,13 @@ window.openDocumentPreview = async function(fileName, department) {
                   fileName.includes('.com') || fileName.includes('.org') || 
                   fileName.includes('.net') || fileName.includes('.gov');
     
+    // Check if this is indexed website content (like saxadvisorygroup_content_*.txt)
+    const isIndexedContent = fileName.includes('_content_') && fileName.endsWith('.txt') &&
+                            (fileName.includes('saxadvisorygroup') || fileName.includes('saxtechnology') || 
+                             fileName.includes('saxca') || fileName.includes('saxga') || 
+                             fileName.includes('saxfla') || fileName.includes('saxor') || 
+                             fileName.includes('saxsc') || fileName.includes('saxwa'));
+    
     if (isUrl) {
         // If it's a URL, open it in a new tab
         console.log('Opening URL in new tab:', fileName);
@@ -22,6 +29,92 @@ window.openDocumentPreview = async function(fileName, department) {
         }
         window.open(url, '_blank');
         return;
+    }
+    
+    if (isIndexedContent) {
+        // This is indexed website content, try to get the actual page URL from the search index
+        console.log('Detected indexed website content:', fileName);
+        
+        try {
+            // Try to get the actual source URL from the search API
+            const searchResponse = await fetch('https://saxtechmegamindfunctions.azurewebsites.net/api/documents/search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-functions-key': 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw=='
+                },
+                body: JSON.stringify({
+                    query: fileName,
+                    top: 10,
+                    searchMode: 'all',
+                    select: 'fileName,sourceUrl,url,websiteUrl,pageUrl,content,department'
+                })
+            });
+            
+            if (searchResponse.ok) {
+                const searchData = await searchResponse.json();
+                const results = searchData.value || [];
+                
+                // Find the exact document
+                const matchingDoc = results.find(doc => 
+                    doc.fileName === fileName
+                );
+                
+                if (matchingDoc) {
+                    // Try to get the actual page URL from various possible fields
+                    const pageUrl = matchingDoc.sourceUrl || matchingDoc.url || 
+                                   matchingDoc.websiteUrl || matchingDoc.pageUrl;
+                    
+                    if (pageUrl && (pageUrl.startsWith('http://') || pageUrl.startsWith('https://'))) {
+                        console.log('Opening specific page URL:', pageUrl);
+                        window.open(pageUrl, '_blank');
+                        showIndexedContentMessage(fileName, pageUrl, true);
+                        return;
+                    }
+                    
+                    // If we have content, try to extract URL from it
+                    if (matchingDoc.content) {
+                        const urlMatch = matchingDoc.content.match(/(?:Source:|URL:|From:)\s*(https?:\/\/[^\s]+)/i);
+                        if (urlMatch) {
+                            console.log('Found URL in content:', urlMatch[1]);
+                            window.open(urlMatch[1], '_blank');
+                            showIndexedContentMessage(fileName, urlMatch[1], true);
+                            return;
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching source URL:', error);
+        }
+        
+        // Fallback to main website if we can't find specific page
+        let websiteUrl = '';
+        
+        if (fileName.includes('saxadvisorygroup')) {
+            websiteUrl = 'https://www.saxadvisorygroup.com';
+        } else if (fileName.includes('saxtechnology')) {
+            websiteUrl = 'https://www.saxtechnology.com';
+        } else if (fileName.includes('saxca')) {
+            websiteUrl = 'https://www.saxca.com';
+        } else if (fileName.includes('saxga')) {
+            websiteUrl = 'https://www.saxga.com';
+        } else if (fileName.includes('saxfla')) {
+            websiteUrl = 'https://www.saxfla.com';
+        } else if (fileName.includes('saxor')) {
+            websiteUrl = 'https://www.saxor.com';
+        } else if (fileName.includes('saxsc')) {
+            websiteUrl = 'https://www.saxsc.com';
+        } else if (fileName.includes('saxwa')) {
+            websiteUrl = 'https://www.saxwa.com';
+        }
+        
+        if (websiteUrl) {
+            console.log('Opening main website (specific page not found):', websiteUrl);
+            window.open(websiteUrl, '_blank');
+            showIndexedContentMessage(fileName, websiteUrl, false);
+            return;
+        }
     }
     
     // Show loading modal for file documents
@@ -245,6 +338,49 @@ function displayDocumentPreview(fileName, sasUrl) {
     // Ensure display is not overridden by inline style
     modal.style.display = '';
     console.log('Modal display complete, modal element:', modal);
+}
+
+function showIndexedContentMessage(fileName, url, isSpecificPage) {
+    // Create a temporary notification instead of modal
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 16px 24px;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        z-index: 10000;
+        max-width: 400px;
+        animation: slideIn 0.3s ease;
+    `;
+    
+    notification.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="font-size: 24px;">🌐</span>
+            <div>
+                <div style="font-weight: bold; margin-bottom: 4px;">
+                    ${isSpecificPage ? 'Opening Source Page' : 'Opening Website'}
+                </div>
+                <div style="font-size: 14px; opacity: 0.9;">
+                    ${fileName}
+                </div>
+                <div style="font-size: 12px; opacity: 0.8; margin-top: 4px;">
+                    ${url}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+    }, 5000);
 }
 
 function showPreviewError(fileName, errorMessage) {
