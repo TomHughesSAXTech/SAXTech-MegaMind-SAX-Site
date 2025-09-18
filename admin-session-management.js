@@ -260,10 +260,16 @@ async function deleteSelectedSessions() {
     try {
         showStatus(`Deleting ${selectedSessions.size} sessions...`, 'info');
         
-        // Use DELETE action with SaveConversationLog Azure function
-        const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=deleteSessions&sessionIds=${encodeURIComponent(sessionIds.join(','))}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`, {
-            method: 'DELETE',
-            headers: {}
+        // Use POST with delete action for SaveConversationLog Azure function
+        const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                action: 'deleteSessions',
+                sessionIds: sessionIds
+            })
         });
         
         const result = await response.json();
@@ -307,10 +313,16 @@ async function deleteAllUserSessions() {
     try {
         showStatus(`Deleting all sessions for ${userEmail}...`, 'info');
         
-        // Use DELETE action with SaveConversationLog Azure function
-        const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=deleteUser&email=${encodeURIComponent(userEmail)}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`, {
-            method: 'DELETE',
-            headers: {}
+        // Use POST with delete action for SaveConversationLog Azure function
+        const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                action: 'deleteUser',
+                userEmail: userEmail
+            })
         });
         
         const result = await response.json();
@@ -347,10 +359,16 @@ async function confirmDeleteAllSessions() {
     try {
         showStatus('Deleting ALL sessions...', 'info');
         
-        // Use DELETE action with SaveConversationLog Azure function
-        const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=deleteAll&confirmDelete=true&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`, {
-            method: 'DELETE',
-            headers: {}
+        // Use POST with delete action for SaveConversationLog Azure function
+        const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                action: 'deleteAll',
+                confirmDelete: true
+            })
         });
         
         const result = await response.json();
@@ -416,15 +434,30 @@ window.loadUserSessions = async function() {
     if (loading) loading.style.display = 'block';
     
     try {
-        const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=get&email=${encodeURIComponent(userEmail)}&range=${range}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`, {
+        const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=get&email=${encodeURIComponent(userEmail)}&range=${range}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
+        console.log('Loading user sessions from:', url);
+        
+        const response = await fetch(url, {
             method: 'GET',
             headers: {}
         });
         
+        console.log('Response status:', response.status);
         const data = await response.json();
+        console.log('User sessions data:', data);
         
-        // Handle the response format from SaveConversationLog
-        const sessions = data.sessions || data.conversations || [];
+        // Handle the response format from SaveConversationLog - try multiple formats
+        let sessions = [];
+        if (Array.isArray(data)) {
+            sessions = data;
+        } else if (data.sessions) {
+            sessions = data.sessions;
+        } else if (data.conversations) {
+            sessions = data.conversations;
+        } else if (data.data) {
+            sessions = Array.isArray(data.data) ? data.data : [];
+        }
+        console.log('Parsed sessions:', sessions);
         
         if (sessions && sessions.length > 0) {
             currentSessionsData = sessions;
@@ -459,15 +492,31 @@ window.loadAllRecentSessions = async function() {
     if (loading) loading.style.display = 'block';
     
     try {
-        const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=recent&range=${range}&limit=100&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`, {
+        // Try using 'getAll' action to get all recent sessions
+        const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=getAll&range=${range}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
+        console.log('Loading recent sessions from:', url);
+        
+        const response = await fetch(url, {
             method: 'GET',
             headers: {}
         });
         
+        console.log('Response status:', response.status);
         const data = await response.json();
+        console.log('Recent sessions data:', data);
         
-        // Handle the response format from SaveConversationLog
-        const sessions = data.sessions || data.conversations || [];
+        // Handle the response format from SaveConversationLog - try multiple formats
+        let sessions = [];
+        if (Array.isArray(data)) {
+            sessions = data;
+        } else if (data.sessions) {
+            sessions = data.sessions;
+        } else if (data.conversations) {
+            sessions = data.conversations;
+        } else if (data.data) {
+            sessions = Array.isArray(data.data) ? data.data : [];
+        }
+        console.log('Parsed sessions:', sessions);
         
         if (sessions && sessions.length > 0) {
             currentSessionsData = sessions;
