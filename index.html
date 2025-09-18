@@ -2799,9 +2799,10 @@
             sendBtn.title = 'Stop generating';
             sendBtn.classList.add('stop-mode');
             
-            // Add thinking indicator WITHOUT bubble
+            // Add thinking indicator WITHOUT bubble - with ID for removal
             const thinkingDiv = document.createElement('div');
             thinkingDiv.className = 'message bot thinking';
+            thinkingDiv.id = 'thinking-indicator';
             thinkingDiv.style.opacity = '0';
             thinkingDiv.style.animation = 'fadeIn 0.8s ease-in forwards';
             thinkingDiv.innerHTML = `
@@ -3111,11 +3112,7 @@
                         const responseText = await response.text();
                         console.log('Non-streaming response received, length:', responseText.length);
                         
-                        // Remove thinking indicator if present
-                        const thinkingElement = chatMessages.querySelector('.message.thinking');
-                        if (thinkingElement) {
-                            thinkingElement.remove();
-                        }
+                        // Don't remove thinking yet - will be removed when response is displayed
                         
                         if (!responseText || responseText.trim() === '') {
                             console.log('Webhook returned empty response');
@@ -3186,8 +3183,8 @@
                                 if (hasMultipleJsonLines) {
                                     console.log('Detected NDJSON format (multiple JSON objects separated by newlines)');
                                     
-                                    // Remove thinking indicator if present
-                                    const thinkingElement = chatMessages.querySelector('.message.thinking');
+                                    // Remove thinking indicator now that we have content
+                                    const thinkingElement = document.getElementById('thinking-indicator');
                                     if (thinkingElement) {
                                         thinkingElement.remove();
                                     }
@@ -3356,23 +3353,56 @@
                                                             (fullContent.includes('<div>') && fullContent.includes('</div>'));
                                         
                                         if (isHTMLContent) {
-                                            // For HTML content, display it directly without streaming
-                                            console.log('HTML content detected, displaying directly');
+                                            // For HTML content, display in white bubble properly
+                                            console.log('HTML content detected, displaying in bubble');
+                                            
+                                            // Remove thinking indicator
+                                            const thinkingDiv = document.getElementById('thinking-indicator');
+                                            if (thinkingDiv) {
+                                                thinkingDiv.remove();
+                                            }
+                                            
+                                            // Remove the streaming message div we created
+                                            messageDiv.remove();
+                                            
+                                            // Process HTML to remove "Part X/Y" from document titles
+                                            let processedContent = fullContent;
+                                            // Remove "Part X/Y" patterns
+                                            processedContent = processedContent.replace(
+                                                /<h4[^>]*>📄\s*([^<]+?)\s*-\s*Part\s*\d+\/\d+<\/h4>/gi,
+                                                '<h4 style="margin: 0 0 10px 0; color: #333;">📄 $1</h4>'
+                                            );
+                                            // Also handle without dash
+                                            processedContent = processedContent.replace(
+                                                /<h4[^>]*>📄\s*([^<]+?)\s*Part\s*\d+\/\d+<\/h4>/gi,
+                                                '<h4 style="margin: 0 0 10px 0; color: #333;">📄 $1</h4>'
+                                            );
                                             
                                             // Extract just the body content if it's a full HTML document
-                                            let htmlContent = fullContent;
-                                            if (fullContent.includes('<body>')) {
-                                                const bodyMatch = fullContent.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+                                            let htmlContent = processedContent;
+                                            if (processedContent.includes('<body>')) {
+                                                const bodyMatch = processedContent.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
                                                 if (bodyMatch) {
                                                     htmlContent = bodyMatch[1];
                                                 }
                                             }
                                             
-                                            // Display the HTML content directly in streaming container
-                                            if (streamingContent) {
-                                                streamingContent.innerHTML = htmlContent;
-                                            }
-                                            messageDiv.classList.remove('streaming');
+                                            // Create proper message with white bubble
+                                            const bubbledMessage = document.createElement('div');
+                                            bubbledMessage.className = 'message bot';
+                                            bubbledMessage.style.opacity = '0';
+                                            bubbledMessage.style.animation = 'fadeIn 0.5s ease-in forwards';
+                                            bubbledMessage.innerHTML = `
+                                                <div class="message-avatar">
+                                                    <img src="${aiProfiles[currentAIProfile].robotImage}" alt="${aiProfiles[currentAIProfile].name}" 
+                                                         onerror="this.style.display='none'; this.parentNode.innerHTML='${aiProfiles[currentAIProfile].avatar}';">
+                                                </div>
+                                                <div class="message-bubble">
+                                                    ${htmlContent}
+                                                </div>
+                                            `;
+                                            chatMessages.appendChild(bubbledMessage);
+                                            chatMessages.scrollTop = chatMessages.scrollHeight;
                                             isHTML = true;
                                             
                                             // Continue to handle audio and history
