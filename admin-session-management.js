@@ -260,15 +260,10 @@ async function deleteSelectedSessions() {
     try {
         showStatus(`Deleting ${selectedSessions.size} sessions...`, 'info');
         
-        const response = await fetch('https://saxtechmegamindfunctions.azurewebsites.net/api/sessions/delete', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-functions-key': 'w6PUFV_kP4lcJVkK9p8AknKd1pwpIPQEK9gph6iz9kYJAzFuWfzgbg=='
-            },
-            body: JSON.stringify({
-                sessionIds: Array.from(selectedSessions)
-            })
+        // Use DELETE action with SaveConversationLog Azure function
+        const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=deleteSessions&sessionIds=${encodeURIComponent(sessionIds.join(','))}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`, {
+            method: 'DELETE',
+            headers: {}
         });
         
         const result = await response.json();
@@ -312,15 +307,10 @@ async function deleteAllUserSessions() {
     try {
         showStatus(`Deleting all sessions for ${userEmail}...`, 'info');
         
-        const response = await fetch('https://saxtechmegamindfunctions.azurewebsites.net/api/sessions/delete-user', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-functions-key': 'w6PUFV_kP4lcJVkK9p8AknKd1pwpIPQEK9gph6iz9kYJAzFuWfzgbg=='
-            },
-            body: JSON.stringify({
-                userEmail: userEmail
-            })
+        // Use DELETE action with SaveConversationLog Azure function
+        const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=deleteUser&email=${encodeURIComponent(userEmail)}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`, {
+            method: 'DELETE',
+            headers: {}
         });
         
         const result = await response.json();
@@ -357,15 +347,10 @@ async function confirmDeleteAllSessions() {
     try {
         showStatus('Deleting ALL sessions...', 'info');
         
-        const response = await fetch('https://saxtechmegamindfunctions.azurewebsites.net/api/sessions/delete-all', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-functions-key': 'w6PUFV_kP4lcJVkK9p8AknKd1pwpIPQEK9gph6iz9kYJAzFuWfzgbg=='
-            },
-            body: JSON.stringify({
-                confirmDelete: true
-            })
+        // Use DELETE action with SaveConversationLog Azure function
+        const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=deleteAll&confirmDelete=true&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`, {
+            method: 'DELETE',
+            headers: {}
         });
         
         const result = await response.json();
@@ -446,6 +431,10 @@ window.loadUserSessions = async function() {
             populateUserFilter(currentSessionsData);
             displaySessionsEnhanced(sessions, false);
             updateSessionStats(sessions);
+            // Call analytics update if function exists
+            if (typeof updateSessionAnalytics === 'function') {
+                updateSessionAnalytics(sessions);
+            }
             showStatus(`Loaded ${sessions.length} sessions for ${userEmail}`, 'success');
         } else {
             showStatus('No sessions found for this user', 'info');
@@ -485,6 +474,10 @@ window.loadAllRecentSessions = async function() {
             populateUserFilter(currentSessionsData);
             displaySessionsEnhanced(sessions, true);
             updateSessionStats(sessions);
+            // Call analytics update if function exists
+            if (typeof updateSessionAnalytics === 'function') {
+                updateSessionAnalytics(sessions);
+            }
             showStatus(`Loaded ${sessions.length} recent sessions`, 'success');
         } else {
             showStatus('No recent sessions found', 'info');
