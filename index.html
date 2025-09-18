@@ -1125,6 +1125,105 @@
         .modal-body {
             overflow: hidden;
         }
+        
+        /* History Dropdown Styles */
+        .history-dropdown {
+            position: absolute;
+            right: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 9999;
+        }
+        
+        .history-btn {
+            background: rgba(255,215,0,0.2);
+            border: 1px solid rgba(255,215,0,0.4);
+            color: #FFD700;
+            padding: 10px 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .history-btn:hover {
+            background: rgba(255,215,0,0.3);
+            transform: scale(1.05);
+        }
+        
+        .history-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 10px;
+            background: rgba(255, 255, 255, 0.98);
+            border: 2px solid rgba(255,215,0,0.3);
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            display: none;
+            min-width: 350px;
+            max-width: 450px;
+            max-height: 500px;
+            overflow-y: auto;
+            backdrop-filter: blur(10px);
+        }
+        
+        .history-menu.active {
+            display: block;
+        }
+        
+        .history-item {
+            padding: 15px;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .history-item:hover {
+            background: rgba(255,215,0,0.1);
+        }
+        
+        .history-item-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+            font-size: 14px;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        .history-item-time {
+            font-size: 11px;
+            color: #999;
+            margin-bottom: 5px;
+        }
+        
+        .history-item-preview {
+            font-size: 12px;
+            color: #666;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        .history-loading {
+            padding: 20px;
+            text-align: center;
+            color: #999;
+        }
+        
+        .history-empty {
+            padding: 20px;
+            text-align: center;
+            color: #999;
+        }
     </style>
 </head>
 <body>
@@ -1315,6 +1414,18 @@
                         <p id="personalityIndicator">General Business Assistant</p>
                     </div>
                 </div>
+                
+                <!-- History Dropdown -->
+                <div class="history-dropdown">
+                    <button class="history-btn" id="historyBtn" onclick="toggleHistoryMenu()">
+                        📚 History
+                    </button>
+                    <div class="history-menu" id="historyMenu">
+                        <div class="history-loading" id="historyLoading">Loading...</div>
+                        <div class="history-empty" id="historyEmpty" style="display: none;">No conversation history</div>
+                        <div id="historyList"></div>
+                    </div>
+                </div>
             </div>
             
             <div class="chat-messages" id="chatMessages">
@@ -1434,10 +1545,191 @@
         // Session History Management
         let conversationHistory = [];
         let userSessionId = null;
+        let historyMenuOpen = false;
         
         // Generate unique session ID on page load
         function generateSessionId() {
             return 'session-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        }
+        
+        // History dropdown functions
+        function toggleHistoryMenu() {
+            const menu = document.getElementById('historyMenu');
+            const btn = document.getElementById('historyBtn');
+            historyMenuOpen = !historyMenuOpen;
+            
+            if (historyMenuOpen) {
+                menu.classList.add('active');
+                loadHistoryFromLocalStorage();
+            } else {
+                menu.classList.remove('active');
+            }
+        }
+
+        function loadHistoryFromLocalStorage() {
+            const historyList = document.getElementById('historyList');
+            const historyLoading = document.getElementById('historyLoading');
+            const historyEmpty = document.getElementById('historyEmpty');
+            
+            // Hide loading
+            historyLoading.style.display = 'none';
+            
+            // Get stored conversations from localStorage
+            const storedConversations = [];
+            
+            // Check all localStorage keys for conversation data
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('megamind_conversation_')) {
+                    try {
+                        const data = JSON.parse(localStorage.getItem(key));
+                        if (data && data.messages && data.messages.length > 0) {
+                            storedConversations.push(data);
+                        }
+                    } catch (e) {
+                        console.error('Error parsing conversation:', e);
+                    }
+                }
+            }
+            
+            // Sort by timestamp (most recent first)
+            storedConversations.sort((a, b) => {
+                const timeA = new Date(a.timestamp || 0).getTime();
+                const timeB = new Date(b.timestamp || 0).getTime();
+                return timeB - timeA;
+            });
+            
+            if (storedConversations.length === 0) {
+                historyEmpty.style.display = 'block';
+                historyList.innerHTML = '';
+                return;
+            }
+            
+            historyEmpty.style.display = 'none';
+            
+            // Display conversations
+            let html = '';
+            storedConversations.slice(0, 10).forEach((conv, index) => {
+                const firstUserMessage = conv.messages.find(m => m.role === 'user');
+                const firstBotResponse = conv.messages.find(m => m.role === 'assistant');
+                
+                // Generate a meaningful title from the first user message or bot response
+                let title = 'Conversation';
+                if (firstUserMessage && firstUserMessage.content) {
+                    // Extract first 50 characters of user message as title
+                    title = firstUserMessage.content.substring(0, 50);
+                    if (firstUserMessage.content.length > 50) title += '...';
+                } else if (firstBotResponse && firstBotResponse.content) {
+                    // Use bot response if no user message
+                    title = 'Response: ' + firstBotResponse.content.substring(0, 40) + '...';
+                }
+                
+                // Generate preview from first exchange
+                let preview = '';
+                if (firstBotResponse && firstBotResponse.content) {
+                    preview = firstBotResponse.content.substring(0, 100);
+                    if (firstBotResponse.content.length > 100) preview += '...';
+                }
+                
+                const timestamp = new Date(conv.timestamp || Date.now());
+                const timeStr = timestamp.toLocaleString();
+                
+                html += `
+                    <div class="history-item" onclick="loadConversation(${index})">
+                        <div class="history-item-title">${escapeHtml(title)}</div>
+                        <div class="history-item-time">${timeStr}</div>
+                        ${preview ? `<div class="history-item-preview">${escapeHtml(preview)}</div>` : ''}
+                    </div>
+                `;
+            });
+            
+            historyList.innerHTML = html;
+        }
+
+        function loadConversation(index) {
+            // Get stored conversations
+            const storedConversations = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('megamind_conversation_')) {
+                    try {
+                        const data = JSON.parse(localStorage.getItem(key));
+                        if (data && data.messages) {
+                            storedConversations.push(data);
+                        }
+                    } catch (e) {
+                        console.error('Error parsing conversation:', e);
+                    }
+                }
+            }
+            
+            // Sort by timestamp
+            storedConversations.sort((a, b) => {
+                const timeA = new Date(a.timestamp || 0).getTime();
+                const timeB = new Date(b.timestamp || 0).getTime();
+                return timeB - timeA;
+            });
+            
+            if (storedConversations[index]) {
+                const conversation = storedConversations[index];
+                
+                // Clear current chat
+                chatMessages.innerHTML = '';
+                
+                // Load messages
+                conversation.messages.forEach(msg => {
+                    addMessage(msg.role === 'user' ? 'user' : 'bot', msg.content, null, false);
+                });
+                
+                // Update conversation history
+                conversationHistory = conversation.messages || [];
+                
+                // Close history menu
+                toggleHistoryMenu();
+            }
+        }
+
+        // Updated save session history function
+        function saveSessionHistoryDropdown() {
+            if (conversationHistory.length === 0) return;
+            
+            const sessionData = {
+                sessionId: sessionId,
+                timestamp: new Date().toISOString(),
+                messages: conversationHistory,
+                userEmail: userProfile?.mail || currentAccount?.username || 'anonymous'
+            };
+            
+            // Save with unique key
+            const key = `megamind_conversation_${sessionId}`;
+            localStorage.setItem(key, JSON.stringify(sessionData));
+            
+            // Clean up old sessions (keep only last 20)
+            const allKeys = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (k && k.startsWith('megamind_conversation_')) {
+                    allKeys.push(k);
+                }
+            }
+            
+            if (allKeys.length > 20) {
+                // Sort by timestamp and remove oldest
+                const sessions = allKeys.map(k => {
+                    try {
+                        const data = JSON.parse(localStorage.getItem(k));
+                        return { key: k, timestamp: data.timestamp || 0 };
+                    } catch (e) {
+                        return { key: k, timestamp: 0 };
+                    }
+                });
+                
+                sessions.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                
+                // Remove oldest sessions
+                const toRemove = sessions.slice(0, sessions.length - 20);
+                toRemove.forEach(s => localStorage.removeItem(s.key));
+            }
         }
         
         // AI Profile Management
@@ -1982,6 +2274,15 @@
                     addMessage('bot', `Switched to ${config.name} mode! ${config.description}. How can I help you?`);
                 }
             }
+            
+            // Close history menu when clicking outside
+            if (!e.target.closest('.history-dropdown')) {
+                const menu = document.getElementById('historyMenu');
+                if (menu && menu.classList.contains('active')) {
+                    menu.classList.remove('active');
+                    historyMenuOpen = false;
+                }
+            }
         });
 
         // Add message to chat
@@ -2127,6 +2428,9 @@
         }
         
         function saveSessionHistory() {
+            // Save in both formats for compatibility
+            
+            // Save in original format for backward compatibility
             if (userSessionId && currentAccount) {
                 const sessionData = {
                     messages: conversationHistory,
@@ -2137,6 +2441,9 @@
                 // Also send to Azure Cosmos DB for permanent storage
                 logToAzureDatabase(userSessionId, conversationHistory);
             }
+            
+            // Also save in dropdown format
+            saveSessionHistoryDropdown();
         }
         
         async function logToAzureDatabase(sessionId, messages) {
