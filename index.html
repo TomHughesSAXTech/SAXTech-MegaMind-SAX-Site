@@ -1591,11 +1591,23 @@
                     console.log('Button position:', btnRect);
                     menu.style.position = 'fixed';
                     menu.style.top = (btnRect.bottom + 10) + 'px';  // 10px below button
-                    menu.style.right = (window.innerWidth - btnRect.right) + 'px';  // Align with button right edge
+                    
+                    // Calculate position - if button is on the right side, show menu to the left
+                    const menuWidth = 400; // Approximate menu width
+                    if (btnRect.right > window.innerWidth - menuWidth) {
+                        // Button is on right side, show menu to the left of button
+                        menu.style.right = (window.innerWidth - btnRect.left) + 'px';
+                        menu.style.left = 'auto';
+                    } else {
+                        // Button has space on right, show menu aligned with button
+                        menu.style.left = btnRect.left + 'px';
+                        menu.style.right = 'auto';
+                    }
+                    
                     menu.classList.add('active');
-                    console.log('Menu positioned and active class added');
+                    console.log('Menu positioned at - top:', menu.style.top, 'right:', menu.style.right, 'left:', menu.style.left);
                     loadHistoryFromAzure();  // Changed to load from Azure
-                } else {
+                }
                     menu.classList.remove('active');
                     console.log('Menu closed');
                 }
