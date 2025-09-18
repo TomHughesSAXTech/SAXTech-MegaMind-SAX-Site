@@ -492,9 +492,9 @@ window.loadAllRecentSessions = async function() {
     if (loading) loading.style.display = 'block';
     
     try {
-        // Try using 'getAll' action to get all recent sessions
-        const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=getAll&range=${range}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
-        console.log('Loading recent sessions from:', url);
+        // Use 'get' action without email to get all recent sessions
+        const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=get&range=${range}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
+        console.log('Loading all recent sessions from:', url);
         
         const response = await fetch(url, {
             method: 'GET',
