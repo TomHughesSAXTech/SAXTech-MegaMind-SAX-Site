@@ -2059,30 +2059,69 @@
                 role: 'Tax & Accounting Expert',
                 customInterface: {
                     onSelect: function() {
-                        // Hide regular chat interface and show tax search
-                        const chatMessages = document.getElementById('chatMessages');
-                        const taxSearchContainer = document.getElementById('taxSearchContainer');
-                        const chatInputContainer = document.querySelector('.chat-input-container');
-                        
-                        if (chatMessages) chatMessages.style.display = 'none';
-                        if (chatInputContainer) chatInputContainer.style.display = 'none';
-                        if (taxSearchContainer) {
-                            taxSearchContainer.style.display = 'block';
-                            // Initialize or refresh the tax search component
-                            if (window.TaxSearchComponent && typeof window.TaxSearchComponent.init === 'function') {
-                                window.TaxSearchComponent.init('taxSearchContainer');
+                        // Add Tax Search button to chat interface for CPA profile
+                        const chatHeader = document.querySelector('.chat-header-content');
+                        if (!document.getElementById('taxSearchToggleBtn')) {
+                            const taxSearchBtn = document.createElement('button');
+                            taxSearchBtn.id = 'taxSearchToggleBtn';
+                            taxSearchBtn.className = 'tax-search-btn';
+                            taxSearchBtn.innerHTML = '📚 Tax Dictionary';
+                            taxSearchBtn.style.cssText = `
+                                padding: 8px 16px;
+                                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                color: white;
+                                border: none;
+                                border-radius: 20px;
+                                font-size: 14px;
+                                font-weight: 600;
+                                cursor: pointer;
+                                margin-left: 10px;
+                                transition: transform 0.2s, box-shadow 0.2s;
+                            `;
+                            taxSearchBtn.onmouseover = function() {
+                                this.style.transform = 'translateY(-2px)';
+                                this.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+                            };
+                            taxSearchBtn.onmouseout = function() {
+                                this.style.transform = 'translateY(0)';
+                                this.style.boxShadow = 'none';
+                            };
+                            taxSearchBtn.onclick = function() {
+                                const taxSearchContainer = document.getElementById('taxSearchContainer');
+                                const isVisible = taxSearchContainer.style.display === 'block';
+                                
+                                if (isVisible) {
+                                    // Hide tax search
+                                    taxSearchContainer.style.display = 'none';
+                                    this.innerHTML = '📚 Tax Dictionary';
+                                } else {
+                                    // Show tax search
+                                    taxSearchContainer.style.display = 'block';
+                                    this.innerHTML = '✖ Close Dictionary';
+                                    // Initialize tax search component if needed
+                                    if (window.TaxSearchComponent && typeof window.TaxSearchComponent.init === 'function') {
+                                        window.TaxSearchComponent.init('taxSearchContainer');
+                                    }
+                                }
+                            };
+                            
+                            // Insert button after personality indicator
+                            const headerText = chatHeader.querySelector('.header-text');
+                            if (headerText) {
+                                headerText.appendChild(taxSearchBtn);
                             }
                         }
                     },
                     onDeselect: function() {
-                        // Show regular chat interface and hide tax search
-                        const chatMessages = document.getElementById('chatMessages');
+                        // Remove Tax Search button and hide container
+                        const taxSearchBtn = document.getElementById('taxSearchToggleBtn');
+                        if (taxSearchBtn) {
+                            taxSearchBtn.remove();
+                        }
                         const taxSearchContainer = document.getElementById('taxSearchContainer');
-                        const chatInputContainer = document.querySelector('.chat-input-container');
-                        
-                        if (chatMessages) chatMessages.style.display = '';
-                        if (chatInputContainer) chatInputContainer.style.display = '';
-                        if (taxSearchContainer) taxSearchContainer.style.display = 'none';
+                        if (taxSearchContainer) {
+                            taxSearchContainer.style.display = 'none';
+                        }
                     }
                 }
             },
