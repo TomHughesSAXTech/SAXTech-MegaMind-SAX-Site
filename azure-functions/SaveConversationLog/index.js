@@ -1,8 +1,8 @@
 const { CosmosClient } = require("@azure/cosmos");
 
 // Cosmos DB configuration
-const cosmosEndpoint = process.env.COSMOS_ENDPOINT || "https://saxtech-cosmos.documents.azure.com:443/";
-const cosmosKey = process.env.COSMOS_KEY;
+const cosmosEndpoint = process.env.COSMOS_ENDPOINT || "https://saxtech-knowledge-graph.documents.azure.com:443/";
+const cosmosKey = process.env.COSMOS_KEY || "vOYO9RAZb9jkvnEhAO0LLQvwAqsI7grUj0AiUWRvkJgZlgv5YOmrQCamtPont8Nud1mnvsZ1nAB0ACDbJM0x1A==";
 const databaseId = "MegaMindDB";
 const containerId = "ConversationLogs";
 
