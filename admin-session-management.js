@@ -483,7 +483,7 @@ window.loadUserSessions = async function() {
     }
 };
 
-// Modified loadAllRecentSessions to use enhanced display
+// Modified loadAllRecentSessions to use enhanced display with fallback aggregation
 window.loadAllRecentSessions = async function() {
     const loading = document.getElementById('sessionLoading');
     const dateRange = document.getElementById('sessionDateRange');
@@ -492,9 +492,9 @@ window.loadAllRecentSessions = async function() {
     if (loading) loading.style.display = 'block';
     
     try {
-        // Use 'get' action without email to get all recent sessions
-        const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=get&range=${range}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
-        console.log('Loading all recent sessions from:', url);
+        // First try with wildcard
+        let url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=get&email=*&range=${range}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
+        console.log('Trying to load all recent sessions with wildcard:', url);
         
         const response = await fetch(url, {
             method: 'GET',
@@ -502,21 +502,108 @@ window.loadAllRecentSessions = async function() {
         });
         
         console.log('Response status:', response.status);
-        const data = await response.json();
-        console.log('Recent sessions data:', data);
         
-        // Handle the response format from SaveConversationLog - try multiple formats
         let sessions = [];
-        if (Array.isArray(data)) {
-            sessions = data;
-        } else if (data.sessions) {
-            sessions = data.sessions;
-        } else if (data.conversations) {
-            sessions = data.conversations;
-        } else if (data.data) {
-            sessions = Array.isArray(data.data) ? data.data : [];
+        let useAggregation = false;
+        
+        // Check if wildcard worked
+        if (response.ok) {
+            try {
+                const data = await response.json();
+                console.log('Recent sessions data:', data);
+                
+                // Handle the response format from SaveConversationLog - try multiple formats
+                if (Array.isArray(data)) {
+                    sessions = data;
+                } else if (data.sessions) {
+                    sessions = data.sessions;
+                } else if (data.conversations) {
+                    sessions = data.conversations;
+                } else if (data.data) {
+                    sessions = Array.isArray(data.data) ? data.data : [];
+                }
+                
+                // If we got sessions, use them
+                if (sessions && sessions.length > 0) {
+                    console.log('Wildcard worked, got', sessions.length, 'sessions');
+                } else {
+                    useAggregation = true;
+                }
+            } catch (err) {
+                console.error('Error parsing wildcard response:', err);
+                useAggregation = true;
+            }
+        } else {
+            console.log('Wildcard failed with status:', response.status);
+            useAggregation = true;
         }
-        console.log('Parsed sessions:', sessions);
+        
+        // If wildcard didn't work, aggregate from known users
+        if (useAggregation) {
+            console.log('Using aggregation approach for known users');
+            
+            // List of known user emails - expand this list as needed
+            const knownUsers = [
+                'tom@saxtechnology.com',
+                'robert@saxadvisorygroup.com',
+                'admin@saxtechnology.com',
+                'support@saxtechnology.com',
+                'info@saxtechnology.com',
+                // Add more users as needed
+            ];
+            
+            sessions = [];
+            
+            // Fetch sessions for each known user
+            for (const email of knownUsers) {
+                try {
+                    const userUrl = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=get&email=${encodeURIComponent(email)}&range=${range}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
+                    console.log(`Loading sessions for ${email}`);
+                    
+                    const userResponse = await fetch(userUrl);
+                    if (userResponse.ok) {
+                        const userResult = await userResponse.json();
+                        let userSessions = [];
+                        
+                        // Parse different response formats
+                        if (Array.isArray(userResult)) {
+                            userSessions = userResult;
+                        } else if (userResult.sessions) {
+                            userSessions = userResult.sessions;
+                        } else if (userResult.conversations) {
+                            userSessions = userResult.conversations;
+                        } else if (userResult.data) {
+                            userSessions = Array.isArray(userResult.data) ? userResult.data : [];
+                        }
+                        
+                        if (Array.isArray(userSessions) && userSessions.length > 0) {
+                            // Add user email to each session for identification
+                            userSessions.forEach(s => {
+                                if (!s.userEmail && !s.email) {
+                                    s.userEmail = email;
+                                }
+                            });
+                            sessions = sessions.concat(userSessions);
+                            console.log(`Found ${userSessions.length} sessions for ${email}`);
+                        }
+                    }
+                } catch (err) {
+                    console.error(`Failed to load sessions for ${email}:`, err);
+                }
+            }
+            
+            // Sort all aggregated sessions by timestamp (most recent first)
+            if (sessions.length > 0) {
+                sessions.sort((a, b) => {
+                    const dateA = new Date(a.timestamp || a.createdAt || a.date || 0);
+                    const dateB = new Date(b.timestamp || b.createdAt || b.date || 0);
+                    return dateB - dateA;
+                });
+                console.log(`Aggregated ${sessions.length} total sessions from ${knownUsers.length} users`);
+            }
+        }
+        
+        console.log('Final parsed sessions:', sessions);
         
         if (sessions && sessions.length > 0) {
             currentSessionsData = sessions;
