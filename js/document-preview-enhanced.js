@@ -7,7 +7,24 @@
 window.openDocumentPreview = async function(fileName, department) {
     console.log('Opening document preview for:', fileName, 'Department:', department);
     
-    // Show loading modal
+    // Check if fileName is actually a URL (for indexed web pages)
+    const isUrl = fileName.startsWith('http://') || fileName.startsWith('https://') || 
+                  fileName.includes('.com') || fileName.includes('.org') || 
+                  fileName.includes('.net') || fileName.includes('.gov');
+    
+    if (isUrl) {
+        // If it's a URL, open it in a new tab
+        console.log('Opening URL in new tab:', fileName);
+        let url = fileName;
+        // Ensure URL has protocol
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            url = 'https://' + url;
+        }
+        window.open(url, '_blank');
+        return;
+    }
+    
+    // Show loading modal for file documents
     showPreviewLoading(fileName);
     
     try {
@@ -48,9 +65,24 @@ window.openDocumentPreview = async function(fileName, department) {
             }
         }
         
+        // If still no department, try default folders
+        if (!actualDepartment || actualDepartment === '' || actualDepartment === 'undefined') {
+            console.log('Could not determine department, trying common paths...');
+            // Try common paths
+            const commonPaths = ['SAXCA', 'SAXGA', 'SAXFLA', 'SAXOR', 'SAXSC', 'SAXWA', 'General'];
+            for (const path of commonPaths) {
+                const testUrl = await generateSASUrl(`${path}/${fileName}`);
+                if (testUrl) {
+                    actualDepartment = path;
+                    console.log('Found document in:', path);
+                    break;
+                }
+            }
+        }
+        
         // If still no department, throw error
         if (!actualDepartment || actualDepartment === '' || actualDepartment === 'undefined') {
-            throw new Error('Could not determine document department');
+            throw new Error('Could not determine document location');
         }
         
         // Use the department to build the path
