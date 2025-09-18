@@ -6,8 +6,45 @@ let currentSessionsData = [];
 let selectedSessions = new Set();
 let currentUserFilter = '';
 
+// Helper function to escape HTML and fix invalid images
+function escapeHtmlAndFixImages(text) {
+    if (!text) return '';
+    
+    // First escape HTML entities
+    let escaped = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    
+    // Check for and remove invalid base64 images
+    // Invalid base64 often starts with malformed characters
+    escaped = escaped.replace(/data:image\/[^;]+;base64,[^\s<>"']*/g, (match) => {
+        // Check if the base64 string looks invalid (contains invalid characters early on)
+        if (match.includes('%EF%BF%BD') || match.includes('���')) {
+            return '[Invalid Image]';
+        }
+        // For valid images, truncate very long base64 strings for display
+        if (match.length > 100) {
+            return '[Image]';
+        }
+        return match;
+    });
+    
+    // Also handle img tags with invalid src
+    escaped = escaped.replace(/&lt;img[^&]*src=["']?([^"'\s&>]+)[^&]*&gt;/gi, (match, src) => {
+        if (src.includes('%EF%BF%BD') || src.includes('���')) {
+            return '[Invalid Image]';
+        }
+        return '[Image]';
+    });
+    
+    return escaped;
+}
+
 // Populate user filter dropdown from sessions data
-function populateUserFilter(sessions) {
+window.populateUserFilter = function(sessions) {
     const dropdown = document.getElementById('userFilterDropdown');
     if (!dropdown) return;
     
@@ -55,7 +92,7 @@ function populateUserFilter(sessions) {
 }
 
 // Filter sessions by selected user
-function filterSessionsByUser() {
+window.filterSessionsByUser = function() {
     const dropdown = document.getElementById('userFilterDropdown');
     const emailInput = document.getElementById('sessionUserEmail');
     
@@ -82,7 +119,7 @@ function filterSessionsByUser() {
 }
 
 // Enhanced display sessions with checkboxes
-function displaySessionsEnhanced(sessions, showUser = false) {
+window.displaySessionsEnhanced = function(sessions, showUser = false) {
     const container = document.getElementById('sessionsList');
     
     if (!sessions || sessions.length === 0) {
@@ -95,7 +132,23 @@ function displaySessionsEnhanced(sessions, showUser = false) {
     let html = '';
     sessions.forEach(session => {
         const timestamp = new Date(session.timestamp).toLocaleString();
-        const messages = session.conversation || [];
+        
+        // Parse conversation data - it might be a JSON string
+        let messages = [];
+        try {
+            if (typeof session.conversation === 'string') {
+                const parsed = JSON.parse(session.conversation);
+                messages = Array.isArray(parsed) ? parsed : (parsed.messages || []);
+            } else if (Array.isArray(session.conversation)) {
+                messages = session.conversation;
+            } else if (session.conversation && session.conversation.messages) {
+                messages = session.conversation.messages;
+            }
+        } catch (e) {
+            console.error('Error parsing conversation:', e);
+            messages = [];
+        }
+        
         const messageCount = messages.length;
         const metrics = session.metrics || {};
         const metadata = session.metadata || {};
@@ -168,7 +221,7 @@ function displaySessionsEnhanced(sessions, showUser = false) {
                         color: ${isUser ? 'white' : '#333'};
                     ">
                         <small style="font-weight: bold;">${isUser ? 'User' : 'Assistant'}</small><br>
-                        ${msg.content}
+                        ${escapeHtmlAndFixImages(msg.content)}
                     </div>
                 </div>
             `;
@@ -186,7 +239,7 @@ function displaySessionsEnhanced(sessions, showUser = false) {
 }
 
 // Toggle session selection
-function toggleSessionSelection(sessionId) {
+window.toggleSessionSelection = function(sessionId) {
     if (selectedSessions.has(sessionId)) {
         selectedSessions.delete(sessionId);
     } else {
@@ -210,7 +263,7 @@ function updateSelectedCount() {
 }
 
 // Delete single session
-async function deleteSingleSession(sessionId) {
+window.deleteSingleSession = async function(sessionId) {
     if (!confirm(`Are you sure you want to delete session ${sessionId}?`)) {
         return;
     }
@@ -218,14 +271,15 @@ async function deleteSingleSession(sessionId) {
     try {
         showStatus('Deleting session...', 'info');
         
-        const response = await fetch('https://saxtechmegamindfunctions.azurewebsites.net/api/sessions/delete', {
+        // Use SaveConversationLog API with delete action
+        const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'x-functions-key': 'w6PUFV_kP4lcJVkK9p8AknKd1pwpIPQEK9gph6iz9kYJAzFuWfzgbg=='
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                sessionIds: [sessionId]
+                action: 'delete',
+                sessionId: sessionId
             })
         });
         
@@ -247,7 +301,7 @@ async function deleteSingleSession(sessionId) {
 }
 
 // Delete selected sessions
-async function deleteSelectedSessions() {
+window.deleteSelectedSessions = async function() {
     if (selectedSessions.size === 0) {
         showStatus('No sessions selected', 'warning');
         return;
@@ -268,7 +322,7 @@ async function deleteSelectedSessions() {
             },
             body: JSON.stringify({
                 action: 'deleteSessions',
-                sessionIds: sessionIds
+                sessionIds: Array.from(selectedSessions)
             })
         });
         
@@ -291,7 +345,7 @@ async function deleteSelectedSessions() {
 }
 
 // Delete all sessions for current user
-async function deleteAllUserSessions() {
+window.deleteAllUserSessions = async function() {
     const userEmail = currentUserFilter || document.getElementById('sessionUserEmail')?.value;
     
     if (!userEmail) {
@@ -346,7 +400,7 @@ async function deleteAllUserSessions() {
 }
 
 // Delete ALL sessions (with strong confirmation)
-async function confirmDeleteAllSessions() {
+window.confirmDeleteAllSessions = async function() {
     const firstConfirm = confirm('⚠️ WARNING: This will delete ALL sessions for ALL users. Are you absolutely sure?');
     if (!firstConfirm) return;
     
