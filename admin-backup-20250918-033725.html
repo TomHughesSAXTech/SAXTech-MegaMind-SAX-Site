@@ -658,8 +658,9 @@
 
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('voice')">Voice Models</button>
-            <button class="tab-btn" onclick="switchTab('index')">🔍 Index Management</button>
+            <button class="tab-btn" onclick="switchTab('conversation')">🎙️ Conversational AI</button>
             <button class="tab-btn" onclick="switchTab('sessions')">👥 User Sessions</button>
+            <button class="tab-btn" onclick="switchTab('index')">Search Index</button>
             <button class="tab-btn" onclick="switchTab('api')">API Settings</button>
             <button class="tab-btn" onclick="switchTab('system')">System Info</button>
         </div>
@@ -1017,6 +1018,266 @@
         </div>
 
         <!-- ElevenLabs Conversational AI Tab -->
+        <div id="conversation-tab" class="tab-content">
+            <div class="admin-grid">
+                <!-- Main Conversation Interface -->
+                <div class="admin-card full-width">
+                    <h2>🎙️ ElevenLabs Conversational AI v2</h2>
+                    <p style="color: #666; margin-bottom: 20px;">Natural voice interaction with advanced features like interruptions and emotion detection</p>
+                    
+                    <div class="conversation-container">
+                        <div class="conversation-status">
+                            <div class="status-dot inactive" id="conversationStatusDot"></div>
+                            <span class="status-text" id="conversationStatusText">Not Connected</span>
+                        </div>
+
+                        <div class="waveform-container">
+                            <div class="waveform" id="conversationWaveform">
+                                <!-- Wave bars will be dynamically generated -->
+                            </div>
+                        </div>
+
+                        <div class="transcript-container" id="conversationTranscript">
+                            <div class="transcript-entry">
+                                <div class="transcript-speaker">System</div>
+                                <div class="transcript-text">Ready to start conversation. Configure settings and click "Start Conversation" to begin.</div>
+                            </div>
+                        </div>
+
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="value" id="convDuration">0:00</div>
+                                <div class="label">Duration</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="value" id="convTurns">0</div>
+                                <div class="label">Turns</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="value" id="convEmotion">Neutral</div>
+                                <div class="label">Emotion</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="value" id="convInterruptions">0</div>
+                                <div class="label">Interruptions</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="conversation-controls">
+                        <button class="btn btn-primary" id="startConversationBtn" onclick="startElevenLabsConversation()">
+                            🎙️ Start Conversation
+                        </button>
+                        <button class="btn btn-danger" id="stopConversationBtn" onclick="stopElevenLabsConversation()" disabled>
+                            ⏹️ End Conversation
+                        </button>
+                        <button class="btn btn-warning" id="muteConversationBtn" onclick="toggleConversationMute()" disabled>
+                            🔇 Mute
+                        </button>
+                        <button class="btn btn-warning" id="pauseConversationBtn" onclick="toggleConversationPause()" disabled>
+                            ⏸️ Pause AI
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Conversation Settings -->
+                <div class="admin-card">
+                    <h2>⚙️ Conversation Settings</h2>
+                    
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="enableInterruptions" checked>
+                            <span class="toggle-switch">
+                                <span class="toggle-slider"></span>
+                            </span>
+                            Enable Voice Interruptions
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="enableBackchanneling" checked>
+                            <span class="toggle-switch">
+                                <span class="toggle-slider"></span>
+                            </span>
+                            Enable Backchanneling
+                        </label>
+                        <small style="color: #666;">Natural acknowledgments like "uh-huh", "I see"</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="enableEmotionTracking" checked>
+                            <span class="toggle-switch">
+                                <span class="toggle-slider"></span>
+                            </span>
+                            Enable Emotion Detection
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            End-of-Speech Sensitivity
+                            <span class="slider-value" id="sensitivityValue">0.7</span>
+                        </label>
+                        <input type="range" class="slider" id="sensitivitySlider" 
+                               min="0" max="1" step="0.1" value="0.7" 
+                               onchange="updateConversationSettings()">
+                        <small style="color: #666;">Higher = more sensitive to pauses</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            Speech Rate Adaptation
+                            <span class="slider-value" id="rateValue">1.0x</span>
+                        </label>
+                        <input type="range" class="slider" id="rateSlider" 
+                               min="0.5" max="2" step="0.1" value="1"
+                               onchange="updateConversationSettings()">
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            Voice Stability
+                            <span class="slider-value" id="stabilityValue">0.5</span>
+                        </label>
+                        <input type="range" class="slider" id="stabilitySlider" 
+                               min="0" max="1" step="0.1" value="0.5"
+                               onchange="updateConversationSettings()">
+                    </div>
+                </div>
+
+                <!-- Agent Configuration -->
+                <div class="admin-card">
+                    <h2>🤖 Agent Configuration</h2>
+                    
+                    <div class="form-group">
+                        <label>ElevenLabs Agent ID:</label>
+                        <input type="text" id="elevenLabsAgentId" placeholder="Enter your Agent ID from ElevenLabs console">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Select Voice Model:</label>
+                        <select id="conversationVoiceSelect">
+                            <!-- Will be populated from voice models -->
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>n8n Webhook URL:</label>
+                        <input type="text" id="conversationWebhookUrl" 
+                               value="https://workflows.saxtechnology.com/webhook/elevenlabs-conversation-init"
+                               placeholder="Your n8n webhook URL">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Max Conversation Duration (seconds):</label>
+                        <input type="number" id="maxConversationDuration" value="600" min="60" max="3600">
+                    </div>
+
+                    <button class="btn btn-success" onclick="saveConversationConfig()">Save Configuration</button>
+                    <button class="btn btn-primary" onclick="testConversationAPI()">Test API Connection</button>
+                </div>
+                
+                <!-- Advanced Settings -->
+                <div class="admin-card">
+                    <h2>🎯 Advanced Settings</h2>
+                    
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="enableAmbientSound" checked>
+                            <span class="toggle-switch">
+                                <span class="toggle-slider"></span>
+                            </span>
+                            Enable Ambient Sound Detection
+                        </label>
+                        <small style="color: #666;">Filters out background noise automatically</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="enableTurnTaking" checked>
+                            <span class="toggle-switch">
+                                <span class="toggle-slider"></span>
+                            </span>
+                            Natural Turn-Taking
+                        </label>
+                        <small style="color: #666;">AI waits for natural pauses before responding</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="enableContextMemory" checked>
+                            <span class="toggle-switch">
+                                <span class="toggle-slider"></span>
+                            </span>
+                            Context Memory
+                        </label>
+                        <small style="color: #666;">Remembers conversation context across sessions</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>
+                            Conversation Style:
+                        </label>
+                        <select id="conversationStyle">
+                            <option value="professional">Professional</option>
+                            <option value="friendly" selected>Friendly</option>
+                            <option value="casual">Casual</option>
+                            <option value="formal">Formal</option>
+                            <option value="empathetic">Empathetic</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>
+                            Response Length Preference:
+                        </label>
+                        <select id="responseLength">
+                            <option value="concise">Concise</option>
+                            <option value="balanced" selected>Balanced</option>
+                            <option value="detailed">Detailed</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>
+                            Language Model Temperature
+                            <span class="slider-value" id="tempValue">0.7</span>
+                        </label>
+                        <input type="range" class="slider" id="temperatureSlider" 
+                               min="0" max="1" step="0.1" value="0.7" 
+                               onchange="updateAdvancedSettings()">
+                        <small style="color: #666;">Higher = more creative responses</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>
+                            Latency Optimization
+                            <span class="slider-value" id="latencyValue">Balanced</span>
+                        </label>
+                        <input type="range" class="slider" id="latencySlider" 
+                               min="0" max="2" step="1" value="1" 
+                               onchange="updateLatencyMode()">
+                        <small style="color: #666;">Speed vs Quality trade-off</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Custom System Prompt:</label>
+                        <textarea id="customSystemPrompt" rows="4" placeholder="Customize the AI's behavior and personality...">
+You are a helpful assistant for SAX Advisory Group. Be professional, friendly, and knowledgeable about business advisory services.</textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Trigger Phrases (comma-separated):</label>
+                        <input type="text" id="triggerPhrases" placeholder="Hey AI, Hello assistant, Can you help">
+                        <small style="color: #666;">Phrases that activate the AI when detected</small>
+                    </div>
+                    
+                    <button class="btn btn-success" onclick="saveAdvancedSettings()">Save Advanced Settings</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -1039,12 +1300,6 @@
 
         // Load saved configuration on page load
         window.addEventListener('load', () => {
-            // Initialize ElevenLabs API key if not set
-            if (!localStorage.getItem('elevenlabs_api_key')) {
-                localStorage.setItem('elevenlabs_api_key', 'sk_94c95a3f46355ef03ad7cc214059cccfd2c492fc1571a2bf');
-                console.log('ElevenLabs API key initialized');
-            }
-            
             loadVoiceConfig();
             loadAPISettings();
             updateSystemInfo();
@@ -1417,11 +1672,6 @@
             const apiKey = localStorage.getItem('elevenlabs_api_key');
             if (apiKey) {
                 document.getElementById('elevenLabsKey').value = apiKey;
-            } else {
-                // Set default API key
-                const defaultKey = 'sk_94c95a3f46355ef03ad7cc214059cccfd2c492fc1571a2bf';
-                localStorage.setItem('elevenlabs_api_key', defaultKey);
-                document.getElementById('elevenLabsKey').value = defaultKey;
             }
         }
 
@@ -2189,6 +2439,427 @@
             }
         }
 
+        // ElevenLabs Conversational AI Functions
+        let conversationSocket = null;
+        let conversationPC = null;
+        let conversationSessionId = null;
+        let conversationStartTime = null;
+        let conversationMetrics = {
+            turnCount: 0,
+            interruptionCount: 0,
+            currentEmotion: 'neutral'
+        };
+        let conversationMediaStream = null;
+        let conversationInterval = null;
+
+        function initializeConversationTab() {
+            // Initialize waveform
+            const waveform = document.getElementById('conversationWaveform');
+            if (waveform && waveform.children.length === 0) {
+                for (let i = 0; i < 20; i++) {
+                    const bar = document.createElement('div');
+                    bar.className = 'wave-bar';
+                    bar.style.height = '10px';
+                    waveform.appendChild(bar);
+                }
+            }
+
+            // Load saved configuration
+            loadConversationConfig();
+
+            // Populate voice select
+            const voiceSelect = document.getElementById('conversationVoiceSelect');
+            voiceSelect.innerHTML = '';
+            voices.forEach(voice => {
+                const option = document.createElement('option');
+                option.value = voice.id || voice.voiceId;
+                option.textContent = voice.name;
+                voiceSelect.appendChild(option);
+            });
+
+            // Setup slider listeners
+            document.getElementById('sensitivitySlider').addEventListener('input', (e) => {
+                document.getElementById('sensitivityValue').textContent = e.target.value;
+            });
+
+            document.getElementById('rateSlider').addEventListener('input', (e) => {
+                document.getElementById('rateValue').textContent = e.target.value + 'x';
+            });
+
+            document.getElementById('stabilitySlider').addEventListener('input', (e) => {
+                document.getElementById('stabilityValue').textContent = e.target.value;
+            });
+        }
+
+        function loadConversationConfig() {
+            const saved = localStorage.getItem('elevenlabs_conversation_config');
+            if (saved) {
+                const config = JSON.parse(saved);
+                document.getElementById('elevenLabsAgentId').value = config.agentId || 'saxtech-megamind-assistant';
+                document.getElementById('conversationWebhookUrl').value = config.webhookUrl || 'https://workflows.saxtechnology.com/webhook/elevenlabs-conversation-init';
+                document.getElementById('maxConversationDuration').value = config.maxDuration || 600;
+                
+                // Load settings
+                if (config.settings) {
+                    document.getElementById('enableInterruptions').checked = config.settings.interruptions !== false;
+                    document.getElementById('enableBackchanneling').checked = config.settings.backchanneling !== false;
+                    document.getElementById('enableEmotionTracking').checked = config.settings.emotionTracking !== false;
+                    document.getElementById('sensitivitySlider').value = config.settings.sensitivity || 0.7;
+                    document.getElementById('rateSlider').value = config.settings.rate || 1;
+                    document.getElementById('stabilitySlider').value = config.settings.stability || 0.5;
+                    
+                    // Update displays
+                    document.getElementById('sensitivityValue').textContent = config.settings.sensitivity || 0.7;
+                    document.getElementById('rateValue').textContent = (config.settings.rate || 1) + 'x';
+                    document.getElementById('stabilityValue').textContent = config.settings.stability || 0.5;
+                }
+            } else {
+                // Set default values if no saved config
+                document.getElementById('elevenLabsAgentId').value = 'saxtech-megamind-assistant';
+                document.getElementById('conversationWebhookUrl').value = 'https://workflows.saxtechnology.com/webhook/elevenlabs-conversation-init';
+                document.getElementById('maxConversationDuration').value = 600;
+            }
+        }
+
+        function saveConversationConfig() {
+            const config = {
+                agentId: document.getElementById('elevenLabsAgentId').value,
+                webhookUrl: document.getElementById('conversationWebhookUrl').value,
+                maxDuration: parseInt(document.getElementById('maxConversationDuration').value),
+                settings: {
+                    interruptions: document.getElementById('enableInterruptions').checked,
+                    backchanneling: document.getElementById('enableBackchanneling').checked,
+                    emotionTracking: document.getElementById('enableEmotionTracking').checked,
+                    sensitivity: parseFloat(document.getElementById('sensitivitySlider').value),
+                    rate: parseFloat(document.getElementById('rateSlider').value),
+                    stability: parseFloat(document.getElementById('stabilitySlider').value)
+                }
+            };
+            
+            localStorage.setItem('elevenlabs_conversation_config', JSON.stringify(config));
+            showStatus('Conversation configuration saved', 'success');
+        }
+
+        async function startElevenLabsConversation() {
+            try {
+                updateConversationStatus('connecting', 'Connecting...');
+                document.getElementById('startConversationBtn').disabled = true;
+
+                // Get microphone permission
+                conversationMediaStream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        sampleRate: 16000
+                    } 
+                });
+
+                // Get configuration
+                const agentId = document.getElementById('elevenLabsAgentId').value;
+                const webhookUrl = document.getElementById('conversationWebhookUrl').value;
+                const apiKey = localStorage.getItem('elevenlabs_api_key') || 'sk_94c95a3f46355ef03ad7cc214059cccfd2c492fc1571a2bf';
+
+                if (!agentId) {
+                    throw new Error('Please configure Agent ID first');
+                }
+
+                // Initialize session with n8n
+                const initResponse = await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        agentId: agentId,
+                        apiKey: apiKey,
+                        sessionId: generateSessionId(),
+                        selectedVoice: document.getElementById('conversationVoiceSelect').value,
+                        settings: {
+                            interruptions: document.getElementById('enableInterruptions').checked,
+                            backchanneling: document.getElementById('enableBackchanneling').checked,
+                            emotionTracking: document.getElementById('enableEmotionTracking').checked,
+                            sensitivity: parseFloat(document.getElementById('sensitivitySlider').value),
+                            rate: parseFloat(document.getElementById('rateSlider').value),
+                            stability: parseFloat(document.getElementById('stabilitySlider').value)
+                        }
+                    })
+                });
+
+                const initData = await initResponse.json();
+                if (!initData.success) {
+                    throw new Error(initData.error || 'Failed to initialize session');
+                }
+
+                conversationSessionId = initData.sessionId;
+                
+                // For demo purposes, simulate connection
+                // In production, you would connect to the actual WebSocket URL from initData.config.signedUrl
+                simulateConversation();
+
+                conversationStartTime = Date.now();
+                startConversationMetrics();
+
+                updateConversationStatus('active', 'Connected - Speak naturally');
+                document.getElementById('stopConversationBtn').disabled = false;
+                document.getElementById('muteConversationBtn').disabled = false;
+                document.getElementById('pauseConversationBtn').disabled = false;
+
+                addConversationTranscript('System', 'Conversation started. You can speak naturally and interrupt at any time.');
+
+            } catch (error) {
+                console.error('Failed to start conversation:', error);
+                updateConversationStatus('inactive', 'Connection Failed');
+                document.getElementById('startConversationBtn').disabled = false;
+                showStatus('Failed to start conversation: ' + error.message, 'error');
+            }
+        }
+
+        function simulateConversation() {
+            // Simulate conversation events for demo
+            setTimeout(() => {
+                addConversationTranscript('SAX AI', 'Hello! I\'m your SAX MegaMind assistant. How can I help you today?');
+                animateWaveform();
+            }, 1000);
+
+            setTimeout(() => {
+                addConversationTranscript('You', 'I need information about our company policies.');
+                conversationMetrics.turnCount++;
+                updateConversationMetrics();
+            }, 3000);
+
+            setTimeout(() => {
+                // Simulate interruption
+                conversationMetrics.interruptionCount++;
+                updateConversationMetrics();
+                addConversationTranscript('System', 'User interrupted', true);
+            }, 4500);
+
+            setTimeout(() => {
+                addConversationTranscript('SAX AI', 'Of course! I can help you with company policies. What specific policy area are you interested in?');
+                animateWaveform();
+            }, 5000);
+
+            setTimeout(() => {
+                // Simulate emotion detection
+                conversationMetrics.currentEmotion = 'curious';
+                document.getElementById('convEmotion').textContent = 'Curious';
+                addConversationTranscript('System', 'Emotion detected: Curious (85% confidence)', true);
+            }, 6000);
+        }
+
+        function animateWaveform() {
+            const bars = document.querySelectorAll('#conversationWaveform .wave-bar');
+            let animationCount = 0;
+            
+            const animate = setInterval(() => {
+                bars.forEach(bar => {
+                    const height = Math.random() * 60 + 10;
+                    bar.style.height = `${height}px`;
+                });
+                
+                animationCount++;
+                if (animationCount > 30) {
+                    clearInterval(animate);
+                    bars.forEach(bar => {
+                        bar.style.height = '10px';
+                    });
+                }
+            }, 100);
+        }
+
+        function stopElevenLabsConversation() {
+            // Stop media stream
+            if (conversationMediaStream) {
+                conversationMediaStream.getTracks().forEach(track => track.stop());
+                conversationMediaStream = null;
+            }
+
+            // Stop metrics
+            if (conversationInterval) {
+                clearInterval(conversationInterval);
+            }
+
+            // Reset UI
+            updateConversationStatus('inactive', 'Not Connected');
+            document.getElementById('startConversationBtn').disabled = false;
+            document.getElementById('stopConversationBtn').disabled = true;
+            document.getElementById('muteConversationBtn').disabled = true;
+            document.getElementById('pauseConversationBtn').disabled = true;
+
+            // Reset waveform
+            const bars = document.querySelectorAll('#conversationWaveform .wave-bar');
+            bars.forEach(bar => {
+                bar.style.height = '10px';
+            });
+
+            addConversationTranscript('System', 'Conversation ended. Thank you for using SAX MegaMind AI.');
+        }
+
+        function toggleConversationMute() {
+            const btn = document.getElementById('muteConversationBtn');
+            const isMuted = btn.textContent.includes('Unmute');
+            
+            if (conversationMediaStream) {
+                conversationMediaStream.getAudioTracks().forEach(track => {
+                    track.enabled = isMuted;
+                });
+            }
+            
+            btn.innerHTML = isMuted ? '🔇 Mute' : '🔊 Unmute';
+            addConversationTranscript('System', isMuted ? 'Microphone unmuted' : 'Microphone muted');
+        }
+
+        function toggleConversationPause() {
+            const btn = document.getElementById('pauseConversationBtn');
+            const isPaused = btn.textContent.includes('Resume');
+            
+            btn.innerHTML = isPaused ? '⏸️ Pause AI' : '▶️ Resume AI';
+            addConversationTranscript('System', isPaused ? 'AI resumed' : 'AI paused');
+        }
+
+        function updateConversationSettings() {
+            // Update display values
+            document.getElementById('sensitivityValue').textContent = document.getElementById('sensitivitySlider').value;
+            document.getElementById('rateValue').textContent = document.getElementById('rateSlider').value + 'x';
+            document.getElementById('stabilityValue').textContent = document.getElementById('stabilitySlider').value;
+            
+            // If connected, send updates to the conversation
+            if (conversationSessionId) {
+                console.log('Updating conversation settings...');
+            }
+        }
+        
+        function updateAdvancedSettings() {
+            document.getElementById('tempValue').textContent = document.getElementById('temperatureSlider').value;
+        }
+        
+        function updateLatencyMode() {
+            const value = parseInt(document.getElementById('latencySlider').value);
+            const modes = ['Fast', 'Balanced', 'Quality'];
+            document.getElementById('latencyValue').textContent = modes[value];
+        }
+        
+        function saveAdvancedSettings() {
+            const settings = {
+                ambientSound: document.getElementById('enableAmbientSound').checked,
+                turnTaking: document.getElementById('enableTurnTaking').checked,
+                contextMemory: document.getElementById('enableContextMemory').checked,
+                conversationStyle: document.getElementById('conversationStyle').value,
+                responseLength: document.getElementById('responseLength').value,
+                temperature: parseFloat(document.getElementById('temperatureSlider').value),
+                latency: parseInt(document.getElementById('latencySlider').value),
+                systemPrompt: document.getElementById('customSystemPrompt').value,
+                triggerPhrases: document.getElementById('triggerPhrases').value.split(',').map(p => p.trim())
+            };
+            
+            localStorage.setItem('elevenlabs_advanced_settings', JSON.stringify(settings));
+            
+            // Send to n8n for processing
+            if (document.getElementById('conversationWebhookUrl').value) {
+                fetch(document.getElementById('conversationWebhookUrl').value.replace('/init', '/update-settings'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        sessionId: conversationSessionId,
+                        advancedSettings: settings
+                    })
+                }).then(() => {
+                    showStatus('Advanced settings saved and applied', 'success');
+                }).catch(err => {
+                    showStatus('Settings saved locally', 'success');
+                });
+            } else {
+                showStatus('Advanced settings saved', 'success');
+            }
+        }
+
+        function updateConversationStatus(status, text) {
+            const dot = document.getElementById('conversationStatusDot');
+            const statusText = document.getElementById('conversationStatusText');
+            
+            dot.className = `status-dot ${status}`;
+            statusText.textContent = text;
+        }
+
+        function addConversationTranscript(speaker, text, isSystem = false) {
+            const container = document.getElementById('conversationTranscript');
+            const entry = document.createElement('div');
+            entry.className = 'transcript-entry';
+            
+            const speakerEl = document.createElement('div');
+            speakerEl.className = `transcript-speaker ${speaker === 'You' ? 'user' : ''}`;
+            speakerEl.textContent = speaker;
+            
+            const textEl = document.createElement('div');
+            textEl.className = 'transcript-text';
+            textEl.textContent = text;
+            
+            if (isSystem) {
+                textEl.style.fontStyle = 'italic';
+                textEl.style.color = '#6c757d';
+            }
+            
+            entry.appendChild(speakerEl);
+            entry.appendChild(textEl);
+            
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function startConversationMetrics() {
+            conversationInterval = setInterval(() => {
+                if (conversationStartTime) {
+                    const duration = Math.floor((Date.now() - conversationStartTime) / 1000);
+                    const minutes = Math.floor(duration / 60);
+                    const seconds = duration % 60;
+                    document.getElementById('convDuration').textContent = 
+                        `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                }
+            }, 1000);
+        }
+
+        function updateConversationMetrics() {
+            document.getElementById('convTurns').textContent = conversationMetrics.turnCount;
+            document.getElementById('convInterruptions').textContent = conversationMetrics.interruptionCount;
+        }
+
+        function generateSessionId() {
+            return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        async function testConversationAPI() {
+            const apiKey = localStorage.getItem('elevenlabs_api_key') || 'sk_94c95a3f46355ef03ad7cc214059cccfd2c492fc1571a2bf';
+            const agentId = document.getElementById('elevenLabsAgentId').value;
+
+            if (!agentId) {
+                showStatus('Please enter an Agent ID first', 'error');
+                return;
+            }
+
+            showStatus('Testing ElevenLabs Conversational AI connection...', 'success');
+
+            try {
+                // Test API key
+                const response = await fetch('https://api.elevenlabs.io/v1/user', {
+                    headers: {
+                        'xi-api-key': apiKey
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                showStatus(`API connection successful! Subscription: ${data.subscription.tier}`, 'success');
+
+            } catch (error) {
+                showStatus('API test failed: ' + error.message, 'error');
+            }
+        }
+
         // User Sessions Functions
         // Variables are already declared in admin-session-fixes.js:
         // let allLoadedSessions = [];
@@ -2303,101 +2974,6 @@
             }
         }
 
-        async function deleteSelectedSessions() {
-            const selected = Array.from(selectedSessions);
-            if (selected.length === 0) {
-                showStatus('No sessions selected', 'error');
-                return;
-            }
-            
-            if (!confirm(`Delete ${selected.length} selected session(s)? This action cannot be undone.`)) {
-                return;
-            }
-            
-            try {
-                for (const sessionId of selected) {
-                    await fetch('https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            action: 'delete',
-                            sessionId: sessionId
-                        })
-                    });
-                }
-                showStatus(`${selected.length} session(s) deleted successfully`, 'success');
-                selectedSessions.clear();
-                loadUserSessions(); // Reload the list
-            } catch (error) {
-                showStatus('Failed to delete sessions: ' + error.message, 'error');
-            }
-        }
-        
-        async function deleteAllUserSessions() {
-            const userEmail = currentFilteredUser || document.getElementById('sessionUserEmail').value.trim();
-            
-            if (!userEmail) {
-                showStatus('Please select a user first', 'error');
-                return;
-            }
-            
-            if (!confirm(`Delete ALL sessions for user ${userEmail}? This action cannot be undone.`)) {
-                return;
-            }
-            
-            try {
-                const response = await fetch('https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'deleteAll',
-                        userEmail: userEmail
-                    })
-                });
-                
-                if (response.ok) {
-                    showStatus(`All sessions for ${userEmail} deleted successfully`, 'success');
-                    document.getElementById('sessionsList').innerHTML = '';
-                    document.getElementById('sessionResults').style.display = 'none';
-                } else {
-                    throw new Error('Failed to delete sessions');
-                }
-            } catch (error) {
-                showStatus('Failed to delete user sessions: ' + error.message, 'error');
-            }
-        }
-        
-        async function confirmDeleteAllSessions() {
-            const confirmText = prompt('Type "DELETE ALL" to permanently delete ALL sessions for ALL users:');
-            
-            if (confirmText !== 'DELETE ALL') {
-                showStatus('Deletion cancelled', 'warning');
-                return;
-            }
-            
-            try {
-                const response = await fetch('https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'deleteAllGlobal',
-                        confirm: true
-                    })
-                });
-                
-                if (response.ok) {
-                    showStatus('All sessions for all users deleted successfully', 'success');
-                    document.getElementById('sessionsList').innerHTML = '';
-                    document.getElementById('sessionResults').style.display = 'none';
-                    loadSessionStats(); // Refresh stats
-                } else {
-                    throw new Error('Failed to delete all sessions');
-                }
-            } catch (error) {
-                showStatus('Failed to delete all sessions: ' + error.message, 'error');
-            }
-        }
-        
         async function loadAllRecentSessions() {
             document.getElementById('sessionLoading').style.display = 'block';
             document.getElementById('sessionResults').style.display = 'none';
@@ -2558,7 +3134,7 @@
         }
 
         // Store session data for export
-        // currentSessionsData is declared in admin-session-management.js
+        let currentSessionsData = [];
         window.storeSessionData = function(sessions) {
             currentSessionsData = sessions;
         };

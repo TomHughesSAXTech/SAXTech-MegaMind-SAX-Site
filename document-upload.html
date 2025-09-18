@@ -1602,7 +1602,10 @@
             docDiv.setAttribute('data-department', doc.department || '');
             
             // Use fileName for display, not title (title might be user-entered text)
-            const displayName = doc.fileName || doc.title || 'Unknown Document';
+            let displayName = doc.fileName || doc.title || 'Unknown Document';
+            
+            // Remove "Part x/x" from display name if present
+            displayName = displayName.replace(/\s*-?\s*Part\s+\d+\/\d+/gi, '').trim();
             const fileExt = displayName ? displayName.split('.').pop().toLowerCase() : '';
             const typeInfo = getFileTypeInfo(fileExt);
             
@@ -2610,8 +2613,8 @@
                         console.log('Attempting to delete all blob chunks via Azure Function');
                         const deleteBlobUrl = `${API_CONFIG.baseUrl}/DeleteBlob?code=${API_CONFIG.functionKey}`;
                         
-                        // First, query to find the actual number of chunks for this document
-                        const searchUrl = `${API_CONFIG.baseUrl}/documents/search`;
+                        // First, query to find ALL chunks for this document using pattern matching
+                        const searchUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`;
                         const searchResponse = await fetch(searchUrl, {
                             method: 'POST',
                             headers: {
@@ -2619,31 +2622,49 @@
                                 'x-functions-key': API_CONFIG.functionKey
                             },
                             body: JSON.stringify({
-                                search: baseFileName || baseDocId,
-                                filter: `fileName eq '${baseFileName}' or id eq '${baseDocId}'`,
-                                top: 100,
-                                select: 'id,fileName,chunkNumber'
+                                query: `"${baseFileName}" OR "${baseDocId}"`,
+                                top: 1000,  // Get more results to ensure we find all chunks
+                                select: 'id,fileName,title'
                             })
                         });
                         
-                        let actualChunkCount = 1; // At least one chunk
+                        let chunksToDelete = [];
                         if (searchResponse.ok) {
                             const searchData = await searchResponse.json();
                             const docs = searchData.value || searchData.results || [];
-                            const relatedChunks = docs.filter(d => 
-                                d.fileName?.startsWith(baseFileName) || 
-                                d.id?.startsWith(baseDocId)
-                            );
-                            actualChunkCount = Math.max(relatedChunks.length, 1);
-                            console.log(`Found ${actualChunkCount} actual chunks for document`);
+                            
+                            // Find ALL related chunks by looking for documents that contain the base name/ID
+                            // This includes documents with _chunk_, -chunk-, Part x/x, etc.
+                            const relatedChunks = docs.filter(d => {
+                                const docFileName = d.fileName || '';
+                                const docId = d.id || '';
+                                const docTitle = d.title || '';
+                                
+                                // Check if this document is related to our base document
+                                return (
+                                    docFileName.includes(baseFileName) ||
+                                    docId.includes(baseDocId) ||
+                                    docTitle.includes(title.replace(/ - Part \d+\/\d+/gi, '').trim())
+                                );
+                            });
+                            
+                            console.log(`Found ${relatedChunks.length} related chunks for document`);
+                            
+                            // Collect all unique chunk IDs and filenames
+                            relatedChunks.forEach(chunk => {
+                                if (chunk.id) chunkIdsToDelete.push(chunk.id);
+                                if (chunk.fileName) {
+                                    chunksToDelete.push({
+                                        id: chunk.id,
+                                        fileName: chunk.fileName
+                                    });
+                                }
+                            });
                         }
                         
-                        // Delete only the actual chunks found
-                        for (let i = 0; i < actualChunkCount; i++) {
-                            const chunkSuffix = i === 0 ? '' : `_chunk_${i}`;
-                            const chunkFileName = baseFileName + chunkSuffix + 
-                                                 (fileName.includes('.') ? fileName.substring(fileName.lastIndexOf('.')) : '');
-                            const chunkDocId = baseDocId + chunkSuffix;
+                        // Delete all found chunks from blob storage
+                        for (const chunkInfo of chunksToDelete) {
+                            const chunkFileName = chunkInfo.fileName;
                             
                             try {
                                 const blobResponse = await fetch(deleteBlobUrl, {
@@ -2661,23 +2682,13 @@
                                 
                                 if (blobResponse.ok) {
                                     const blobResult = await blobResponse.json();
-                                    console.log(`Blob chunk ${i} deleted:`, chunkFileName);
+                                    console.log(`Blob chunk deleted:`, chunkFileName);
                                     blobsDeleted++;
-                                    chunkIdsToDelete.push(chunkDocId);
-                                } else if (i === 0) {
-                                    // If first chunk fails, still try to delete from index
-                                    console.warn('First blob chunk deletion failed, continuing with index');
-                                    chunkIdsToDelete.push(chunkDocId);
                                 } else {
-                                    // No more chunks exist
-                                    break;
+                                    console.warn(`Failed to delete blob: ${chunkFileName}`);
                                 }
                             } catch (error) {
-                                if (i === 0) {
-                                    console.error('Error deleting first chunk, continuing:', error);
-                                    chunkIdsToDelete.push(chunkDocId);
-                                }
-                                break;
+                                console.error(`Error deleting blob ${chunkFileName}:`, error);
                             }
                         }
                         
