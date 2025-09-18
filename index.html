@@ -1582,6 +1582,12 @@
                 return;
             }
             
+            // Move menu to body if it's not there already to ensure it's above everything
+            if (menu.parentElement.id !== 'body' && !menu.parentElement.classList.contains('body')) {
+                document.body.appendChild(menu);
+                console.log('Moved menu to body for proper z-index stacking');
+            }
+            
             // Toggle visibility
             const isVisible = menu.style.display === 'block';
             console.log('Current visibility:', isVisible, 'Toggling to:', !isVisible);
@@ -1590,22 +1596,25 @@
                 // Show menu
                 const btnRect = btn.getBoundingClientRect();
                 
+                // Position menu to the LEFT of the button, extending leftward
+                const menuWidth = 400; // Approximate width
+                const rightEdge = btnRect.left; // Right edge of menu should align with left edge of button
+                const leftPosition = Math.max(10, rightEdge - menuWidth); // Ensure it doesn't go off screen
+                
                 // Set all positioning at once
                 menu.style.cssText = `
                     display: block !important;
                     position: fixed !important;
                     top: ${btnRect.bottom + 10}px !important;
-                    right: ${window.innerWidth - btnRect.right}px !important;
-                    left: auto !important;
-                    z-index: 999999 !important;
+                    left: ${leftPosition}px !important;
+                    width: ${menuWidth}px !important;
+                    z-index: 2147483647 !important;
                     opacity: 1 !important;
                     visibility: visible !important;
                     background: white !important;
                     border: 2px solid #FFD700 !important;
                     border-radius: 12px !important;
-                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5) !important;
-                    min-width: 350px !important;
-                    max-width: 450px !important;
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8) !important;
                     max-height: 400px !important;
                     overflow-y: auto !important;
                     padding: 10px 0 !important;
