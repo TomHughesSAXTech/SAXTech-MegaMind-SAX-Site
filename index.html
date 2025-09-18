@@ -2715,18 +2715,70 @@
             // Convert *italic* to <em> (but not if it's part of bold)
             formatted = formatted.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
             
-            // Convert bullet points at start of lines
-            formatted = formatted.replace(/^- (.+)$/gm, '• $1');
-            formatted = formatted.replace(/^\* (.+)$/gm, '• $1');
+            // Process lists - wrap consecutive bullet/numbered items in list tags
+            const lines = formatted.split('\n');
+            const processedLines = [];
+            let inBulletList = false;
+            let inNumberedList = false;
             
-            // Convert numbered lists
-            formatted = formatted.replace(/^\d+\. (.+)$/gm, '$1');
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const isBullet = /^[•\-\*] /.test(line);
+                const isNumbered = /^\d+\. /.test(line);
+                
+                if (isBullet) {
+                    if (!inBulletList) {
+                        processedLines.push('<ul style="margin: 10px 0; padding-left: 20px;">');
+                        inBulletList = true;
+                    }
+                    if (inNumberedList) {
+                        processedLines.push('</ol>');
+                        inNumberedList = false;
+                    }
+                    const content = line.replace(/^[•\-\*] /, '');
+                    processedLines.push(`<li>${content}</li>`);
+                } else if (isNumbered) {
+                    if (!inNumberedList) {
+                        processedLines.push('<ol style="margin: 10px 0; padding-left: 20px;">');
+                        inNumberedList = true;
+                    }
+                    if (inBulletList) {
+                        processedLines.push('</ul>');
+                        inBulletList = false;
+                    }
+                    const content = line.replace(/^\d+\. /, '');
+                    processedLines.push(`<li>${content}</li>`);
+                } else {
+                    // Not a list item - close any open lists
+                    if (inBulletList) {
+                        processedLines.push('</ul>');
+                        inBulletList = false;
+                    }
+                    if (inNumberedList) {
+                        processedLines.push('</ol>');
+                        inNumberedList = false;
+                    }
+                    // Add line with break only if not empty
+                    if (line.trim()) {
+                        processedLines.push(line);
+                    } else if (i < lines.length - 1) {
+                        // Add break for empty lines between content
+                        processedLines.push('<br>');
+                    }
+                }
+            }
+            
+            // Close any remaining open lists
+            if (inBulletList) processedLines.push('</ul>');
+            if (inNumberedList) processedLines.push('</ol>');
+            
+            formatted = processedLines.join('\n');
             
             // Convert inline code ` with proper wrapping
             formatted = formatted.replace(/`([^`]+)`/g, '<code style="background: #f4f4f4; padding: 2px 4px; border-radius: 3px; word-break: break-word;">$1</code>');
             
-            // Convert newlines to <br> tags
-            formatted = formatted.replace(/\n/g, '<br>');
+            // Convert remaining newlines to <br> tags (but not within lists)
+            formatted = formatted.replace(/\n(?![\s]*<(?:li|ul|ol|\/))/g, '<br>');
             
             // Convert plain URLs to clickable links (if not already in an HTML tag)
             formatted = formatted.replace(/(^|[^=">])(https?:\/\/[^\s<]+)(?![^<]*>)/g, '$1<a href="$2" target="_blank" style="color: #0084ff; text-decoration: underline; word-break: break-all;">$2</a>');
