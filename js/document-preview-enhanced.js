@@ -13,11 +13,14 @@ window.openDocumentPreview = async function(fileName, department) {
                   fileName.includes('.net') || fileName.includes('.gov');
     
     // Check if this is indexed website content (like saxadvisorygroup_content_*.txt)
-    const isIndexedContent = fileName.includes('_content_') && fileName.endsWith('.txt') &&
-                            (fileName.includes('saxadvisorygroup') || fileName.includes('saxtechnology') || 
-                             fileName.includes('saxca') || fileName.includes('saxga') || 
-                             fileName.includes('saxfla') || fileName.includes('saxor') || 
-                             fileName.includes('saxsc') || fileName.includes('saxwa'));
+    const fileNameLower = fileName.toLowerCase();
+    const isIndexedContent = (fileNameLower.includes('_content_') || fileNameLower.includes('content')) && 
+                            fileNameLower.endsWith('.txt') &&
+                            (fileNameLower.includes('saxadvisorygroup') || fileNameLower.includes('saxtechnology') || 
+                             fileNameLower.includes('saxca') || fileNameLower.includes('saxga') || 
+                             fileNameLower.includes('saxfla') || fileNameLower.includes('saxor') || 
+                             fileNameLower.includes('saxsc') || fileNameLower.includes('saxwa') ||
+                             fileNameLower.includes('sax'));
     
     if (isUrl) {
         // If it's a URL, open it in a new tab
@@ -185,6 +188,44 @@ window.openDocumentPreview = async function(fileName, department) {
         const sasUrl = await generateSASUrl(documentPath);
         
         if (!sasUrl) {
+            // Before throwing error, check if this might be indexed content we missed
+            if (fileName.includes('_content_') || fileName.includes('saxadvisorygroup') || 
+                fileName.includes('saxtechnology') || fileName.includes('sax')) {
+                // This might be indexed content, try to open the website
+                console.log('Document not found in blob storage, checking if it\'s indexed content...');
+                
+                let websiteUrl = '';
+                if (fileName.toLowerCase().includes('saxadvisorygroup')) {
+                    websiteUrl = 'https://www.saxadvisorygroup.com';
+                } else if (fileName.toLowerCase().includes('saxtechnology')) {
+                    websiteUrl = 'https://www.saxtechnology.com';
+                } else if (fileName.toLowerCase().includes('saxca')) {
+                    websiteUrl = 'https://www.saxca.com';
+                } else if (fileName.toLowerCase().includes('saxga')) {
+                    websiteUrl = 'https://www.saxga.com';
+                } else if (fileName.toLowerCase().includes('saxfla')) {
+                    websiteUrl = 'https://www.saxfla.com';
+                } else if (fileName.toLowerCase().includes('saxor')) {
+                    websiteUrl = 'https://www.saxor.com';
+                } else if (fileName.toLowerCase().includes('saxsc')) {
+                    websiteUrl = 'https://www.saxsc.com';
+                } else if (fileName.toLowerCase().includes('saxwa')) {
+                    websiteUrl = 'https://www.saxwa.com';
+                }
+                
+                if (websiteUrl) {
+                    console.log('Opening website for indexed content:', websiteUrl);
+                    // Close any loading modal
+                    const modal = document.getElementById('documentPreviewModal');
+                    if (modal) {
+                        modal.classList.remove('show');
+                    }
+                    window.open(websiteUrl, '_blank');
+                    showIndexedContentMessage(fileName, websiteUrl, false);
+                    return;
+                }
+            }
+            
             throw new Error(`Document not found in ${actualDepartment} folder`);
         }
         
