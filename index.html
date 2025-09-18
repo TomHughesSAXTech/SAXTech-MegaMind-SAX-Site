@@ -1484,6 +1484,11 @@
                 <!-- Messages will be added here dynamically -->
             </div>
             
+            <!-- Tax Search Component Container (Hidden by default, shown for CPA profile) -->
+            <div id="taxSearchContainer" style="display: none;">
+                <!-- Tax Search UI will be rendered here dynamically -->
+            </div>
+            
             <div class="chat-input-container">
                 <div class="chat-input">
                     <input type="text" id="messageInput" placeholder="Type your message or click voice to speak...">
@@ -2051,7 +2056,35 @@
                 avatar: '📋',
                 description: 'Tax and accounting specialist',
                 robotImage: 'robot-cpa.png',
-                role: 'Tax & Accounting Expert'
+                role: 'Tax & Accounting Expert',
+                customInterface: {
+                    onSelect: function() {
+                        // Hide regular chat interface and show tax search
+                        const chatMessages = document.getElementById('chatMessages');
+                        const taxSearchContainer = document.getElementById('taxSearchContainer');
+                        const chatInputContainer = document.querySelector('.chat-input-container');
+                        
+                        if (chatMessages) chatMessages.style.display = 'none';
+                        if (chatInputContainer) chatInputContainer.style.display = 'none';
+                        if (taxSearchContainer) {
+                            taxSearchContainer.style.display = 'block';
+                            // Initialize or refresh the tax search component
+                            if (window.TaxSearchComponent && typeof window.TaxSearchComponent.init === 'function') {
+                                window.TaxSearchComponent.init('taxSearchContainer');
+                            }
+                        }
+                    },
+                    onDeselect: function() {
+                        // Show regular chat interface and hide tax search
+                        const chatMessages = document.getElementById('chatMessages');
+                        const taxSearchContainer = document.getElementById('taxSearchContainer');
+                        const chatInputContainer = document.querySelector('.chat-input-container');
+                        
+                        if (chatMessages) chatMessages.style.display = '';
+                        if (chatInputContainer) chatInputContainer.style.display = '';
+                        if (taxSearchContainer) taxSearchContainer.style.display = 'none';
+                    }
+                }
             },
             trainer: {
                 name: 'SAX Trainer',
@@ -2557,6 +2590,12 @@
             if (card) {
                 const personality = card.dataset.personality;
                 if (personality && personality !== currentAIProfile) {
+                    // Call onDeselect for the previous profile if it has custom interface
+                    const previousConfig = aiProfiles[currentAIProfile];
+                    if (previousConfig && previousConfig.customInterface && previousConfig.customInterface.onDeselect) {
+                        previousConfig.customInterface.onDeselect();
+                    }
+                    
                     // Update current personality
                     currentAIProfile = personality;
                     const config = aiProfiles[personality];
@@ -2579,8 +2618,24 @@
                     // Close carousel
                     document.getElementById('personalityOverlay').classList.remove('show');
                     
-                    // Add message
-                    addMessage('bot', `Switched to ${config.name} mode! ${config.description}. How can I help you?`);
+                    // Call onSelect for the new profile if it has custom interface
+                    if (config.customInterface && config.customInterface.onSelect) {
+                        config.customInterface.onSelect();
+                    } else {
+                        // For profiles without custom interface, ensure standard chat is visible
+                        const chatMessages = document.getElementById('chatMessages');
+                        const chatInputContainer = document.querySelector('.chat-input-container');
+                        const taxSearchContainer = document.getElementById('taxSearchContainer');
+                        
+                        if (chatMessages) chatMessages.style.display = '';
+                        if (chatInputContainer) chatInputContainer.style.display = '';
+                        if (taxSearchContainer) taxSearchContainer.style.display = 'none';
+                    }
+                    
+                    // Add message (only if not using custom interface that hides chat)
+                    if (!config.customInterface) {
+                        addMessage('bot', `Switched to ${config.name} mode! ${config.description}. How can I help you?`);
+                    }
                 }
             }
             
@@ -4607,5 +4662,8 @@
 
     <!-- Enhanced Document Preview System -->
     <script src="js/document-preview-enhanced.js"></script>
+    
+    <!-- Tax Search Component for CPA Profile -->
+    <script src="js/tax-search-component.js"></script>
 </body>
 </html>
