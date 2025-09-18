@@ -2610,8 +2610,36 @@
                         console.log('Attempting to delete all blob chunks via Azure Function');
                         const deleteBlobUrl = `${API_CONFIG.baseUrl}/DeleteBlob?code=${API_CONFIG.functionKey}`;
                         
-                        // Delete chunks with pattern matching - try up to 100 chunks
-                        for (let i = 0; i < 100; i++) {
+                        // First, query to find the actual number of chunks for this document
+                        const searchUrl = `${API_CONFIG.baseUrl}/documents/search`;
+                        const searchResponse = await fetch(searchUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'x-functions-key': API_CONFIG.functionKey
+                            },
+                            body: JSON.stringify({
+                                search: baseFileName || baseDocId,
+                                filter: `fileName eq '${baseFileName}' or id eq '${baseDocId}'`,
+                                top: 100,
+                                select: 'id,fileName,chunkNumber'
+                            })
+                        });
+                        
+                        let actualChunkCount = 1; // At least one chunk
+                        if (searchResponse.ok) {
+                            const searchData = await searchResponse.json();
+                            const docs = searchData.value || searchData.results || [];
+                            const relatedChunks = docs.filter(d => 
+                                d.fileName?.startsWith(baseFileName) || 
+                                d.id?.startsWith(baseDocId)
+                            );
+                            actualChunkCount = Math.max(relatedChunks.length, 1);
+                            console.log(`Found ${actualChunkCount} actual chunks for document`);
+                        }
+                        
+                        // Delete only the actual chunks found
+                        for (let i = 0; i < actualChunkCount; i++) {
                             const chunkSuffix = i === 0 ? '' : `_chunk_${i}`;
                             const chunkFileName = baseFileName + chunkSuffix + 
                                                  (fileName.includes('.') ? fileName.substring(fileName.lastIndexOf('.')) : '');
