@@ -14,23 +14,23 @@ window.openDocumentPreview = async function(fileName, department) {
     
     // Check if this is indexed website content
     const fileNameLower = fileName.toLowerCase();
-    // Pattern for indexed content: saxXX_pNN_cN.txt or saxXX_content_*.txt or similar
-    const isIndexedContent = (
-        // Pattern 1: saxXX_pNN_cN.txt (e.g., saxwa_p33_c1.txt)
-        /^sax[a-z]{2,}_p\d+_c\d+\.txt$/i.test(fileName) ||
-        // Pattern 2: contains _content_ or content with .txt extension
-        ((fileNameLower.includes('_content_') || fileNameLower.includes('content')) && 
-         fileNameLower.endsWith('.txt')) ||
-        // Pattern 3: starts with sax and contains page/chunk indicators
-        (fileNameLower.startsWith('sax') && 
-         (fileNameLower.includes('_p') || fileNameLower.includes('_c') || 
-          fileNameLower.includes('page') || fileNameLower.includes('chunk')) &&
-         fileNameLower.endsWith('.txt'))
-    ) && (fileNameLower.includes('saxadvisorygroup') || fileNameLower.includes('saxtechnology') || 
-          fileNameLower.includes('saxca') || fileNameLower.includes('saxga') || 
-          fileNameLower.includes('saxfla') || fileNameLower.includes('saxor') || 
-          fileNameLower.includes('saxsc') || fileNameLower.includes('saxwa') ||
-          fileNameLower.startsWith('sax'));
+    // Pattern for indexed content: saxXX_pNN_cN.txt or saxadvisorygroup_pNN_cN.txt etc.
+    const pattern1 = /^sax[a-z]*_p\d+_c\d+\.txt$/i.test(fileName);
+    const pattern2 = ((fileNameLower.includes('_content_') || fileNameLower.includes('content')) && 
+                     fileNameLower.endsWith('.txt') && fileNameLower.startsWith('sax'));
+    const pattern3 = (fileNameLower.startsWith('sax') && 
+                     (fileNameLower.includes('_p') && fileNameLower.includes('_c')) &&
+                     fileNameLower.endsWith('.txt'));
+    
+    const isIndexedContent = pattern1 || pattern2 || pattern3;
+    
+    console.log('Indexed content detection:', {
+        fileName: fileName,
+        pattern1: pattern1,
+        pattern2: pattern2,
+        pattern3: pattern3,
+        isIndexedContent: isIndexedContent
+    });
     
     if (isUrl) {
         // If it's a URL, open it in a new tab
