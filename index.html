@@ -2715,18 +2715,39 @@
             // Convert *italic* to <em> (but not if it's part of bold)
             formatted = formatted.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
             
-            // Process lists - wrap consecutive bullet/numbered items in list tags
+            // Process lists and document cards - wrap consecutive bullet/numbered items in list tags
             const lines = formatted.split('\n');
             const processedLines = [];
             let inBulletList = false;
             let inNumberedList = false;
+            let inDocumentCard = false;
             
             for (let i = 0; i < lines.length; i++) {
-                const line = lines[i];
+                const line = lines[i].trim();
                 const isBullet = /^[•\-\*] /.test(line);
                 const isNumbered = /^\d+\. /.test(line);
+                const isDocumentTitle = line.includes('📄'); // 📄 emoji
+                const isMetadata = line.startsWith('Type:') || line.startsWith('Department:') || line.startsWith('Author:') || line.startsWith('Date:');
+                const isPreviewButton = line.includes('Preview Document');
                 
-                if (isBullet) {
+                // Start document card if we see the document emoji
+                if (isDocumentTitle) {
+                    inDocumentCard = true;
+                    processedLines.push('<div style="background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; margin: 8px 0;">');
+                    processedLines.push(`<div style="font-weight: bold; margin-bottom: 4px;">${line}</div>`);
+                } else if (inDocumentCard && isMetadata) {
+                    // Compact metadata on same line with separator
+                    processedLines.push(`<div style="color: #666; font-size: 0.9em;">${line}</div>`);
+                } else if (inDocumentCard && isPreviewButton) {
+                    // Add preview button and close card
+                    processedLines.push(`<div style="margin-top: 8px;">${line}</div>`);
+                    processedLines.push('</div>');
+                    inDocumentCard = false;
+                } else if (isBullet) {
+                    if (inDocumentCard) {
+                        processedLines.push('</div>');
+                        inDocumentCard = false;
+                    }
                     if (!inBulletList) {
                         processedLines.push('<ul style="margin: 10px 0; padding-left: 20px;">');
                         inBulletList = true;
@@ -2738,6 +2759,10 @@
                     const content = line.replace(/^[•\-\*] /, '');
                     processedLines.push(`<li>${content}</li>`);
                 } else if (isNumbered) {
+                    if (inDocumentCard) {
+                        processedLines.push('</div>');
+                        inDocumentCard = false;
+                    }
                     if (!inNumberedList) {
                         processedLines.push('<ol style="margin: 10px 0; padding-left: 20px;">');
                         inNumberedList = true;
@@ -2758,11 +2783,11 @@
                         processedLines.push('</ol>');
                         inNumberedList = false;
                     }
-                    // Add line with break only if not empty
-                    if (line.trim()) {
+                    // Add line with appropriate spacing
+                    if (line) {
                         processedLines.push(line);
-                    } else if (i < lines.length - 1) {
-                        // Add break for empty lines between content
+                    } else if (i < lines.length - 1 && !inDocumentCard) {
+                        // Only add break for empty lines between content (not in document cards)
                         processedLines.push('<br>');
                     }
                 }
