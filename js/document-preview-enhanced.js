@@ -12,15 +12,25 @@ window.openDocumentPreview = async function(fileName, department) {
                   fileName.includes('.com') || fileName.includes('.org') || 
                   fileName.includes('.net') || fileName.includes('.gov');
     
-    // Check if this is indexed website content (like saxadvisorygroup_content_*.txt)
+    // Check if this is indexed website content
     const fileNameLower = fileName.toLowerCase();
-    const isIndexedContent = (fileNameLower.includes('_content_') || fileNameLower.includes('content')) && 
-                            fileNameLower.endsWith('.txt') &&
-                            (fileNameLower.includes('saxadvisorygroup') || fileNameLower.includes('saxtechnology') || 
-                             fileNameLower.includes('saxca') || fileNameLower.includes('saxga') || 
-                             fileNameLower.includes('saxfla') || fileNameLower.includes('saxor') || 
-                             fileNameLower.includes('saxsc') || fileNameLower.includes('saxwa') ||
-                             fileNameLower.includes('sax'));
+    // Pattern for indexed content: saxXX_pNN_cN.txt or saxXX_content_*.txt or similar
+    const isIndexedContent = (
+        // Pattern 1: saxXX_pNN_cN.txt (e.g., saxwa_p33_c1.txt)
+        /^sax[a-z]{2,}_p\d+_c\d+\.txt$/i.test(fileName) ||
+        // Pattern 2: contains _content_ or content with .txt extension
+        ((fileNameLower.includes('_content_') || fileNameLower.includes('content')) && 
+         fileNameLower.endsWith('.txt')) ||
+        // Pattern 3: starts with sax and contains page/chunk indicators
+        (fileNameLower.startsWith('sax') && 
+         (fileNameLower.includes('_p') || fileNameLower.includes('_c') || 
+          fileNameLower.includes('page') || fileNameLower.includes('chunk')) &&
+         fileNameLower.endsWith('.txt'))
+    ) && (fileNameLower.includes('saxadvisorygroup') || fileNameLower.includes('saxtechnology') || 
+          fileNameLower.includes('saxca') || fileNameLower.includes('saxga') || 
+          fileNameLower.includes('saxfla') || fileNameLower.includes('saxor') || 
+          fileNameLower.includes('saxsc') || fileNameLower.includes('saxwa') ||
+          fileNameLower.startsWith('sax'));
     
     if (isUrl) {
         // If it's a URL, open it in a new tab
@@ -48,9 +58,10 @@ window.openDocumentPreview = async function(fileName, department) {
                 },
                 body: JSON.stringify({
                     query: fileName,
+                    filter: `fileName eq '${fileName}'`,
                     top: 10,
                     searchMode: 'all',
-                    select: 'fileName,sourceUrl,url,websiteUrl,pageUrl,content,department'
+                    select: 'fileName,title,sourceUrl,url,websiteUrl,pageUrl,content,department,metadata'
                 })
             });
             
@@ -64,9 +75,41 @@ window.openDocumentPreview = async function(fileName, department) {
                 );
                 
                 if (matchingDoc) {
+                    console.log('Found matching document with fields:', Object.keys(matchingDoc));
+                    console.log('Document data:', JSON.stringify(matchingDoc, null, 2));
+                    
                     // Try to get the actual page URL from various possible fields
-                    const pageUrl = matchingDoc.sourceUrl || matchingDoc.url || 
-                                   matchingDoc.websiteUrl || matchingDoc.pageUrl;
+                    let pageUrl = matchingDoc.sourceUrl || matchingDoc.url || 
+                                 matchingDoc.websiteUrl || matchingDoc.pageUrl;
+                    
+                    // Check title field for URLs (often contains the page title and URL)
+                    if (!pageUrl && matchingDoc.title) {
+                        const titleUrlMatch = matchingDoc.title.match(/(https?:\/\/[^\s]+)/i);
+                        if (titleUrlMatch) {
+                            pageUrl = titleUrlMatch[1];
+                            console.log('Found URL in title:', pageUrl);
+                        }
+                    }
+                    
+                    // Check metadata for URL
+                    if (!pageUrl && matchingDoc.metadata) {
+                        try {
+                            const metadata = typeof matchingDoc.metadata === 'string' ? 
+                                           JSON.parse(matchingDoc.metadata) : matchingDoc.metadata;
+                            pageUrl = metadata.sourceUrl || metadata.url || metadata.websiteUrl || 
+                                     metadata.pageUrl || metadata.source_url || metadata.page_url;
+                            
+                            if (!pageUrl && metadata.title) {
+                                const metaTitleUrlMatch = metadata.title.match(/(https?:\/\/[^\s]+)/i);
+                                if (metaTitleUrlMatch) {
+                                    pageUrl = metaTitleUrlMatch[1];
+                                    console.log('Found URL in metadata title:', pageUrl);
+                                }
+                            }
+                        } catch (e) {
+                            console.log('Could not parse metadata:', e);
+                        }
+                    }
                     
                     if (pageUrl && (pageUrl.startsWith('http://') || pageUrl.startsWith('https://'))) {
                         console.log('Opening specific page URL:', pageUrl);
@@ -77,11 +120,41 @@ window.openDocumentPreview = async function(fileName, department) {
                     
                     // If we have content, try to extract URL from it
                     if (matchingDoc.content) {
-                        const urlMatch = matchingDoc.content.match(/(?:Source:|URL:|From:)\s*(https?:\/\/[^\s]+)/i);
-                        if (urlMatch) {
-                            console.log('Found URL in content:', urlMatch[1]);
-                            window.open(urlMatch[1], '_blank');
-                            showIndexedContentMessage(fileName, urlMatch[1], true);
+                        // Try to find URLs in the content
+                        // First check for labeled URLs
+                        const labeledUrlMatch = matchingDoc.content.match(
+                            /(?:Source:|URL:|From:|Website:|Link:|Page:|Location:)\s*(https?:\/\/[^\s]+)/i
+                        );
+                        
+                        if (labeledUrlMatch) {
+                            const foundUrl = labeledUrlMatch[1];
+                            console.log('Found labeled URL in content:', foundUrl);
+                            window.open(foundUrl, '_blank');
+                            showIndexedContentMessage(fileName, foundUrl, true);
+                            return;
+                        }
+                        
+                        // Try to find any URL in the content that looks like the SAX websites
+                        const saxUrlMatch = matchingDoc.content.match(
+                            /(https?:\/\/(?:www\.)?sax(?:technology|advisorygroup|ca|ga|fla|or|sc|wa)\.com[^\s]*)/i
+                        );
+                        
+                        if (saxUrlMatch) {
+                            const foundUrl = saxUrlMatch[1];
+                            console.log('Found SAX website URL in content:', foundUrl);
+                            window.open(foundUrl, '_blank');
+                            showIndexedContentMessage(fileName, foundUrl, true);
+                            return;
+                        }
+                        
+                        // Try to find any URL in the content
+                        const anyUrlMatch = matchingDoc.content.match(/(https?:\/\/[^\s]+)/i);
+                        
+                        if (anyUrlMatch) {
+                            const foundUrl = anyUrlMatch[1];
+                            console.log('Found URL in content:', foundUrl);
+                            window.open(foundUrl, '_blank');
+                            showIndexedContentMessage(fileName, foundUrl, true);
                             return;
                         }
                     }
