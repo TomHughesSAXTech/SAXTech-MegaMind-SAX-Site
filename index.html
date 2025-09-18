@@ -2327,8 +2327,6 @@
                     ttsSummarize: ttsEnabled ? true : false,  // Only summarize if TTS enabled
                     // Send voice configuration for dynamic mapping
                     voiceConfig: ttsEnabled ? JSON.parse(localStorage.getItem('megamind_voice_config') || '[]') : [],
-                    // Send ElevenLabs API key for TTS
-                    elevenLabsApiKey: ttsEnabled ? (localStorage.getItem('elevenlabs_api_key') || 'sk_94c95a3f46355ef03ad7cc214059cccfd2c492fc1571a2bf') : null,
                     attachments: processedAttachments,
                     // Include conversation context for follow-up questions
                     previousContext: conversationContext,
@@ -2446,6 +2444,12 @@
                                 console.error('n8n error:', result);
                                 addMessage('bot', `Configuration error: ${result.errorMessage}`);
                             } else {
+                                // Log any TTS errors from n8n
+                                if (result.ttsError) {
+                                    console.error('TTS Error from n8n:', result.ttsError);
+                                    console.error('TTS Error Type:', result.ttsErrorType);
+                                }
+                                
                                 // Handle response with audio
                                 const responseText = result.response || 'I received your message but couldn\'t generate a response.';
                                 
