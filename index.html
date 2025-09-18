@@ -2651,23 +2651,87 @@
                                 }
                                 
                             } else {
-                                // Try to parse as JSON
-                                try {
-                                    // Log the raw response for debugging
-                                    console.log('Raw response (first 500 chars):', responseText.substring(0, 500));
+                                // Check if this is NDJSON (newline-delimited JSON) format from n8n
+                                const lines = responseText.trim().split('\n');
+                                const hasMultipleJsonLines = lines.length > 1 && lines[0].trim().startsWith('{') && lines[0].trim().endsWith('}');
+                                
+                                if (hasMultipleJsonLines) {
+                                    console.log('Detected NDJSON format (multiple JSON objects separated by newlines)');
+                                    let fullContent = '';
+                                    let audioData = null;
+                                    let hasError = false;
                                     
-                                    // Check if response might contain multiple JSON objects
-                                    const jsonMatch = responseText.match(/^\s*\{[\s\S]*?\}(?:\s*$)?/);
-                                    let result;
-                                    
-                                    if (jsonMatch) {
-                                        // Try to parse just the first JSON object
-                                        console.log('Attempting to parse first JSON object');
-                                        result = JSON.parse(jsonMatch[0]);
-                                    } else {
-                                        // Try parsing the whole response
-                                        result = JSON.parse(responseText);
+                                    // Parse each line as a separate JSON object
+                                    for (const line of lines) {
+                                        if (line.trim()) {
+                                            try {
+                                                const jsonObj = JSON.parse(line);
+                                                
+                                                // Handle different message types
+                                                if (jsonObj.type === 'item' && jsonObj.content) {
+                                                    fullContent += jsonObj.content;
+                                                } else if (jsonObj.type === 'end') {
+                                                    console.log('Stream ended');
+                                                } else if (jsonObj.type === 'begin') {
+                                                    console.log('Stream started from node:', jsonObj.metadata?.nodeName);
+                                                } else if (jsonObj.response) {
+                                                    fullContent = jsonObj.response;
+                                                } else if (jsonObj.text) {
+                                                    fullContent = jsonObj.text;
+                                                }
+                                                
+                                                // Check for audio data
+                                                if (jsonObj.audioBase64) {
+                                                    audioData = jsonObj.audioBase64;
+                                                } else if (jsonObj.audioData) {
+                                                    audioData = jsonObj.audioData;
+                                                }
+                                                
+                                                // Check for error
+                                                if (jsonObj.errorMessage) {
+                                                    console.error('n8n error in stream:', jsonObj.errorMessage);
+                                                    fullContent = `Configuration error: ${jsonObj.errorMessage}`;
+                                                    hasError = true;
+                                                    break;
+                                                }
+                                            } catch (e) {
+                                                console.warn('Failed to parse NDJSON line:', line);
+                                            }
+                                        }
                                     }
+                                    
+                                    if (fullContent) {
+                                        console.log('Assembled full response:', fullContent);
+                                        addMessage('bot', fullContent, audioData);
+                                        
+                                        // Track metrics if available
+                                        if (window.metricsTracker) {
+                                            window.metricsTracker.trackMessage('assistant', fullContent);
+                                            window.metricsTracker.endRequest();
+                                        }
+                                        
+                                        // Save to conversation history
+                                        conversationHistory.push({
+                                            role: 'assistant',
+                                            content: fullContent,
+                                            timestamp: new Date().toISOString()
+                                        });
+                                        saveSessionHistory();
+                                        
+                                        // Clear attachedFiles after successful response
+                                        window.attachedFiles = [];
+                                        attachedFiles = window.attachedFiles;
+                                    } else if (!hasError) {
+                                        addMessage('bot', 'I received a response but couldn\'t extract the message.');
+                                    }
+                                    
+                                } else {
+                                    // Try to parse as single JSON object
+                                    try {
+                                        // Log the raw response for debugging
+                                        console.log('Raw response (first 500 chars):', responseText.substring(0, 500));
+                                        
+                                        const result = JSON.parse(responseText);
                                     
                             if (result.errorMessage) {
                                 console.error('n8n error:', result);
@@ -2776,11 +2840,11 @@
                                     }, 2000);
                                 }
                             }
-                        } catch (jsonError) {
-                            console.error('Invalid JSON response:', jsonError);
-                            console.log('Failed to parse response as JSON. Raw response:', responseText);
-                            
-                            // Check if it's plain text that we can display
+                                    } catch (jsonError) {
+                                        console.error('Invalid JSON response:', jsonError);
+                                        console.log('Failed to parse response as JSON. Raw response:', responseText);
+                                        
+                                        // Check if it's plain text that we can display
                             if (responseText && responseText.trim().length > 0) {
                                 // Check if it looks like it might be a plain text response
                                 if (!responseText.trim().startsWith('{') && !responseText.trim().startsWith('[')) {
@@ -2816,12 +2880,13 @@
                                         addMessage('bot', 'I received a response but it appears to be malformed. Please check your n8n workflow configuration.');
                                     }
                                 }
-                            } else {
-                                addMessage('bot', 'I received an empty or invalid response from the server.');
+                                        } else {
+                                            addMessage('bot', 'I received an empty or invalid response from the server.');
+                                        }
+                                    }
+                                }
                             }
-                        }
-                    }
-                    } // Close the else block for non-streaming response
+                        } // Close the else block for non-streaming response
                     } // Close the non-streaming response branch
                 } else {
                     throw new Error(`Server responded with status ${response.status}`);
