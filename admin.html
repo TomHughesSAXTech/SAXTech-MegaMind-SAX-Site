@@ -648,7 +648,6 @@
         }
     </style>
     <script src="js/session-export.js"></script>
-    <script src="admin-session-fixes.js"></script>
 </head>
 <body>
     <div class="container">
@@ -3135,7 +3134,7 @@ You are a helpful assistant for SAX Advisory Group. Be professional, friendly, a
         }
 
         // Store session data for export
-        // Note: currentSessionsData is already declared in admin-session-fixes.js
+        let currentSessionsData = [];
         window.storeSessionData = function(sessions) {
             currentSessionsData = sessions;
         };
