@@ -1171,6 +1171,7 @@
             max-height: 500px;
             overflow-y: auto;
             backdrop-filter: blur(10px);
+            z-index: 10002;  /* Higher than history button */
         }
         
         .history-menu.active {
@@ -1179,13 +1180,20 @@
         
         .history-item {
             padding: 15px;
-            border-bottom: 1px solid rgba(0,0,0,0.05);
+            border-bottom: 1px solid rgba(0,0,0,0.1);
             cursor: pointer;
             transition: all 0.3s ease;
+            background: white;
+            position: relative;
         }
         
         .history-item:hover {
-            background: rgba(255,215,0,0.1);
+            background: rgba(255,215,0,0.15);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .history-item:last-child {
+            border-bottom: none;
         }
         
         .history-item-title {
@@ -1218,13 +1226,20 @@
         .history-loading {
             padding: 20px;
             text-align: center;
-            color: #999;
+            color: #666;
+            font-size: 14px;
         }
         
         .history-empty {
             padding: 20px;
             text-align: center;
-            color: #999;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        #historyList {
+            min-height: 50px;
+            color: #333;
         }
     </style>
 </head>
@@ -1598,7 +1613,22 @@
                 }
                 
                 const data = await response.json();
-                const sessions = data.sessions || data.conversations || [];
+                console.log('Raw history data from Azure:', data);
+                
+                // Try different possible data structures
+                let sessions = [];
+                if (Array.isArray(data)) {
+                    sessions = data;
+                } else if (data.sessions) {
+                    sessions = data.sessions;
+                } else if (data.conversations) {
+                    sessions = data.conversations;
+                } else if (data.data) {
+                    sessions = Array.isArray(data.data) ? data.data : [];
+                }
+                
+                console.log('Parsed sessions:', sessions);
+                console.log('Number of sessions:', sessions.length);
                 
                 // Hide loading
                 historyLoading.style.display = 'none';
@@ -1647,13 +1677,18 @@
                     `;
                 });
                 
+                console.log('Generated HTML for history list:', html);
+                console.log('History list element:', historyList);
                 historyList.innerHTML = html;
+                console.log('History list after innerHTML set:', historyList.innerHTML);
                 
             } catch (error) {
                 console.error('Error loading history:', error);
+                console.error('Error details:', error.message);
+                console.error('Error stack:', error.stack);
                 historyLoading.style.display = 'none';
                 historyEmpty.style.display = 'block';
-                historyEmpty.textContent = 'Error loading history';
+                historyEmpty.textContent = `Error loading history: ${error.message}`;
             }
         }
         
