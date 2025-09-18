@@ -2586,8 +2586,14 @@
             
             const bubbleDiv = document.createElement('div');
             bubbleDiv.className = 'message-bubble';
-            bubbleDiv.innerHTML = text;
             
+            // Parse markdown for bot messages
+            if (sender === 'bot') {
+                bubbleDiv.innerHTML = parseMarkdownToHTML(text);
+            } else {
+                // For user messages, just display as-is but escape HTML to prevent injection
+                bubbleDiv.innerHTML = text;
+            }
             messageDiv.appendChild(avatarDiv);
             messageDiv.appendChild(bubbleDiv);
             
@@ -2677,6 +2683,48 @@
             return conversationContext;
         };
 
+        // Parse markdown text to HTML
+        function parseMarkdownToHTML(text) {
+            if (!text) return '';
+            
+            let formatted = text;
+            
+            // Convert markdown links [text](url) to HTML links
+            formatted = formatted.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color: #0084ff; text-decoration: underline;">$1</a>');
+            
+            // Convert **bold** to <strong>
+            formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            
+            // Convert *italic* to <em> (but not if it's part of bold)
+            formatted = formatted.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
+            
+            // Convert bullet points at start of lines
+            formatted = formatted.replace(/^- (.+)$/gm, '• $1');
+            formatted = formatted.replace(/^\* (.+)$/gm, '• $1');
+            
+            // Convert numbered lists
+            formatted = formatted.replace(/^\d+\. (.+)$/gm, function(match, p1, offset, string) {
+                const lines = string.substring(0, offset).split('\n');
+                const lastLine = lines[lines.length - 1];
+                const num = lastLine.match(/^(\d+)\./)?.[1] || '1';
+                return `${num}. ${p1}`;
+            });
+            
+            // Convert code blocks ```
+            formatted = formatted.replace(/```([^`]+)```/g, '<pre style="background: #f4f4f4; padding: 10px; border-radius: 4px; overflow-x: auto;"><code>$1</code></pre>');
+            
+            // Convert inline code `
+            formatted = formatted.replace(/`([^`]+)`/g, '<code style="background: #f4f4f4; padding: 2px 4px; border-radius: 3px;">$1</code>');
+            
+            // Convert newlines to <br> tags
+            formatted = formatted.replace(/\n/g, '<br>');
+            
+            // Convert plain URLs to clickable links (if not already in an HTML tag)
+            formatted = formatted.replace(/(^|[^=">])(https?:\/\/[^\s<]+)(?![^<]*>)/g, '$1<a href="$2" target="_blank" style="color: #0084ff; text-decoration: underline;">$2</a>');
+            
+            return formatted;
+        }
+        
         // Session History Management Functions
         function loadSessionHistory() {
             if (currentAccount) {
@@ -2757,12 +2805,13 @@
             messageDiv.className = `message ${role}`;
             
             if (role === 'bot') {
+                const formattedContent = parseMarkdownToHTML(content);
                 messageDiv.innerHTML = `
                     <div class="message-avatar">
                         <img src="${aiProfiles[currentAIProfile].robotImage}" alt="${aiProfiles[currentAIProfile].name}" 
                              onerror="this.style.display='none'; this.parentNode.innerHTML='${aiProfiles[currentAIProfile].avatar}';">
                     </div>
-                    <div class="message-content">${content}</div>
+                    <div class="message-content">${formattedContent}</div>
                 `;
             } else {
                 messageDiv.innerHTML = `<div class="message-content">${content}</div>`;
