@@ -2683,17 +2683,36 @@
             return conversationContext;
         };
 
-        // Parse markdown text to HTML - simplified version to prevent formatting issues
+        // Parse markdown text to HTML with proper formatting
         function parseMarkdownToHTML(text) {
             if (!text) return '';
             
             let formatted = text;
             
-            // Only convert markdown links [text](url) to HTML links
+            // Convert markdown links [text](url) to HTML links
             formatted = formatted.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color: #0084ff; text-decoration: underline;">$1</a>');
             
-            // Convert newlines to <br> tags for proper line breaks
+            // Convert **bold** to <strong>
+            formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            
+            // Convert *italic* to <em> (but not if it's part of bold)
+            formatted = formatted.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
+            
+            // Convert bullet points at start of lines
+            formatted = formatted.replace(/^- (.+)$/gm, '• $1');
+            formatted = formatted.replace(/^\* (.+)$/gm, '• $1');
+            
+            // Convert numbered lists
+            formatted = formatted.replace(/^\d+\. (.+)$/gm, '$1');
+            
+            // Convert inline code ` with proper wrapping
+            formatted = formatted.replace(/`([^`]+)`/g, '<code style="background: #f4f4f4; padding: 2px 4px; border-radius: 3px; word-break: break-word;">$1</code>');
+            
+            // Convert newlines to <br> tags
             formatted = formatted.replace(/\n/g, '<br>');
+            
+            // Convert plain URLs to clickable links (if not already in an HTML tag)
+            formatted = formatted.replace(/(^|[^=">])(https?:\/\/[^\s<]+)(?![^<]*>)/g, '$1<a href="$2" target="_blank" style="color: #0084ff; text-decoration: underline; word-break: break-all;">$2</a>');
             
             return formatted;
         }
