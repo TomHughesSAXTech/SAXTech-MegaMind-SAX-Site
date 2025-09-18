@@ -2767,6 +2767,7 @@
                         }
                     }
                     } // Close the else block for non-streaming response
+                    } // Close the non-streaming response branch
                 } else {
                     throw new Error(`Server responded with status ${response.status}`);
                 }
