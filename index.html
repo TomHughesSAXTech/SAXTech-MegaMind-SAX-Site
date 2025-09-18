@@ -1435,7 +1435,7 @@
                 
                 <!-- History Dropdown -->
                 <div class="history-dropdown">
-                    <button class="history-btn" id="historyBtn">
+                    <button class="history-btn" id="historyBtn" onclick="window.toggleHistoryMenu(); return false;">
                         📚 History
                     </button>
                     <div class="history-menu" id="historyMenu">
@@ -1570,84 +1570,60 @@
             return 'session-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
         }
         
-        // History dropdown functions
+        // History dropdown functions - simplified version
         window.toggleHistoryMenu = function() {
-            try {
-                console.log('toggleHistoryMenu called at', new Date().toISOString());
-                const menu = document.getElementById('historyMenu');
-                const btn = document.getElementById('historyBtn');
+            console.log('toggleHistoryMenu called');
+            
+            const menu = document.getElementById('historyMenu');
+            const btn = document.getElementById('historyBtn');
+            
+            if (!menu || !btn) {
+                console.error('Menu or button not found');
+                return;
+            }
+            
+            // Toggle visibility
+            const isVisible = menu.style.display === 'block';
+            console.log('Current visibility:', isVisible, 'Toggling to:', !isVisible);
+            
+            if (!isVisible) {
+                // Show menu
+                const btnRect = btn.getBoundingClientRect();
                 
-                console.log('Menu element:', menu);
-                console.log('Button element:', btn);
+                // Set all positioning at once
+                menu.style.cssText = `
+                    display: block !important;
+                    position: fixed !important;
+                    top: ${btnRect.bottom + 10}px !important;
+                    right: ${window.innerWidth - btnRect.right}px !important;
+                    left: auto !important;
+                    z-index: 999999 !important;
+                    opacity: 1 !important;
+                    visibility: visible !important;
+                    background: white !important;
+                    border: 2px solid #FFD700 !important;
+                    border-radius: 12px !important;
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5) !important;
+                    min-width: 350px !important;
+                    max-width: 450px !important;
+                    max-height: 400px !important;
+                    overflow-y: auto !important;
+                    padding: 10px 0 !important;
+                `;
                 
-                if (!menu) {
-                    console.error('History menu element not found');
-                    return;
-                }
-                if (!btn) {
-                    console.error('History button element not found');
-                    return;
-                }
+                menu.classList.add('active');
+                historyMenuOpen = true;
                 
-                historyMenuOpen = !historyMenuOpen;
-                console.log('History menu open state changed to:', historyMenuOpen);
+                console.log('Menu shown with styles:', menu.style.cssText);
                 
-                if (historyMenuOpen) {
-                    // First make menu visible with display block
-                    menu.style.display = 'block';
-                    
-                    // Position the menu based on button location
-                    const btnRect = btn.getBoundingClientRect();
-                    console.log('Button position:', btnRect);
-                    
-                    // Force fixed positioning
-                    menu.style.position = 'fixed';
-                    menu.style.top = (btnRect.bottom + 10) + 'px';  // 10px below button
-                    
-                    // Simple positioning - align with button's right edge, extending left
-                    const menuWidth = 400; // Approximate menu width
-                    
-                    // Position menu to extend left from the button's right edge
-                    const rightPosition = window.innerWidth - btnRect.right;
-                    menu.style.right = rightPosition + 'px';
-                    menu.style.left = 'auto';
-                    
-                    // Ensure menu doesn't go off the left edge of screen
-                    const menuLeft = btnRect.right - menuWidth;
-                    if (menuLeft < 10) {
-                        // If menu would go off left edge, align it with left edge instead
-                        menu.style.left = '10px';
-                        menu.style.right = 'auto';
-                    }
-                    
-                    // Force high z-index and ensure visibility
-                    menu.style.zIndex = '999999';
-                    menu.style.opacity = '1';
-                    menu.style.visibility = 'visible';
-                    
-                    // Add active class
-                    menu.classList.add('active');
-                    
-                    console.log('Menu CSS after positioning:', {
-                        display: menu.style.display,
-                        position: menu.style.position,
-                        top: menu.style.top, 
-                        right: menu.style.right, 
-                        left: menu.style.left,
-                        zIndex: menu.style.zIndex,
-                        classList: menu.classList.toString()
-                    });
-                    
-                    // Load history data
-                    loadHistoryFromAzure();
-                } else {
-                    menu.classList.remove('active');
-                    menu.style.display = 'none';
-                    console.log('Menu closed and hidden');
-                }
-            } catch (error) {
-                console.error('Error in toggleHistoryMenu:', error);
-                console.error('Stack:', error.stack);
+                // Load history
+                loadHistoryFromAzure();
+            } else {
+                // Hide menu
+                menu.style.display = 'none';
+                menu.classList.remove('active');
+                historyMenuOpen = false;
+                console.log('Menu hidden');
             }
         }
         
@@ -4212,33 +4188,22 @@
         window.addEventListener('load', async () => {
             console.log('Page loaded, initializing application...');
             
-            // Setup history button
-            const historyBtn = document.getElementById('historyBtn');
-            const historyMenu = document.getElementById('historyMenu');
-            
-            if (historyBtn) {
-                console.log('History button found during initialization');
-                // Remove any existing onclick attribute and use event listener
-                historyBtn.removeAttribute('onclick');
-                historyBtn.addEventListener('click', function(e) {
-                    console.log('History button clicked');
-                    e.preventDefault();
-                    e.stopPropagation();
-                    window.toggleHistoryMenu();
-                });
-            } else {
-                console.error('History button not found during initialization!');
-            }
-            
-            if (historyMenu) {
-                console.log('History menu found during initialization');
-                // Ensure menu is hidden initially
-                historyMenu.style.display = 'none';
-                historyMenu.classList.remove('active');
-                historyMenuOpen = false;
-            } else {
-                console.error('History menu not found during initialization!');
-            }
+            // Setup history button - simplified
+            setTimeout(() => {
+                const historyBtn = document.getElementById('historyBtn');
+                const historyMenu = document.getElementById('historyMenu');
+                
+                if (historyBtn) {
+                    console.log('History button found, setting up event');
+                    // Ensure menu is hidden initially
+                    if (historyMenu) {
+                        historyMenu.style.display = 'none';
+                        historyMenuOpen = false;
+                    }
+                } else {
+                    console.error('History button not found!');
+                }
+            }, 100);  // Small delay to ensure DOM is ready
             
             loadVoiceDropdown();  // Load custom voices
             await initialize();  // Call the main initialize function, not just initializeMSAL
