@@ -1697,21 +1697,24 @@
                 // Display conversations
                 let html = '';
                 sessions.forEach((session, index) => {
-                    // Parse the conversation data - it's stored as a JSON string
-                    let conversationData = null;
+                    // Parse the conversation data - can be string array or object
+                    let messages = [];
                     try {
                         if (typeof session.conversation === 'string') {
-                            conversationData = JSON.parse(session.conversation);
-                        } else {
-                            conversationData = session.conversation || {};
+                            const parsed = JSON.parse(session.conversation);
+                            // Handle array or object format
+                            messages = Array.isArray(parsed) ? parsed : (parsed.messages || []);
+                        } else if (Array.isArray(session.conversation)) {
+                            messages = session.conversation;
+                        } else if (session.conversation && session.conversation.messages) {
+                            messages = session.conversation.messages;
+                        } else if (session.messages) {
+                            messages = session.messages;
                         }
                     } catch (e) {
-                        console.error('Error parsing conversation:', e);
-                        conversationData = {};
+                        console.error('Error parsing conversation for display:', e);
                     }
                     
-                    // Get messages from parsed data
-                    const messages = conversationData.messages || session.messages || [];
                     const firstUserMessage = messages.find(m => m.role === 'user');
                     const firstBotResponse = messages.find(m => m.role === 'assistant');
                     
@@ -1796,24 +1799,45 @@
                     s._id === sessionId
                 );
                 
+                console.log('Found session:', targetSession);
+                
                 if (!targetSession) {
                     throw new Error('Session not found');
                 }
                 
-                // Parse the conversation data
-                let conversationData = null;
+                // Parse the conversation data - it can be in multiple formats
+                let messages = [];
                 try {
                     if (typeof targetSession.conversation === 'string') {
-                        conversationData = JSON.parse(targetSession.conversation);
-                    } else {
-                        conversationData = targetSession.conversation || {};
+                        console.log('Parsing conversation string:', targetSession.conversation.substring(0, 200));
+                        const parsed = JSON.parse(targetSession.conversation);
+                        
+                        // Check if parsed is array directly or object with messages
+                        if (Array.isArray(parsed)) {
+                            messages = parsed;
+                            console.log('Conversation was array of messages');
+                        } else if (parsed.messages) {
+                            messages = parsed.messages;
+                            console.log('Conversation was object with messages property');
+                        }
+                    } else if (Array.isArray(targetSession.conversation)) {
+                        // Conversation is already an array of messages
+                        messages = targetSession.conversation;
+                        console.log('Conversation is array:', messages.length, 'messages');
+                    } else if (targetSession.conversation && targetSession.conversation.messages) {
+                        // Conversation is object with messages property
+                        messages = targetSession.conversation.messages;
+                        console.log('Conversation is object with messages:', messages.length);
+                    } else if (targetSession.messages) {
+                        // Messages at top level
+                        messages = targetSession.messages;
+                        console.log('Messages at top level:', messages.length);
                     }
                 } catch (e) {
                     console.error('Error parsing conversation:', e);
-                    conversationData = {};
+                    console.error('Raw conversation data:', targetSession.conversation);
                 }
-                
-                const messages = conversationData.messages || targetSession.messages || [];
+                console.log('Messages found:', messages.length, messages);
                 
                 if (messages && messages.length > 0) {
                     // Clear current chat
@@ -1821,6 +1845,7 @@
                     
                     // Load messages
                     messages.forEach(msg => {
+                        console.log('Adding message:', msg);
                         addMessage(msg.role === 'user' ? 'user' : 'bot', msg.content, null, false);
                     });
                     
@@ -1829,6 +1854,9 @@
                     
                     // Close history menu
                     toggleHistoryMenu();
+                } else {
+                    console.error('No messages found in session');
+                    alert('This conversation appears to be empty.');
                 }
             } catch (error) {
                 console.error('Error loading conversation:', error);
@@ -2709,7 +2737,7 @@
                         sessionId: sessionId,
                         userEmail: currentAccount.username,
                         userName: currentAccount.name || currentAccount.username,
-                        conversation: messages,
+                        conversation: { messages: messages }, // Wrap in object for consistency
                         department: userProfile?.department || null,
                         location: userProfile?.location || null,
                         aiProfile: currentAIProfile || 'default'
