@@ -1861,38 +1861,23 @@
             // Clear chat messages display first
             chatMessages.innerHTML = '';
             
-            // Check if we have an existing session
-            const existingSessionId = sessionStorage.getItem('megamind_sax_session_id');
-            const existingMessages = sessionStorage.getItem('megamind_sax_messages');
+            // ALWAYS start fresh on page load - clear any existing session
+            sessionStorage.removeItem('megamind_sax_session_id');
+            sessionStorage.removeItem('megamind_sax_messages');
             
-            if (existingSessionId) {
-                sessionId = existingSessionId;
-                currentSessionId = sessionId;  // Initialize currentSessionId for history tracking
-                console.log('Restoring session:', sessionId);
-                
-                if (existingMessages) {
-                    try {
-                        const messages = JSON.parse(existingMessages);
-                        console.log('Restoring', messages.length, 'messages');
-                        messages.forEach(msg => {
-                            addMessage(msg.sender, msg.text, null, false);
-                        });
-                    } catch (e) {
-                        console.error('Error restoring messages:', e);
-                        sessionStorage.removeItem('megamind_sax_messages');
-                    }
-                }
-            } else {
-                sessionId = 'session_' + Date.now();
-                sessionStorage.setItem('megamind_sax_session_id', sessionId);
-                console.log('Creating new session:', sessionId);
-                
-                // Initialize currentSessionId for history tracking
-                currentSessionId = sessionId;
-                
-                // Show welcome message with personality selector hint
-                addMessage('bot', "Welcome! I'm SAX, your AI-powered business assistant. Click on my name above to switch between different AI personalities. How can I help you today?");
-            }
+            // Always create a fresh session ID on page load
+            sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            sessionStorage.setItem('megamind_sax_session_id', sessionId);
+            console.log('Creating new session on page load:', sessionId);
+            
+            // Initialize currentSessionId for history tracking
+            currentSessionId = sessionId;
+            
+            // Clear conversation history  
+            conversationHistory = [];
+            
+            // Show welcome message with personality selector hint
+            addMessage('bot', "Welcome! I'm SAX, your AI-powered business assistant. Click on my name above to switch between different AI personalities. How can I help you today?");
         }
 
         // Load user profile from Microsoft Graph
@@ -3166,22 +3151,22 @@
                                 if (hasMultipleJsonLines) {
                                     console.log('Detected NDJSON format (multiple JSON objects separated by newlines)');
                                     
-                                    // Create message element for ChatGPT-style streaming display
+                                    // Create message element WITHOUT BUBBLE for clean streaming
                                     const messageDiv = document.createElement('div');
-                                    messageDiv.className = 'message bot streaming';
-                                    // Create the bubble with proper initial styling to prevent flash
+                                    messageDiv.className = 'message bot';
+                                    // NO BUBBLE - pure streaming text display
                                     messageDiv.innerHTML = `
                                         <div class="message-avatar">
                                             <img src="${aiProfiles[currentAIProfile].robotImage}" alt="${aiProfiles[currentAIProfile].name}" 
                                                  onerror="this.style.display='none'; this.parentNode.innerHTML='${aiProfiles[currentAIProfile].avatar}';">
                                         </div>
-                                        <div class="message-bubble" style="background: rgba(255,255,255,0.9); padding: 15px 20px; border: 1px solid rgba(255,215,0,0.2); border-radius: 20px; border-bottom-left-radius: 5px; box-shadow: 0 3px 10px rgba(0,0,0,0.1);" id="streaming-ndjson-message">
-                                            <span class="streaming-text"></span>
+                                        <div class="streaming-container" style="flex: 1; padding-left: 15px;">
+                                            <span class="streaming-text" style="color: rgba(255, 255, 255, 0.95); font-size: 16px; line-height: 1.7; letter-spacing: 0.3px;"></span>
                                         </div>
                                     `;
                                     chatMessages.appendChild(messageDiv);
                                     const streamingContent = messageDiv.querySelector('.streaming-text');
-                                    const bubbleDiv = messageDiv.querySelector('.message-bubble');
+                                    const bubbleDiv = null; // NO BUBBLE - removed completely
                                     
                                     let fullContent = '';
                                     let audioData = null;
