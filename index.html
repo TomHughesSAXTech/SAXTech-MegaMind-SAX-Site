@@ -2069,8 +2069,8 @@
                             taxSearchDropdown.style.cssText = `
                                 position: absolute;
                                 right: 20px;
-                                top: calc(50% + 35px);
-                                transform: translateY(-50%);
+                                top: calc(50% + 20px);
+                                transform: translateY(0);
                                 z-index: 10001;
                             `;
                             
@@ -2078,8 +2078,6 @@
                             taxSearchBtn.id = 'taxSearchToggleBtn';
                             taxSearchBtn.className = 'history-btn';
                             taxSearchBtn.innerHTML = '📚 Tax Dictionary';
-                            // Remove the custom cssText to inherit the history-btn class styles
-                            // Hover effects will be handled by CSS
                             taxSearchBtn.onclick = function() {
                                 const taxSearchContainer = document.getElementById('taxSearchContainer');
                                 const isVisible = taxSearchContainer.style.display === 'block';
