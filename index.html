@@ -2069,32 +2069,17 @@
                             taxSearchDropdown.style.cssText = `
                                 position: absolute;
                                 right: 20px;
-                                top: 60px;
+                                top: calc(50% + 35px);
+                                transform: translateY(-50%);
+                                z-index: 10001;
                             `;
                             
                             const taxSearchBtn = document.createElement('button');
                             taxSearchBtn.id = 'taxSearchToggleBtn';
                             taxSearchBtn.className = 'history-btn';
                             taxSearchBtn.innerHTML = '📚 Tax Dictionary';
-                            taxSearchBtn.style.cssText = `
-                                padding: 8px 16px;
-                                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                                color: white;
-                                border: none;
-                                border-radius: 20px;
-                                font-size: 14px;
-                                font-weight: 600;
-                                cursor: pointer;
-                                transition: transform 0.2s, box-shadow 0.2s;
-                            `;
-                            taxSearchBtn.onmouseover = function() {
-                                this.style.transform = 'translateY(-2px)';
-                                this.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
-                            };
-                            taxSearchBtn.onmouseout = function() {
-                                this.style.transform = 'translateY(0)';
-                                this.style.boxShadow = 'none';
-                            };
+                            // Remove the custom cssText to inherit the history-btn class styles
+                            // Hover effects will be handled by CSS
                             taxSearchBtn.onclick = function() {
                                 const taxSearchContainer = document.getElementById('taxSearchContainer');
                                 const isVisible = taxSearchContainer.style.display === 'block';
