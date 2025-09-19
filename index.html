@@ -1470,7 +1470,7 @@
                 <!-- History Dropdown -->
                 <div class="history-dropdown">
                     <button class="history-btn" id="historyBtn" onclick="window.toggleHistoryMenu(); return false;">
-                        📚 History
+                        History
                     </button>
                     <div class="history-menu" id="historyMenu">
                         <div class="history-loading" id="historyLoading">Loading...</div>
@@ -2068,8 +2068,8 @@
                             taxSearchDropdown.className = 'history-dropdown';
                             taxSearchDropdown.style.cssText = `
                                 position: absolute;
-                                right: 20px;
-                                top: calc(50% + 45px);
+                                left: 20px;
+                                top: 50%;
                                 transform: translateY(-50%);
                                 z-index: 10001;
                             `;
@@ -2077,7 +2077,7 @@
                             const taxSearchBtn = document.createElement('button');
                             taxSearchBtn.id = 'taxSearchToggleBtn';
                             taxSearchBtn.className = 'history-btn';
-                            taxSearchBtn.innerHTML = '📚 Tax Dictionary';
+                            taxSearchBtn.innerHTML = 'Tax Dictionary';
                             taxSearchBtn.onclick = function() {
                                 const taxSearchContainer = document.getElementById('taxSearchContainer');
                                 const isVisible = taxSearchContainer.style.display === 'block';
@@ -2085,7 +2085,7 @@
                                 if (isVisible) {
                                     // Hide tax search
                                     taxSearchContainer.style.display = 'none';
-                                    this.innerHTML = '📚 Tax Dictionary';
+                                    this.innerHTML = 'Tax Dictionary';
                                 } else {
                                     // Show tax search
                                     taxSearchContainer.style.display = 'block';
