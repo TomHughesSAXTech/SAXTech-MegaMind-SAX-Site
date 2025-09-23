@@ -2938,14 +2938,14 @@
                     const latestResp = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'x-functions-key': API_CONFIG.functionKey },
-                        body: JSON.stringify({ search: '*', query: '*', top: 10, orderby: 'uploadDate desc', select: 'uploadDate,createdDate,lastModified', indexName: idx.name })
+                        body: JSON.stringify({ search: '*', query: '*', top: 10, orderby: 'uploadDate desc', select: 'uploadDate,createdDate,lastModified,metadata_storage_last_modified', indexName: idx.name })
                     });
                     if (latestResp.ok) {
                         const latest = await latestResp.json();
                         const docs = latest.value || latest.results || [];
                         let mostRecent = null;
                         docs.forEach(d => {
-                            [d.uploadDate, d.createdDate, d.lastModified].filter(Boolean).forEach(ds => {
+                            [d.uploadDate, d.createdDate, d.lastModified, d.metadata_storage_last_modified].filter(Boolean).forEach(ds => {
                                 const dt = new Date(ds);
                                 if (!mostRecent || dt > mostRecent) mostRecent = dt;
                             });

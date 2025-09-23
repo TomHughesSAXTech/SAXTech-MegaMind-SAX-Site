@@ -1553,6 +1553,10 @@
 
         async function refreshStats() {
             try {
+                const selEl = document.getElementById('indexSelector');
+                const currentIndex = (selEl && selEl.value) ? selEl.value : INDEX_CONFIG.indexName;
+                INDEX_CONFIG.indexName = currentIndex; // keep in sync
+
                 // Get document count from index maintenance
                 const statsResponse = await fetch(
                     `${INDEX_CONFIG.functionUrl}/index/maintenance`,
@@ -1564,7 +1568,7 @@
                         },
                         body: JSON.stringify({
                             operation: 'stats',
-                            indexName: INDEX_CONFIG.indexName
+                            indexName: currentIndex
                         })
                     }
                 );
@@ -1595,7 +1599,7 @@
                             query: '*',
                             top: 10,
                             orderby: 'uploadDate desc',
-                            select: 'uploadDate,createdDate,lastModified',
+                            select: 'uploadDate,createdDate,lastModified,metadata_storage_last_modified',
                             indexName: INDEX_CONFIG.indexName
                         })
                     }
@@ -1608,7 +1612,7 @@
                     if (documents && documents.length > 0) {
                         let mostRecentDate = null;
                         documents.forEach(doc => {
-                            const dates = [doc.uploadDate, doc.createdDate, doc.lastModified].filter(d => d);
+                            const dates = [doc.uploadDate, doc.createdDate, doc.lastModified, doc.metadata_storage_last_modified].filter(d => d);
                             dates.forEach(dateStr => {
                                 const date = new Date(dateStr);
                                 if (!mostRecentDate || date > mostRecentDate) {
@@ -1640,6 +1644,9 @@
         async function queryIndex() {
             const query = document.getElementById('searchQuery').value || '*';
             const filter = document.getElementById('searchFilter').value;
+            const selEl = document.getElementById('indexSelector');
+            const currentIndex = (selEl && selEl.value) ? selEl.value : INDEX_CONFIG.indexName;
+            INDEX_CONFIG.indexName = currentIndex; // ensure in sync
             // Fetch all results with paging (1000/page)
             
             document.getElementById('resultsContainer').style.display = 'block';
@@ -1669,8 +1676,8 @@
                                 filter: filter,
                                 top: pageSize,
                                 skip: skip,
-                                indexName: INDEX_CONFIG.indexName,
-                                select: 'id,title,fileName,department,documentType,uploadDate,createdDate,author,fileSize,status,vectorized,chunkCount,chunks,conversionMethod,contentHash,contentLength,metadata,content,totalCharacters'
+                                indexName: currentIndex,
+                                select: 'id,title,fileName,department,documentType,uploadDate,createdDate,lastModified,metadata_storage_last_modified,author,fileSize,status,vectorized,chunkCount,chunks,conversionMethod,contentHash,contentLength,metadata,content,totalCharacters'
                             })
                         }
                     );
@@ -1710,7 +1717,7 @@
                     }
                     
                     displayResults(documents);
-                    showIndexAlert('success', `Found ${documents.length} documents in ${INDEX_CONFIG.indexName}`);
+                    showIndexAlert('success', `Found ${documents.length} documents in ${currentIndex}`);
             } catch (error) {
                 showIndexAlert('error', 'Search error: ' + error.message);
             } finally {
