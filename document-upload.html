@@ -2893,28 +2893,44 @@
             // Populate stats for each index using the documents/search function which accepts indexName
             for (const idx of indexes) {
                 try {
-                    // 1) Get count only
-                    const countResp = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'x-functions-key': API_CONFIG.functionKey },
-                        body: JSON.stringify({ query: '*', top: 0, indexName: idx.name })
-                    });
+                    // 1) Prefer server-side stats per index
                     let totalDocs = 0;
-                    if (countResp.ok) {
-                        const countData = await countResp.json();
-                        totalDocs = countData['@odata.count'] || (countData.value ? countData.value.length : 0) || 0;
+                    try {
+                        const statsResp = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.indexMaintenance}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'x-functions-key': API_CONFIG.functionKey },
+                            body: JSON.stringify({ operation: 'stats', indexName: idx.name })
+                        });
+                        if (statsResp.ok) {
+                            const statsData = await statsResp.json();
+                            totalDocs = statsData?.stats?.totalDocuments || 0;
+                        }
+                    } catch (e) {
+                        // ignore and fallback
+                    }
+                    // Fallback: count via search with $count
+                    if (!totalDocs) {
+                        const countResp = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'x-functions-key': API_CONFIG.functionKey },
+                            body: JSON.stringify({ query: '*', top: 0, indexName: idx.name })
+                        });
+                        if (countResp.ok) {
+                            const countData = await countResp.json();
+                            totalDocs = countData['@odata.count'] || (countData.value ? countData.value.length : 0) || 0;
+                        }
                     }
                     const docEl = document.getElementById(`docCount-${idx.name}`);
                     if (docEl) docEl.textContent = totalDocs.toLocaleString();
 
-                    // 2) Estimate size and vectorized
-                    const sizeMB = (totalDocs * 50 / 1024).toFixed(1); // keep same heuristic
+                    // 2) Estimate size and vectorized per index
+                    const sizeMB = (totalDocs * 50 / 1024).toFixed(1);
                     const sizeEl = document.getElementById(`indexSize-${idx.name}`);
                     if (sizeEl) sizeEl.textContent = `${sizeMB} MB`;
                     const vecEl = document.getElementById(`vectorized-${idx.name}`);
                     if (vecEl) vecEl.textContent = Math.floor(totalDocs * 0.8).toLocaleString();
 
-                    // 3) Find last update based on latest upload/created/modified date
+                    // 3) Find last update based on latest upload/created/modified date for this index
                     const latestResp = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'x-functions-key': API_CONFIG.functionKey },
