@@ -1559,9 +1559,12 @@
 
                 // Get document count from index maintenance
                 // Use same-origin API to avoid FunctionApp indexName drift
-                const statsResponse = await fetch('/api/documents-search', {
+const statsResponse = await fetch(`${INDEX_CONFIG.functionUrl}/documents/search`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-functions-key': INDEX_CONFIG.functionKey
+                    },
                     body: JSON.stringify({ search: '*', top: 0, indexName: currentIndex })
                 });
                 
@@ -1577,9 +1580,12 @@
                 }
                 
                 // Query for the most recent document
-                const searchResponse = await fetch('/api/documents-search', {
+const searchResponse = await fetch(`${INDEX_CONFIG.functionUrl}/documents/search`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-functions-key': INDEX_CONFIG.functionKey
+                    },
                     body: JSON.stringify({
                         search: '*',
                         top: 10,
@@ -1646,9 +1652,12 @@
                 let got = 0;
                 do {
                     page++;
-                    const response = await fetch('/api/documents-search', {
+const response = await fetch(`${INDEX_CONFIG.functionUrl}/documents/search`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-functions-key': INDEX_CONFIG.functionKey
+                        },
                         body: JSON.stringify({
                             query: query,
                             search: query,
