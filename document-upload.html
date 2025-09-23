@@ -1572,7 +1572,7 @@
                             title: doc.title || doc.fileName,
                             fileName: doc.fileName,  // Always store the actual filename
                             description: doc.description || '',
-                            lastModified: doc.lastModified || doc.createdDate,
+                            lastModified: doc.modifiedDate || doc.createdDate,
                             uploadDate: doc.createdDate,
                             type: folderName.substring(0, 3).toUpperCase(),
                             author: doc.author || 'SAX User',
@@ -1590,8 +1590,8 @@
                     });
                     
                     // Get the most recent update date
-                    const dates = documents.filter(d => d.lastModified || d.uploadDate || d.createdDate)
-                                          .map(d => d.lastModified || d.uploadDate || d.createdDate);
+                    const dates = documents.filter(d => d.modifiedDate || d.uploadDate || d.createdDate)
+                                          .map(d => d.modifiedDate || d.uploadDate || d.createdDate);
                     if (dates.length > 0) {
                         // Find the most recent date string
                         const mostRecentStr = dates.sort((a, b) => new Date(b) - new Date(a))[0];
@@ -1979,7 +1979,7 @@
                                     title: doc.title || doc.fileName,
                                     fileName: doc.fileName,
                                     description: doc.description || '',
-                                    lastModified: doc.uploadDate || doc.lastModified,  // Pass the raw date string
+                                    lastModified: doc.uploadDate || doc.modifiedDate,  // Pass the raw date string
                                     uploadDate: doc.uploadDate,  // Add uploadDate field
                                     type: (doc.documentType || 'DOC').substring(0, 3).toUpperCase(),
                                     author: doc.author || 'SAX User',
@@ -2726,7 +2726,7 @@
                         query: '*',
                         top: 10,
                         orderby: 'uploadDate desc',
-                        select: 'uploadDate,createdDate,lastModified'
+                        select: 'uploadDate,createdDate,modifiedDate'
                     })
                 });
                 
@@ -2738,7 +2738,7 @@
                         // Find the most recent date from the documents
                         let mostRecentDate = null;
                         documents.forEach(doc => {
-                            const dates = [doc.uploadDate, doc.createdDate, doc.lastModified].filter(d => d);
+                            const dates = [doc.uploadDate, doc.createdDate, doc.modifiedDate].filter(d => d);
                             dates.forEach(dateStr => {
                                 const date = new Date(dateStr);
                                 if (!mostRecentDate || date > mostRecentDate) {
