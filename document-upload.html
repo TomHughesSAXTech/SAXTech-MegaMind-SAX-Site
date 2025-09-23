@@ -1279,40 +1279,106 @@
         }
         
         function showUploadError(errorMessage) {
-            console.log('showUploadError called with:', errorMessage);
+            console.log('=== SHOW UPLOAD ERROR DEBUG ===');
+            console.log('Error message:', errorMessage);
+            
+            // Force the modal to be visible first
+            const modal = document.getElementById('uploadModal');
+            if (modal) {
+                modal.style.display = 'flex';
+                console.log('Modal display set to flex');
+            } else {
+                console.error('Upload modal not found!');
+            }
             
             const modalTitle = document.getElementById('modalTitle');
             const modalSubtitle = document.getElementById('modalSubtitle');
             const uploadCompleteActions = document.getElementById('uploadCompleteActions');
             
+            console.log('Modal elements found:', {
+                modalTitle: !!modalTitle,
+                modalSubtitle: !!modalSubtitle,
+                uploadCompleteActions: !!uploadCompleteActions
+            });
+            
             if (!modalTitle || !modalSubtitle || !uploadCompleteActions) {
-                console.error('Modal elements not found!');
+                console.error('Critical: Modal elements not found! Showing alert fallback.');
                 alert('Upload failed: ' + errorMessage);
                 return;
             }
             
-            // Show error state
-            modalTitle.textContent = 'Upload Failed';
-            modalTitle.style.color = '#dc2626';
-            modalSubtitle.textContent = errorMessage;
-            modalSubtitle.style.color = '#dc2626';
-            
-            // Find and mark the current active step as failed
-            const activeSteps = document.querySelectorAll('.upload-step[style*="opacity: 1"]');
-            if (activeSteps.length > 0) {
-                const lastActiveStep = activeSteps[activeSteps.length - 1];
-                lastActiveStep.querySelector('.step-icon').style.background = 'rgba(220, 38, 38, 0.1)';
-                lastActiveStep.querySelector('.step-icon').style.color = '#dc2626';
-                lastActiveStep.querySelector('.step-status').textContent = '✗';
-                lastActiveStep.querySelector('.step-status').style.color = '#dc2626';
+            // Force clear any ongoing animations or states
+            try {
+                // Show error state with maximum priority
+                modalTitle.textContent = '❌ Upload Failed';
+                modalTitle.style.color = '#dc2626';
+                modalTitle.style.fontWeight = 'bold';
+                
+                modalSubtitle.textContent = errorMessage;
+                modalSubtitle.style.color = '#dc2626';
+                modalSubtitle.style.fontSize = '14px';
+                
+                console.log('Updated modal title and subtitle');
+                
+                // Find and mark the current active step as failed
+                const activeSteps = document.querySelectorAll('.upload-step');
+                console.log('Found upload steps:', activeSteps.length);
+                
+                // Mark the last visible step as failed
+                let lastVisibleStep = null;
+                activeSteps.forEach((step, index) => {
+                    const opacity = parseFloat(window.getComputedStyle(step).opacity);
+                    if (opacity >= 1) {
+                        lastVisibleStep = step;
+                    }
+                });
+                
+                if (lastVisibleStep) {
+                    console.log('Marking last visible step as failed');
+                    const stepIcon = lastVisibleStep.querySelector('.step-icon');
+                    const stepStatus = lastVisibleStep.querySelector('.step-status');
+                    
+                    if (stepIcon) {
+                        stepIcon.style.background = 'rgba(220, 38, 38, 0.1)';
+                        stepIcon.style.color = '#dc2626';
+                    }
+                    if (stepStatus) {
+                        stepStatus.textContent = '✗';
+                        stepStatus.style.color = '#dc2626';
+                        stepStatus.style.fontSize = '16px';
+                        stepStatus.style.fontWeight = 'bold';
+                    }
+                } else {
+                    console.log('No active step found to mark as failed');
+                }
+                
+                // Force show action buttons with retry option
+                uploadCompleteActions.innerHTML = `
+                    <div style="text-align: center; width: 100%; margin-top: 20px;">
+                        <button onclick="window.retryUpload()" style="padding: 12px 20px; background: #f59e0b; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; margin-right: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">🔄 Retry Upload</button>
+                        <button onclick="window.closeUploadModal ? window.closeUploadModal() : closeUploadModal()" style="padding: 12px 20px; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">Close</button>
+                    </div>
+                `;
+                uploadCompleteActions.style.display = 'block';
+                uploadCompleteActions.style.visibility = 'visible';
+                uploadCompleteActions.style.opacity = '1';
+                
+                console.log('Updated action buttons');
+                
+                // Reset form button state
+                if (window.submitBtn || document.getElementById('submitBtn')) {
+                    const btn = window.submitBtn || document.getElementById('submitBtn');
+                    btn.disabled = false;
+                    btn.textContent = 'Upload Document';
+                    console.log('Reset submit button');
+                }
+                
+                console.log('=== ERROR DISPLAY COMPLETE ===');
+                
+            } catch (e) {
+                console.error('Error in showUploadError:', e);
+                alert('Upload failed: ' + errorMessage);
             }
-            
-            // Update action buttons to include retry
-            uploadCompleteActions.innerHTML = `
-                <button onclick="retryUpload()" style="padding: 10px 20px; background: #f59e0b; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; margin-right: 10px;">🔄 Retry Upload</button>
-                <button onclick="closeUploadModal()" style="padding: 10px 20px; background: #f3f4f6; color: #374151; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">Close</button>
-            `;
-            uploadCompleteActions.style.display = 'block';
         }
         
         // Make showUploadError globally accessible
@@ -1385,14 +1451,33 @@
         window.retryUpload = retryUpload;
         
         function closeUploadModal() {
+            console.log('Closing upload modal');
             const modal = document.getElementById('uploadModal');
-            modal.style.display = 'none';
+            if (modal) {
+                modal.style.display = 'none';
+            }
             
             // Reset form state
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Upload Document';
-            progressBar.style.display = 'none';
+            const btn = window.submitBtn || document.getElementById('submitBtn');
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Upload Document';
+            }
+            
+            const progressBar = document.getElementById('progressBar');
+            if (progressBar) {
+                progressBar.style.display = 'none';
+            }
+            
+            // Clear cached upload data
+            window.lastUploadedFile = null;
+            window.lastUploadFormData = null;
+            
+            console.log('Upload modal closed and form reset');
         }
+        
+        // Make closeUploadModal globally accessible
+        window.closeUploadModal = closeUploadModal;
 
         function loadDepartmentDocuments() {
             const selectedDept = departmentSelect.value;
