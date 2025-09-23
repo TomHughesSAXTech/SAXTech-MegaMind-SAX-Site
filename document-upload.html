@@ -2896,33 +2896,18 @@
                     // Always use server-side proxies to avoid CORS and keep api-key off the client
                     let totalDocs = 0;
 
-                    // 1) Function: index maintenance stats per index
+                    // Count via same-origin API to avoid CORS and ensure indexName honored
                     try {
-                        const statsResp = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.indexMaintenance}`, {
+                        const countResp = await fetch('/api/documents-search', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'x-functions-key': API_CONFIG.functionKey },
-                            body: JSON.stringify({ operation: 'stats', indexName: idx.name })
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ search: '*', top: 0, indexName: idx.name })
                         });
-                        if (statsResp.ok) {
-                            const statsData = await statsResp.json();
-                            totalDocs = statsData?.stats?.totalDocuments || 0;
+                        if (countResp.ok) {
+                            const countData = await countResp.json();
+                            totalDocs = countData['@odata.count'] || (countData.value ? countData.value.length : 0) || 0;
                         }
-                    } catch (e) { /* ignore and fallback */ }
-
-                    // 2) Fallback: count via search function
-                    if (!totalDocs) {
-                        try {
-                            const countResp = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'x-functions-key': API_CONFIG.functionKey },
-                                body: JSON.stringify({ search: '*', query: '*', top: 0, indexName: idx.name })
-                            });
-                            if (countResp.ok) {
-                                const countData = await countResp.json();
-                                totalDocs = countData['@odata.count'] || (countData.value ? countData.value.length : 0) || 0;
-                            }
-                        } catch (e) { /* ignore */ }
-                    }
+                    } catch (e) { /* ignore */ }
 
                     const docEl = document.getElementById(`docCount-${idx.name}`);
                     if (docEl) docEl.textContent = totalDocs.toLocaleString();
@@ -2935,10 +2920,10 @@
                     if (vecEl) vecEl.textContent = Math.floor(totalDocs * 0.8).toLocaleString();
 
                     // 3) Find last update based on latest upload/created/lastModified date for this index
-                    const latestResp = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
+                    const latestResp = await fetch('/api/documents-search', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'x-functions-key': API_CONFIG.functionKey },
-                        body: JSON.stringify({ search: '*', query: '*', top: 10, orderby: 'uploadDate desc', select: 'uploadDate,createdDate,lastModified,metadata_storage_last_modified', indexName: idx.name })
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ search: '*', top: 10, orderby: 'metadata_storage_last_modified desc', select: 'uploadDate,createdDate,lastModified,metadata_storage_last_modified', indexName: idx.name })
                     });
                     if (latestResp.ok) {
                         const latest = await latestResp.json();

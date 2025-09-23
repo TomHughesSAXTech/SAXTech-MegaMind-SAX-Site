@@ -25,6 +25,7 @@ module.exports = async function (context, req) {
             filter,
             select,
             top = 50,
+            skip = 0,
             orderby,
             indexName = 'sop-documents'
         } = req.body || {};
@@ -40,6 +41,7 @@ module.exports = async function (context, req) {
             filter: filter,
             select: select,
             top: top,
+            skip: skip,
             orderby: orderby,
             count: true,
             queryType: 'simple',
