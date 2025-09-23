@@ -1139,6 +1139,9 @@
         
         // Upload Modal Functions
         function showUploadModal() {
+            // Reset error display flag when starting new upload
+            window.isErrorDisplayed = false;
+            
             const modal = document.getElementById('uploadModal');
             modal.style.display = 'flex';
             
@@ -1279,6 +1282,13 @@
         }
         
         function showUploadError(errorMessage) {
+            // Prevent double-calling by checking if error is already displayed
+            if (window.isErrorDisplayed) {
+                console.log('Error already displayed, ignoring duplicate call');
+                return;
+            }
+            window.isErrorDisplayed = true;
+            
             console.log('=== SHOW UPLOAD ERROR DEBUG ===');
             console.log('Error message:', errorMessage);
             
@@ -1352,16 +1362,24 @@
                     console.log('No active step found to mark as failed');
                 }
                 
-                // Force show action buttons with retry option
+                // Force show action buttons with retry option - use more aggressive CSS
                 uploadCompleteActions.innerHTML = `
-                    <div style="text-align: center; width: 100%; margin-top: 20px;">
-                        <button onclick="window.retryUpload()" style="padding: 12px 20px; background: #f59e0b; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; margin-right: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">🔄 Retry Upload</button>
-                        <button onclick="window.closeUploadModal ? window.closeUploadModal() : closeUploadModal()" style="padding: 12px 20px; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">Close</button>
+                    <div style="text-align: center; width: 100%; margin-top: 20px; display: block !important; visibility: visible !important; opacity: 1 !important;">
+                        <button onclick="window.retryUpload()" style="padding: 12px 20px; background: #f59e0b; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; margin-right: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: inline-block !important;">🔄 Retry Upload</button>
+                        <button onclick="window.closeUploadModal ? window.closeUploadModal() : closeUploadModal()" style="padding: 12px 20px; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: inline-block !important;">Close</button>
                     </div>
                 `;
-                uploadCompleteActions.style.display = 'block';
-                uploadCompleteActions.style.visibility = 'visible';
-                uploadCompleteActions.style.opacity = '1';
+                
+                // Use more aggressive CSS to force visibility
+                uploadCompleteActions.style.cssText = 'display: block !important; text-align: center; margin-top: 20px; visibility: visible !important; opacity: 1 !important; z-index: 9999;';
+                
+                // Add a delay to ensure DOM has processed the changes
+                setTimeout(() => {
+                    uploadCompleteActions.style.display = 'block';
+                    uploadCompleteActions.style.visibility = 'visible';
+                    uploadCompleteActions.style.opacity = '1';
+                    console.log('Updated action buttons (delayed enforcement)');
+                }, 50);
                 
                 console.log('Updated action buttons');
                 
@@ -1386,6 +1404,9 @@
         
         function retryUpload() {
             console.log('Retry upload initiated');
+            
+            // Reset error display flag for retry
+            window.isErrorDisplayed = false;
             
             // Reset modal state without closing
             const modalTitle = document.getElementById('modalTitle');
@@ -1424,7 +1445,6 @@
                             : (error.message || 'An error occurred during retry upload');
                         
                         showUploadError(errorMessage);
-                        handleUploadError(error);
                     });
             } else {
                 console.error('No cached file/form data for retry');
@@ -1456,6 +1476,9 @@
             if (modal) {
                 modal.style.display = 'none';
             }
+            
+            // Reset error display flag
+            window.isErrorDisplayed = false;
             
             // Reset form state
             const btn = window.submitBtn || document.getElementById('submitBtn');
@@ -3279,12 +3302,16 @@
                     console.error('Upload failed:', error);
                     console.error('Error message:', error.message);
                     
-                    // Always show error in modal - the upload function may not have done it properly
-                    const errorMessage = error.message === 'Upload failed - see modal for details' 
-                        ? 'Upload failed due to server error - check console for details'
-                        : (error.message || 'An error occurred during upload');
+                    // Only show error if it hasn't been shown already by the upload function
+                    if (!window.isErrorDisplayed) {
+                        const errorMessage = error.message === 'Upload failed - see modal for details' 
+                            ? 'Upload failed due to server error - check console for details'
+                            : (error.message || 'An error occurred during upload');
+                        
+                        showUploadError(errorMessage);
+                    }
                     
-                    showUploadError(errorMessage);
+                    // Always call the generic error handler for additional cleanup
                     handleUploadError(error);
                 });
         }
