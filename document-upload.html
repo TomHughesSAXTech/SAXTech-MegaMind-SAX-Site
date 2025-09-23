@@ -2893,38 +2893,23 @@
             // Populate stats for each index using the documents/search function which accepts indexName
             for (const idx of indexes) {
                 try {
-                    // 1) Try direct Azure Search per-index $count (authoritative)
+                    // Always use server-side proxies to avoid CORS and keep api-key off the client
                     let totalDocs = 0;
+
+                    // 1) Function: index maintenance stats per index
                     try {
-                        const service = API_CONFIG.azureSearch.endpoint.replace(/\/$/, '');
-                        const apiVersion = API_CONFIG.azureSearch.apiVersion || '2023-11-01';
-                        const url = `${service}/indexes/${encodeURIComponent(idx.name)}/docs/$count?api-version=${apiVersion}`;
-                        const resp = await fetch(url, { headers: { 'api-key': API_CONFIG.azureSearch.apiKey } });
-                        if (resp.ok) {
-                            const text = await resp.text();
-                            const n = parseInt(text, 10);
-                            if (!isNaN(n)) totalDocs = n;
+                        const statsResp = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.indexMaintenance}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'x-functions-key': API_CONFIG.functionKey },
+                            body: JSON.stringify({ operation: 'stats', indexName: idx.name })
+                        });
+                        if (statsResp.ok) {
+                            const statsData = await statsResp.json();
+                            totalDocs = statsData?.stats?.totalDocuments || 0;
                         }
-                    } catch (e) {
-                        // ignore and fallback
-                    }
-                    // 2) Fallback: function stats
-                    if (!totalDocs) {
-                        try {
-                            const statsResp = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.indexMaintenance}`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'x-functions-key': API_CONFIG.functionKey },
-                                body: JSON.stringify({ operation: 'stats', indexName: idx.name })
-                            });
-                            if (statsResp.ok) {
-                                const statsData = await statsResp.json();
-                                totalDocs = statsData?.stats?.totalDocuments || 0;
-                            }
-                        } catch (e) {
-                            // ignore and fallback
-                        }
-                    }
-                    // 3) Fallback: count via search function
+                    } catch (e) { /* ignore and fallback */ }
+
+                    // 2) Fallback: count via search function
                     if (!totalDocs) {
                         try {
                             const countResp = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
@@ -2936,30 +2921,31 @@
                                 const countData = await countResp.json();
                                 totalDocs = countData['@odata.count'] || (countData.value ? countData.value.length : 0) || 0;
                             }
-                        } catch (e) {}
+                        } catch (e) { /* ignore */ }
                     }
+
                     const docEl = document.getElementById(`docCount-${idx.name}`);
                     if (docEl) docEl.textContent = totalDocs.toLocaleString();
 
-                    // 2) Estimate size and vectorized per index
+                    // Estimate size and vectorized per index
                     const sizeMB = (totalDocs * 50 / 1024).toFixed(1);
                     const sizeEl = document.getElementById(`indexSize-${idx.name}`);
                     if (sizeEl) sizeEl.textContent = `${sizeMB} MB`;
                     const vecEl = document.getElementById(`vectorized-${idx.name}`);
                     if (vecEl) vecEl.textContent = Math.floor(totalDocs * 0.8).toLocaleString();
 
-                    // 3) Find last update based on latest upload/created/modified date for this index
+                    // 3) Find last update based on latest upload/created/lastModified date for this index
                     const latestResp = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'x-functions-key': API_CONFIG.functionKey },
-                        body: JSON.stringify({ search: '*', query: '*', top: 10, orderby: 'uploadDate desc', select: 'uploadDate,createdDate,modifiedDate', indexName: idx.name })
+                        body: JSON.stringify({ search: '*', query: '*', top: 10, orderby: 'uploadDate desc', select: 'uploadDate,createdDate,lastModified', indexName: idx.name })
                     });
                     if (latestResp.ok) {
                         const latest = await latestResp.json();
                         const docs = latest.value || latest.results || [];
                         let mostRecent = null;
                         docs.forEach(d => {
-                            [d.uploadDate, d.createdDate, d.modifiedDate].filter(Boolean).forEach(ds => {
+                            [d.uploadDate, d.createdDate, d.lastModified].filter(Boolean).forEach(ds => {
                                 const dt = new Date(ds);
                                 if (!mostRecent || dt > mostRecent) mostRecent = dt;
                             });
@@ -3020,11 +3006,11 @@
                         'Content-Type': 'application/json',
                         'x-functions-key': API_CONFIG.functionKey
                     },
-                    body: JSON.stringify({
+                        body: JSON.stringify({
                         query: '*',
                         top: 10,
                         orderby: 'uploadDate desc',
-                        select: 'uploadDate,createdDate,modifiedDate'
+                        select: 'uploadDate,createdDate,lastModified'
                     })
                 });
                 
