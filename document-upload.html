@@ -2861,32 +2861,30 @@
             // Clear all except the first fallback card markup
             container.innerHTML = '';
 
-            // Create a card per index
-            indexes.forEach((idx, i) => {
+            // Create a card per index (compact, clean layout)
+            indexes.forEach((idx) => {
                 const card = document.createElement('div');
                 card.className = 'index-card';
                 card.setAttribute('data-index', idx.name);
-                card.style.cssText = 'min-width: 260px; display:flex; gap:16px; padding:10px 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px;';
+                card.style.cssText = 'min-width: 230px; padding:10px 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;';
                 card.innerHTML = `
-                    <div style="display:flex; flex-direction:column; gap:4px;">
-                        <div style="font-size: 11px; color:#cbd5e1; text-transform: uppercase; letter-spacing:.4px;">${idx.label || idx.name}</div>
-                        <div style="display:flex; gap:12px;">
-                            <div style="text-align:center;">
-                                <div style="font-size: 18px; font-weight: bold; color: #FFD700;" id="docCount-${idx.name}">0</div>
-                                <div style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Documents</div>
-                            </div>
-                            <div style="text-align: center; border-left: 1px solid rgba(255,255,255,0.2); padding-left: 12px;">
-                                <div style="font-size: 18px; font-weight: bold; color: #FFD700;" id="indexSize-${idx.name}">0 MB</div>
-                                <div style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Index Size</div>
-                            </div>
-                            <div style="text-align: center; border-left: 1px solid rgba(255,255,255,0.2); padding-left: 12px;">
-                                <div style="font-size: 18px; font-weight: bold; color: #FFD700;" id="lastUpdate-${idx.name}">--</div>
-                                <div style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Last Update</div>
-                            </div>
-                            <div style="text-align: center; border-left: 1px solid rgba(255,255,255,0.2); padding-left: 12px;">
-                                <div style="font-size: 18px; font-weight: bold; color: #FFD700;" id="vectorized-${idx.name}">0</div>
-                                <div style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Vectorized</div>
-                            </div>
+                    <div style="font-size: 11px; color:#cbd5e1; text-transform: uppercase; letter-spacing:.4px; margin-bottom:6px;">${idx.label || idx.name}</div>
+                    <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; align-items:center;">
+                        <div style="text-align:center;">
+                            <div id="docCount-${idx.name}" style="font-size:16px; font-weight:700; color:#FFD700;">0</div>
+                            <div style="font-size:9px; opacity:.8; text-transform:uppercase;">Documents</div>
+                        </div>
+                        <div style="text-align:center;">
+                            <div id="indexSize-${idx.name}" style="font-size:16px; font-weight:700; color:#FFD700;">0 MB</div>
+                            <div style="font-size:9px; opacity:.8; text-transform:uppercase;">Index Size</div>
+                        </div>
+                        <div style="text-align:center;">
+                            <div id="lastUpdate-${idx.name}" style="font-size:16px; font-weight:700; color:#FFD700;">--</div>
+                            <div style="font-size:9px; opacity:.8; text-transform:uppercase;">Last Update</div>
+                        </div>
+                        <div style="text-align:center;">
+                            <div id="vectorized-${idx.name}" style="font-size:16px; font-weight:700; color:#FFD700;">0</div>
+                            <div style="font-size:9px; opacity:.8; text-transform:uppercase;">Vectorized</div>
                         </div>
                     </div>`;
                 container.appendChild(card);
