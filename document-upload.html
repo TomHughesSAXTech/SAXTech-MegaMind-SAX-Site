@@ -1238,6 +1238,13 @@
                 modalTitle.style.color = '#10b981';
                 modalSubtitle.style.color = '#64748b';
                 progressFill.style.width = '100%';
+                
+                // Show only Close button for success - replaces both Refresh and Close buttons
+                uploadCompleteActions.innerHTML = `
+                    <div style="text-align: center; width: 100%; margin-top: 20px;">
+                        <button onclick="closeUploadModalAndRefresh()" style="padding: 12px 24px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">Close</button>
+                    </div>
+                `;
                 uploadCompleteActions.style.display = 'block';
                 
                 // Mark all steps as complete
@@ -1507,6 +1514,28 @@
         
         // Make closeUploadModal globally accessible
         window.closeUploadModal = closeUploadModal;
+        
+        // Function to close modal and refresh page for successful uploads
+        function closeUploadModalAndRefresh() {
+            console.log('Closing upload modal and refreshing page after successful upload');
+            const modal = document.getElementById('uploadModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+            
+            // Reset error display flag
+            window.isErrorDisplayed = false;
+            
+            // Clear cached upload data
+            window.lastUploadedFile = null;
+            window.lastUploadFormData = null;
+            
+            // Refresh page immediately to show updated document list
+            window.location.reload();
+        }
+        
+        // Make closeUploadModalAndRefresh globally accessible
+        window.closeUploadModalAndRefresh = closeUploadModalAndRefresh;
 
         function loadDepartmentDocuments() {
             const selectedDept = departmentSelect.value;

@@ -847,11 +847,15 @@
         try {
             console.log(`Starting deletion: ${fileName} from ${department} department`);
             
-            // First, delete the blob from storage using the new direct function
+            // First, try multiple approaches to delete the blob from storage
+            let blobDeleted = false;
+            
+            // Approach 1: Try DeleteBlob function with different path variations
             try {
                 const deleteBlobUrl = `${CONFIG.azure.functionApp.baseUrl}/DeleteBlob?code=${CONFIG.azure.functionApp.key}`;
                 
-                const blobResponse = await fetch(deleteBlobUrl, {
+                // Try with exact fileName as it appears in the document record
+                let blobResponse = await fetch(deleteBlobUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -859,36 +863,108 @@
                     },
                     body: JSON.stringify({
                         fileName: fileName,
-                        department: department || 'IT', // Default to IT if department not provided
+                        department: department || 'General',
                         containerName: CONFIG.azure.containerName || 'saxdocuments'
                     })
                 });
                 
                 if (blobResponse.ok) {
                     const blobResult = await blobResponse.json();
-                    console.log('Blob deletion result:', blobResult);
-                } else {
-                    console.warn('Blob deletion failed, continuing with index deletion');
+                    console.log('Blob deletion result (approach 1):', blobResult);
+                    
+                    if (blobResult.success && blobResult.deletedPaths && blobResult.deletedPaths.length > 0) {
+                        blobDeleted = true;
+                        console.log('Blob successfully deleted via approach 1');
+                    }
                 }
+                
+                // If first approach didn't work, try with full blob path as fileName
+                if (!blobDeleted && department) {
+                    const fullBlobPath = `${department}/${fileName}`;
+                    console.log(`Trying blob deletion with full path: ${fullBlobPath}`);
+                    
+                    blobResponse = await fetch(deleteBlobUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-functions-key': CONFIG.azure.functionApp.key
+                        },
+                        body: JSON.stringify({
+                            fileName: fullBlobPath,
+                            department: '',
+                            containerName: CONFIG.azure.containerName || 'saxdocuments'
+                        })
+                    });
+                    
+                    if (blobResponse.ok) {
+                        const blobResult = await blobResponse.json();
+                        console.log('Blob deletion result (approach 2):', blobResult);
+                        
+                        if (blobResult.success && blobResult.deletedPaths && blobResult.deletedPaths.length > 0) {
+                            blobDeleted = true;
+                            console.log('Blob successfully deleted via approach 2');
+                        }
+                    }
+                }
+                
             } catch (blobError) {
-                console.error('Error deleting blob:', blobError);
-                // Continue with index deletion even if blob deletion fails
+                console.error('Error calling DeleteBlob function:', blobError);
             }
             
-            // Then delete from search index
+            // Approach 3: Direct blob deletion using Azure Storage REST API (fallback)
+            if (!blobDeleted && window.blobDeleteDirect) {
+                console.log('Trying direct blob deletion as fallback');
+                
+                try {
+                    // Try direct deletion first
+                    blobDeleted = await window.blobDeleteDirect.deleteBlobDirect(fileName, department);
+                    
+                    if (blobDeleted) {
+                        console.log('Blob successfully deleted via direct API (approach 3)');
+                    } else {
+                        console.log('Direct deletion failed, trying search method');
+                        // If direct deletion failed, try search method
+                        blobDeleted = await window.blobDeleteDirect.deleteBlobBySearch(fileName, department);
+                        
+                        if (blobDeleted) {
+                            console.log('Blob successfully deleted via search method (approach 3b)');
+                        }
+                    }
+                } catch (directError) {
+                    console.error('Error in direct blob deletion:', directError);
+                }
+            }
+            
+            if (!blobDeleted) {
+                console.warn(`All blob deletion approaches failed for: ${fileName}`);
+                console.warn('The file may remain in storage but will be removed from search index');
+            }
+            
+            // Always proceed with index deletion regardless of blob deletion result
+            console.log('Proceeding with search index deletion');
             const deleteUrl = `${CONFIG.azure.functionApp.baseUrl}/documents/delete/${docId}?code=${CONFIG.azure.functionApp.key}`;
             
             const response = await fetch(deleteUrl, {
                 method: 'DELETE',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'x-functions-key': CONFIG.azure.functionApp.key
                 }
             });
             
             if (response.ok) {
                 const result = await response.json();
+                console.log('Index deletion result:', result);
+                
                 if (result.success) {
-                    showNotification(`Document "${fileName}" deleted successfully`, 'success');
+                    let message = `Document "${fileName}" removed from search index`;
+                    if (blobDeleted) {
+                        message += ' and blob storage';
+                    } else {
+                        message += ' (blob may still exist in storage)';
+                    }
+                    
+                    showNotification(message, 'success');
                     
                     // Remove the document card from the UI immediately
                     const documentCard = document.querySelector(`[data-doc-id="${docId}"]`);
@@ -902,16 +978,16 @@
                         loadIndexStatistics();
                     }, 1000);
                 } else {
-                    throw new Error(result.message || 'Delete failed');
+                    throw new Error(result.message || 'Index deletion failed');
                 }
             } else {
                 const errorText = await response.text();
                 console.error('Delete API error:', errorText);
-                throw new Error('Delete failed');
+                throw new Error('Index deletion failed');
             }
         } catch (error) {
             console.error('Delete error:', error);
-            showNotification('Unable to delete document', 'error');
+            showNotification(`Unable to delete document: ${error.message}`, 'error');
         }
     }
 
