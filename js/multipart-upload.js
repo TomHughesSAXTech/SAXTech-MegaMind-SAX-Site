@@ -144,44 +144,48 @@ async function uploadDocumentMultipart(formData) {
             });
         }
         
-        // Update progress after upload
-        if (window.updateUploadProgress) {
-            window.updateUploadProgress('index', 'Indexing for search...');
-        }
-        
         // Handle response
         if (!response.ok) {
+            // Show error immediately without updating progress to indexing
+            if (window.showUploadError) {
+                const errorText = await response.text();
+                try {
+                    const errorJson = JSON.parse(errorText);
+                    const errorMessage = errorJson.error?.message || errorJson.message || `HTTP ${response.status}`;
+                    window.showUploadError(errorMessage);
+                } catch (e) {
+                    window.showUploadError(`Upload failed: HTTP ${response.status} - ${errorText}`);
+                }
+            }
             const errorText = await response.text();
             console.error('n8n webhook error response:', errorText);
             
-            // Parse error if it's JSON
-            try {
-                const errorJson = JSON.parse(errorText);
-                if (errorJson.error === 'File content is empty' && useMultipart === false) {
-                    // Retry with multipart if base64 failed
-                    console.log('Base64 upload failed, retrying with multipart...');
-                    return uploadDocumentMultipart(formData); // Recursive retry with multipart
-                }
-                throw new Error(errorJson.message || errorJson.error || `HTTP ${response.status}`);
-            } catch (e) {
-                throw new Error(`n8n webhook failed: HTTP ${response.status} - ${errorText}`);
-            }
+            // Error was already handled above - just throw to be caught by caller
+            throw new Error('Upload failed - see modal for details');
+        }
+        
+        // Update progress to indexing now that upload succeeded
+        if (window.updateUploadProgress) {
+            window.updateUploadProgress('index', 'Indexing for search...');
         }
         
         const result = await response.json();
         console.log('Document uploaded successfully:', result);
         
-        // Update progress for embeddings
-        if (window.updateUploadProgress) {
-            window.updateUploadProgress('embeddings', 'Creating embeddings...');
-        }
-        
         // Check for errors in the result
         if (result.success === false) {
-            if (result.error === 'File content is empty') {
-                throw new Error(result.message || 'File content is empty. The file may be too large for your browser to process.');
+            if (window.showUploadError) {
+                const errorMessage = result.message || result.error || 'Upload failed';
+                window.showUploadError(errorMessage);
+                throw new Error('Upload failed - see modal for details');
+            } else {
+                throw new Error(result.message || result.error || 'Upload failed');
             }
-            throw new Error(result.message || result.error || 'Upload failed');
+        }
+        
+        // Update progress for embeddings only after successful indexing
+        if (window.updateUploadProgress) {
+            window.updateUploadProgress('embeddings', 'Creating embeddings...');
         }
         
         return result;

@@ -3117,7 +3117,10 @@
                 })
                 .catch(error => {
                     console.error('Upload failed:', error);
-                    showUploadError(error.message || 'An error occurred during upload');
+                    // Only show error if it hasn't been shown already by the upload function
+                    if (error.message !== 'Upload failed - see modal for details') {
+                        showUploadError(error.message || 'An error occurred during upload');
+                    }
                     handleUploadError(error);
                 });
         }
