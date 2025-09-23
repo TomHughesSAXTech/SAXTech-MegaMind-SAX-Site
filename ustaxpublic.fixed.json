@@ -3,18 +3,18 @@
   "fields": [
     {"name": "id", "type": "Edm.String", "key": true, "searchable": false, "filterable": true, "sortable": true, "facetable": true},
 
-    {"name": "doc_type", "type": "Edm.String", "searchable": false, "filterable": true, "facetable": true, "sortable": true, "normalizer": "lowercase-normalizer"},
-    {"name": "title_number", "type": "Edm.String", "searchable": false, "filterable": true, "facetable": true, "sortable": true, "normalizer": "lowercase-normalizer"},
+{"name": "doc_type", "type": "Edm.String", "searchable": false, "filterable": true, "facetable": true, "sortable": true, "normalizer": "lowercase"},
+{"name": "title_number", "type": "Edm.String", "searchable": false, "filterable": true, "facetable": true, "sortable": true, "normalizer": "lowercase"},
 
     {"name": "section_id", "type": "Edm.String", "searchable": true, "filterable": false, "sortable": false, "facetable": false, "analyzer": "standard.lucene"},
-    {"name": "section_id_norm", "type": "Edm.String", "searchable": false, "filterable": true, "sortable": true, "facetable": true, "normalizer": "lowercase-normalizer"},
+{"name": "section_id_norm", "type": "Edm.String", "searchable": false, "filterable": true, "sortable": true, "facetable": true, "normalizer": "lowercase"},
 
     {"name": "section_title", "type": "Edm.String", "searchable": true, "filterable": true, "sortable": true, "facetable": true, "analyzer": "standard.lucene"},
     {"name": "content", "type": "Edm.String", "searchable": true, "filterable": true, "sortable": true, "facetable": true, "analyzer": "standard.lucene"},
     {"name": "summary", "type": "Edm.String", "searchable": true, "filterable": true, "sortable": true, "facetable": true, "analyzer": "standard.lucene"},
 
-    {"name": "section_type", "type": "Edm.String", "searchable": false, "filterable": true, "facetable": true, "sortable": true, "normalizer": "lowercase-normalizer"},
-    {"name": "parent_section", "type": "Edm.String", "searchable": false, "filterable": true, "facetable": true, "sortable": true, "normalizer": "lowercase-normalizer"},
+{"name": "section_type", "type": "Edm.String", "searchable": false, "filterable": true, "facetable": true, "sortable": true, "normalizer": "lowercase"},
+{"name": "parent_section", "type": "Edm.String", "searchable": false, "filterable": true, "facetable": true, "sortable": true, "normalizer": "lowercase"},
     {"name": "subsection_level", "type": "Edm.Int32", "searchable": false, "filterable": true, "sortable": true, "facetable": true},
 
     {"name": "keywords", "type": "Collection(Edm.String)", "searchable": true, "filterable": true, "facetable": true},
@@ -29,7 +29,7 @@
     {"name": "complexity_score", "type": "Edm.Int32", "searchable": false, "filterable": true, "sortable": true, "facetable": true},
 
     {"name": "source_url", "type": "Edm.String", "searchable": false, "filterable": true, "facetable": true, "sortable": false},
-    {"name": "version", "type": "Edm.String", "searchable": false, "filterable": true, "facetable": true, "sortable": true, "normalizer": "lowercase-normalizer"},
+{"name": "version", "type": "Edm.String", "searchable": false, "filterable": true, "facetable": true, "sortable": true, "normalizer": "lowercase"},
     {"name": "indexed_date", "type": "Edm.DateTimeOffset", "searchable": false, "filterable": true, "facetable": true, "sortable": true},
 
     {"name": "isDeleted", "type": "Edm.Boolean", "searchable": false, "filterable": true, "facetable": true},
@@ -75,9 +75,5 @@
     ]
   },
 
-  "normalizers": [
-    { "@odata.type": "#Microsoft.Azure.Search.CustomNormalizer", "name": "lowercase-normalizer", "charFilters": [], "tokenFilters": ["lowercase"] }
-  ],
-
-  "corsOptions": {"allowedOrigins": ["*"], "maxAgeInSeconds": 300}
+  "corsOptions": {
 }

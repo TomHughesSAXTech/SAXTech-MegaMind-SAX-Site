@@ -16,7 +16,7 @@
       "filterable": true,
       "facetable": true,
       "sortable": true,
-      "normalizer": "lowercase-normalizer"
+      "normalizer": "lowercase"
     },
     {
       "name": "title_number",
@@ -25,7 +25,7 @@
       "filterable": true,
       "facetable": true,
       "sortable": true,
-      "normalizer": "lowercase-normalizer"
+      "normalizer": "lowercase"
     },
     {
       "name": "section_id",
@@ -43,7 +43,7 @@
       "filterable": true,
       "sortable": true,
       "facetable": true,
-      "normalizer": "lowercase-normalizer"
+      "normalizer": "lowercase"
     },
     {
       "name": "section_title",
@@ -78,7 +78,7 @@
       "searchable": false,
       "filterable": true,
       "sortable": true,
-      "normalizer": "lowercase-normalizer"
+      "normalizer": "lowercase"
     },
     {
       "name": "subsection_level",
@@ -260,16 +260,6 @@
       }
     ]
   },
-  "normalizers": [
-    {
-      "name": "lowercase-normalizer",
-      "@odata.type": "#Microsoft.Azure.Search.CustomNormalizer",
-      "charFilters": [],
-      "tokenFilters": [
-        "lowercase"
-      ]
-    }
-  ],
   "corsOptions": {
     "allowedOrigins": [
       "*"
