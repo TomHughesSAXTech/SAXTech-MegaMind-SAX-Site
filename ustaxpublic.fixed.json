@@ -1,0 +1,83 @@
+{
+  "name": "ustaxpublic",
+  "fields": [
+    {"name": "id", "type": "Edm.String", "key": true, "searchable": false, "filterable": true, "sortable": true, "facetable": true},
+
+    {"name": "doc_type", "type": "Edm.String", "searchable": false, "filterable": true, "facetable": true, "sortable": true, "normalizer": "lowercase-normalizer"},
+    {"name": "title_number", "type": "Edm.String", "searchable": false, "filterable": true, "facetable": true, "sortable": true, "normalizer": "lowercase-normalizer"},
+
+    {"name": "section_id", "type": "Edm.String", "searchable": true, "filterable": false, "sortable": false, "facetable": false, "analyzer": "standard.lucene"},
+    {"name": "section_id_norm", "type": "Edm.String", "searchable": false, "filterable": true, "sortable": true, "facetable": true, "normalizer": "lowercase-normalizer"},
+
+    {"name": "section_title", "type": "Edm.String", "searchable": true, "filterable": true, "sortable": true, "facetable": true, "analyzer": "standard.lucene"},
+    {"name": "content", "type": "Edm.String", "searchable": true, "filterable": true, "sortable": true, "facetable": true, "analyzer": "standard.lucene"},
+    {"name": "summary", "type": "Edm.String", "searchable": true, "filterable": true, "sortable": true, "facetable": true, "analyzer": "standard.lucene"},
+
+    {"name": "section_type", "type": "Edm.String", "searchable": false, "filterable": true, "facetable": true, "sortable": true, "normalizer": "lowercase-normalizer"},
+    {"name": "parent_section", "type": "Edm.String", "searchable": false, "filterable": true, "facetable": true, "sortable": true, "normalizer": "lowercase-normalizer"},
+    {"name": "subsection_level", "type": "Edm.Int32", "searchable": false, "filterable": true, "sortable": true, "facetable": true},
+
+    {"name": "keywords", "type": "Collection(Edm.String)", "searchable": true, "filterable": true, "facetable": true},
+    {"name": "internal_references", "type": "Collection(Edm.String)", "searchable": true, "filterable": true, "facetable": true},
+    {"name": "public_laws", "type": "Collection(Edm.String)", "searchable": true, "filterable": true, "facetable": true},
+    {"name": "usc_references", "type": "Collection(Edm.String)", "searchable": true, "filterable": true, "facetable": true},
+    {"name": "cfr_references", "type": "Collection(Edm.String)", "searchable": true, "filterable": true, "facetable": true},
+    {"name": "forms_mentioned", "type": "Collection(Edm.String)", "searchable": true, "filterable": true, "facetable": true},
+
+    {"name": "page_numbers", "type": "Collection(Edm.Int32)", "searchable": false, "filterable": true, "facetable": true},
+    {"name": "content_length", "type": "Edm.Int32", "searchable": false, "filterable": true, "sortable": true, "facetable": true},
+    {"name": "complexity_score", "type": "Edm.Int32", "searchable": false, "filterable": true, "sortable": true, "facetable": true},
+
+    {"name": "source_url", "type": "Edm.String", "searchable": false, "filterable": true, "facetable": true, "sortable": false},
+    {"name": "version", "type": "Edm.String", "searchable": false, "filterable": true, "facetable": true, "sortable": true, "normalizer": "lowercase-normalizer"},
+    {"name": "indexed_date", "type": "Edm.DateTimeOffset", "searchable": false, "filterable": true, "facetable": true, "sortable": true},
+
+    {"name": "isDeleted", "type": "Edm.Boolean", "searchable": false, "filterable": true, "facetable": true},
+
+    {"name": "contentVector", "type": "Collection(Edm.Single)", "dimensions": 3072, "vectorSearchProfile": "vector-profile"}
+  ],
+
+  "scoringProfiles": [
+    {
+      "name": "tax-relevance",
+      "text": { "weights": { "section_title": 3.0, "section_id": 2.5, "keywords": 2.0, "summary": 1.5, "content": 1.0 } },
+      "functions": [
+        { "type": "freshness", "fieldName": "indexed_date", "interpolation": "quadratic", "boost": 1.2, "freshness": { "boostingDuration": "P365D" } }
+      ]
+    }
+  ],
+  "defaultScoringProfile": "tax-relevance",
+
+  "semantic": {
+    "configurations": [
+      { "name": "tax-semantic-config", "prioritizedFields": {
+          "titleField": {"fieldName": "section_title"},
+          "prioritizedContentFields": [ {"fieldName": "content"}, {"fieldName": "summary"} ],
+          "prioritizedKeywordsFields": [ {"fieldName": "keywords"} ]
+      }}
+    ],
+    "defaultConfiguration": "tax-semantic-config"
+  },
+
+  "vectorSearch": {
+    "algorithms": [
+      { "name": "hnsw-algorithm", "kind": "hnsw", "hnswParameters": { "m": 16, "efConstruction": 400, "efSearch": 100, "metric": "cosine" } }
+    ],
+    "profiles": [
+      { "name": "vector-profile", "algorithm": "hnsw-algorithm", "vectorizer": "openai-vectorizer" }
+    ],
+    "vectorizers": [
+      { "name": "openai-vectorizer", "kind": "azureOpenAI", "azureOpenAIParameters": {
+          "resourceUri": "https://client-fcs.cognitiveservices.azure.com",
+          "deploymentId": "text-embedding-3-large",
+          "modelName": "text-embedding-3-large"
+      }}
+    ]
+  },
+
+  "normalizers": [
+    { "@odata.type": "#Microsoft.Azure.Search.CustomNormalizer", "name": "lowercase-normalizer", "charFilters": [], "tokenFilters": ["lowercase"] }
+  ],
+
+  "corsOptions": {"allowedOrigins": ["*"], "maxAgeInSeconds": 300}
+}

@@ -1,0 +1,36 @@
+{
+  "usc": {
+    "name": "ustaxpublic-usc-ds",
+    "type": "azureblob",
+    "credentials": {
+      "connectionString": "DefaultEndpointsProtocol=https;AccountName=saxtechmegamind;AccountKey=YoWiQ6VOTAzqBCxFQAH2RGgnreN2D35qzkWnwsexx6T9sJw+3iuEo08bTL1uxuKC4kAhAhSxQbHl+ASt1bBJCQ==;EndpointSuffix=core.windows.net"
+    },
+    "container": {
+      "name": "tax-documents",
+      "query": "USC"
+    },
+    "dataDeletionDetectionPolicy": {
+      "@odata.type": "#Microsoft.Azure.Search.SoftDeleteColumnDeletionDetectionPolicy",
+      "softDeleteColumnName": "isDeleted",
+      "softDeleteMarkerValue": "true"
+    },
+    "description": "USC JSONL files"
+  },
+  "cfr": {
+    "name": "ustaxpublic-cfr-ds",
+    "type": "azureblob",
+    "credentials": {
+      "connectionString": "DefaultEndpointsProtocol=https;AccountName=saxtechmegamind;AccountKey=YoWiQ6VOTAzqBCxFQAH2RGgnreN2D35qzkWnwsexx6T9sJw+3iuEo08bTL1uxuKC4kAhAhSxQbHl+ASt1bBJCQ==;EndpointSuffix=core.windows.net"
+    },
+    "container": {
+      "name": "tax-documents",
+      "query": "CFR"
+    },
+    "dataDeletionDetectionPolicy": {
+      "@odata.type": "#Microsoft.Azure.Search.SoftDeleteColumnDeletionDetectionPolicy",
+      "softDeleteColumnName": "isDeleted",
+      "softDeleteMarkerValue": "true"
+    },
+    "description": "CFR JSONL files"
+  }
+}

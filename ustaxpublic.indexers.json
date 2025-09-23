@@ -1,0 +1,86 @@
+{
+  "usc": {
+    "name": "ustaxpublic-usc-indexer-v3",
+    "dataSourceName": "ustaxpublic-usc-ds",
+    "skillsetName": "ustaxpublic-skillset-v3",
+    "targetIndexName": "ustaxpublic",
+    "schedule": { "interval": "PT2H" },
+    "parameters": {
+      "configuration": { "parsingMode": "jsonLines", "dataToExtract": "contentAndMetadata" },
+      "batchSize": 50,
+      "maxFailedItems": -1,
+      "maxFailedItemsPerBatch": -1
+    },
+    "fieldMappings": [
+      {"sourceFieldName": "id", "targetFieldName": "id"},
+      {"sourceFieldName": "doc_type", "targetFieldName": "doc_type"},
+      {"sourceFieldName": "title_number", "targetFieldName": "title_number"},
+      {"sourceFieldName": "section_id", "targetFieldName": "section_id"},
+      {"sourceFieldName": "section_id", "targetFieldName": "section_id_norm"},
+      {"sourceFieldName": "section_title", "targetFieldName": "section_title"},
+      {"sourceFieldName": "content", "targetFieldName": "content"},
+      {"sourceFieldName": "summary", "targetFieldName": "summary"},
+      {"sourceFieldName": "section_type", "targetFieldName": "section_type"},
+      {"sourceFieldName": "parent_section", "targetFieldName": "parent_section"},
+      {"sourceFieldName": "subsection_level", "targetFieldName": "subsection_level"},
+      {"sourceFieldName": "keywords", "targetFieldName": "keywords"},
+      {"sourceFieldName": "internal_references", "targetFieldName": "internal_references"},
+      {"sourceFieldName": "public_laws", "targetFieldName": "public_laws"},
+      {"sourceFieldName": "usc_references", "targetFieldName": "usc_references"},
+      {"sourceFieldName": "cfr_references", "targetFieldName": "cfr_references"},
+      {"sourceFieldName": "forms_mentioned", "targetFieldName": "forms_mentioned"},
+      {"sourceFieldName": "page_numbers", "targetFieldName": "page_numbers"},
+      {"sourceFieldName": "content_length", "targetFieldName": "content_length"},
+      {"sourceFieldName": "complexity_score", "targetFieldName": "complexity_score"},
+      {"sourceFieldName": "source_url", "targetFieldName": "source_url"},
+      {"sourceFieldName": "version", "targetFieldName": "version"},
+      {"sourceFieldName": "indexed_date", "targetFieldName": "indexed_date"},
+      {"sourceFieldName": "isDeleted", "targetFieldName": "isDeleted"}
+    ],
+    "outputFieldMappings": [
+      {"sourceFieldName": "/document/contentVector", "targetFieldName": "contentVector"}
+    ]
+  },
+  "cfr": {
+    "name": "ustaxpublic-cfr-indexer-v3",
+    "dataSourceName": "ustaxpublic-cfr-ds",
+    "skillsetName": "ustaxpublic-skillset-v3",
+    "targetIndexName": "ustaxpublic",
+    "schedule": { "interval": "PT2H" },
+    "parameters": {
+      "configuration": { "parsingMode": "jsonLines", "dataToExtract": "contentAndMetadata" },
+      "batchSize": 50,
+      "maxFailedItems": -1,
+      "maxFailedItemsPerBatch": -1
+    },
+    "fieldMappings": [
+      {"sourceFieldName": "id", "targetFieldName": "id"},
+      {"sourceFieldName": "doc_type", "targetFieldName": "doc_type"},
+      {"sourceFieldName": "title_number", "targetFieldName": "title_number"},
+      {"sourceFieldName": "section_id", "targetFieldName": "section_id"},
+      {"sourceFieldName": "section_id", "targetFieldName": "section_id_norm"},
+      {"sourceFieldName": "section_title", "targetFieldName": "section_title"},
+      {"sourceFieldName": "content", "targetFieldName": "content"},
+      {"sourceFieldName": "summary", "targetFieldName": "summary"},
+      {"sourceFieldName": "section_type", "targetFieldName": "section_type"},
+      {"sourceFieldName": "parent_section", "targetFieldName": "parent_section"},
+      {"sourceFieldName": "subsection_level", "targetFieldName": "subsection_level"},
+      {"sourceFieldName": "keywords", "targetFieldName": "keywords"},
+      {"sourceFieldName": "internal_references", "targetFieldName": "internal_references"},
+      {"sourceFieldName": "public_laws", "targetFieldName": "public_laws"},
+      {"sourceFieldName": "usc_references", "targetFieldName": "usc_references"},
+      {"sourceFieldName": "cfr_references", "targetFieldName": "cfr_references"},
+      {"sourceFieldName": "forms_mentioned", "targetFieldName": "forms_mentioned"},
+      {"sourceFieldName": "page_numbers", "targetFieldName": "page_numbers"},
+      {"sourceFieldName": "content_length", "targetFieldName": "content_length"},
+      {"sourceFieldName": "complexity_score", "targetFieldName": "complexity_score"},
+      {"sourceFieldName": "source_url", "targetFieldName": "source_url"},
+      {"sourceFieldName": "version", "targetFieldName": "version"},
+      {"sourceFieldName": "indexed_date", "targetFieldName": "indexed_date"},
+      {"sourceFieldName": "isDeleted", "targetFieldName": "isDeleted"}
+    ],
+    "outputFieldMappings": [
+      {"sourceFieldName": "/document/contentVector", "targetFieldName": "contentVector"}
+    ]
+  }
+}

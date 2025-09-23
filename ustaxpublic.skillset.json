@@ -1,0 +1,22 @@
+{
+  "name": "ustaxpublic-skillset-v3",
+  "description": "Embeddings for tax documents using text-embedding-3-large (3072)",
+  "skills": [
+    {
+      "@odata.type": "#Microsoft.Skills.Text.AzureOpenAIEmbeddingSkill",
+      "name": "contentVectorization",
+      "description": "Generate embeddings for content",
+      "resourceUri": "https://client-fcs.cognitiveservices.azure.com/",
+      "apiKey": "7kqSyPtlOO7KcaG2UPcENUc4Xodp4DU8bJFa4DnI5cSiyhi9pMphJQQJ99BHACHYHv6XJ3w3AAAAACOGtis6",
+      "deploymentId": "text-embedding-3-large",
+      "modelName": "text-embedding-3-large",
+      "dimensions": 3072,
+      "inputs": [
+        { "name": "text", "source": "/document/content" }
+      ],
+      "outputs": [
+        { "name": "embedding", "targetName": "contentVector" }
+      ]
+    }
+  ]
+}

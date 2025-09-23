@@ -1,0 +1,314 @@
+{
+  "name": "Tax Search Webhook Nodes - Add to MegaMind SAX",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tax-search",
+        "responseMode": "responseNode",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              }
+            ]
+          }
+        }
+      },
+      "id": "tax-search-webhook",
+      "name": "Tax Search Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        -4048,
+        200
+      ],
+      "webhookId": "tax-search-endpoint"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tax-feedback",
+        "responseMode": "responseNode",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              }
+            ]
+          }
+        }
+      },
+      "id": "tax-feedback-webhook",
+      "name": "Tax Feedback Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        -4048,
+        400
+      ],
+      "webhookId": "tax-feedback-endpoint"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tax-click",
+        "responseMode": "responseNode",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              }
+            ]
+          }
+        }
+      },
+      "id": "tax-click-webhook",
+      "name": "Tax Click Tracking Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        -4048,
+        600
+      ],
+      "webhookId": "tax-click-endpoint"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Tax Search + Answer Generation + Learning\n// Processes natural language tax queries and returns AI-generated answers with caching\n\nconst input = $input.item.json;\nconst query = input.query || input.question || '';\nconst sessionId = input.sessionId || `session_${Date.now()}`;\nconst userId = input.userId || 'anonymous';\n\nif (!query) {\n  return {\n    json: {\n      success: false,\n      error: 'No query provided',\n      message: 'Please provide a tax-related question'\n    }\n  };\n}\n\nconsole.log('Processing tax query:', query);\n\n// Configuration\nconst searchEndpoint = 'https://saxmegamind-search.search.windows.net';\nconst searchKey = 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO';\nconst openAIEndpoint = 'https://eastus2.api.cognitive.microsoft.com';\nconst openAIKey = '5f91bb46df2a4769be8715d063f8757c';\n\ntry {\n  // 1. Generate embedding for semantic search\n  const embeddingResponse = await this.helpers.httpRequest({\n    method: 'POST',\n    url: `${openAIEndpoint}/openai/deployments/text-embedding-ada-002/embeddings?api-version=2023-05-15`,\n    headers: {\n      'api-key': openAIKey,\n      'Content-Type': 'application/json'\n    },\n    body: {\n      input: query\n    }\n  });\n  \n  const queryVector = embeddingResponse.data[0].embedding;\n  \n  // 2. Search the tax index\n  const searchResponse = await this.helpers.httpRequest({\n    method: 'POST',\n    url: `${searchEndpoint}/indexes/ustaxpublic/docs/search?api-version=2023-11-01`,\n    headers: {\n      'api-key': searchKey,\n      'Content-Type': 'application/json'\n    },\n    body: {\n      search: query,\n      searchMode: 'all',\n      queryType: 'semantic',\n      semanticConfiguration: 'default',\n      vectorQueries: [{\n        vector: queryVector,\n        k: 10,\n        fields: 'contentVector',\n        kind: 'vector'\n      }],\n      select: 'id,title,content,section_reference,keywords,source,document_type,confidence_score,view_count',\n      top: 5,\n      count: true\n    }\n  });\n  \n  const searchResults = searchResponse.value || [];\n  \n  if (searchResults.length === 0) {\n    return {\n      json: {\n        success: true,\n        query: query,\n        answer: 'No relevant tax information found for your query. Please try rephrasing or being more specific.',\n        documents: [],\n        cached: false\n      }\n    };\n  }\n  \n  // 3. Check if we have a cached answer for this query\n  const cacheKey = `tax_answer_${Buffer.from(query.toLowerCase()).toString('base64').substring(0, 20)}`;\n  \n  // For now, we'll generate fresh answers. In production, check cache first.\n  \n  // 4. Prepare context from top results\n  const context = searchResults.slice(0, 3).map((doc, idx) => \n    `[${idx + 1}] ${doc.title}\\nSection: ${doc.section_reference || 'N/A'}\\n${doc.content.substring(0, 500)}...`\n  ).join('\\n\\n');\n  \n  // 5. Generate AI answer\n  const gptResponse = await this.helpers.httpRequest({\n    method: 'POST',\n    url: `${openAIEndpoint}/openai/deployments/gpt-4o-mini/chat/completions?api-version=2024-02-15-preview`,\n    headers: {\n      'api-key': openAIKey,\n      'Content-Type': 'application/json'\n    },\n    body: {\n      messages: [\n        {\n          role: 'system',\n          content: 'You are a US tax expert assistant. Provide clear, accurate answers based on the official tax code and regulations provided. Always cite the specific sections or forms referenced. If information is incomplete, note what additional details would be needed.'\n        },\n        {\n          role: 'user',\n          content: `Based on the following official tax information, answer this question: \"${query}\"\\n\\nTax Code Context:\\n${context}\\n\\nProvide a clear, professional answer with specific citations.`\n        }\n      ],\n      max_tokens: 500,\n      temperature: 0.3\n    }\n  });\n  \n  const answer = gptResponse.choices[0].message.content;\n  \n  // 6. Update document view counts (async, don't wait)\n  searchResults.forEach(doc => {\n    // In production, this would update the index\n    console.log(`Would increment view count for document: ${doc.id}`);\n  });\n  \n  // 7. Prepare response\n  return {\n    json: {\n      success: true,\n      query: query,\n      answer: answer,\n      documents: searchResults.map(doc => ({\n        id: doc.id,\n        title: doc.title,\n        section: doc.section_reference,\n        snippet: doc.content.substring(0, 200) + '...',\n        source: doc.source,\n        confidence: doc.confidence_score || doc['@search.score'],\n        viewCount: doc.view_count || 0\n      })),\n      sessionId: sessionId,\n      cached: false,\n      timestamp: new Date().toISOString()\n    }\n  };\n  \n} catch (error) {\n  console.error('Tax search error:', error);\n  return {\n    json: {\n      success: false,\n      error: error.message || 'Search failed',\n      query: query\n    }\n  };\n}"
+      },
+      "id": "tax-search-processor",
+      "name": "Process Tax Search",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3600,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Tax Feedback Processor\n// Updates document ratings and confidence scores based on user feedback\n\nconst input = $input.item.json;\nconst documentId = input.documentId;\nconst feedbackType = input.feedbackType; // 'thumbs_up' or 'thumbs_down'\nconst answerId = input.answerId;\nconst userId = input.userId || 'anonymous';\nconst sessionId = input.sessionId;\n\nif (!documentId || !feedbackType) {\n  return {\n    json: {\n      success: false,\n      error: 'Missing required parameters',\n      message: 'documentId and feedbackType are required'\n    }\n  };\n}\n\nconsole.log(`Processing ${feedbackType} feedback for document ${documentId}`);\n\n// Configuration\nconst searchEndpoint = 'https://saxmegamind-search.search.windows.net';\nconst searchKey = 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO';\n\ntry {\n  // 1. Get current document to update counters\n  const getResponse = await this.helpers.httpRequest({\n    method: 'GET',\n    url: `${searchEndpoint}/indexes/ustaxpublic/docs/${encodeURIComponent(documentId)}?api-version=2023-11-01`,\n    headers: {\n      'api-key': searchKey\n    }\n  });\n  \n  const document = getResponse;\n  \n  // 2. Update counters based on feedback\n  if (feedbackType === 'thumbs_up') {\n    document.thumbs_up_count = (document.thumbs_up_count || 0) + 1;\n  } else if (feedbackType === 'thumbs_down') {\n    document.thumbs_down_count = (document.thumbs_down_count || 0) + 1;\n  }\n  \n  // 3. Recalculate confidence score\n  const totalVotes = document.thumbs_up_count + document.thumbs_down_count;\n  if (totalVotes > 0) {\n    document.confidence_score = (document.thumbs_up_count / totalVotes) * 100;\n  }\n  \n  // 4. Update last_updated timestamp\n  document.last_updated = new Date().toISOString();\n  \n  // 5. Update document in index\n  const updateResponse = await this.helpers.httpRequest({\n    method: 'POST',\n    url: `${searchEndpoint}/indexes/ustaxpublic/docs/index?api-version=2023-11-01`,\n    headers: {\n      'api-key': searchKey,\n      'Content-Type': 'application/json'\n    },\n    body: {\n      value: [{\n        ...document,\n        '@search.action': 'mergeOrUpload'\n      }]\n    }\n  });\n  \n  // 6. Log feedback event (for analytics)\n  console.log('Feedback recorded:', {\n    documentId,\n    feedbackType,\n    userId,\n    sessionId,\n    timestamp: new Date().toISOString()\n  });\n  \n  return {\n    json: {\n      success: true,\n      message: 'Feedback recorded successfully',\n      documentId: documentId,\n      feedbackType: feedbackType,\n      newCounts: {\n        thumbsUp: document.thumbs_up_count,\n        thumbsDown: document.thumbs_down_count,\n        confidence: Math.round(document.confidence_score)\n      }\n    }\n  };\n  \n} catch (error) {\n  console.error('Feedback processing error:', error);\n  return {\n    json: {\n      success: false,\n      error: error.message || 'Failed to record feedback'\n    }\n  };\n}"
+      },
+      "id": "tax-feedback-processor",
+      "name": "Process Tax Feedback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3600,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Tax Click Tracking Processor\n// Increments view counts when users click on documents\n\nconst input = $input.item.json;\nconst documentId = input.documentId;\nconst userId = input.userId || 'anonymous';\nconst sessionId = input.sessionId;\nconst action = input.action || 'view'; // 'view', 'download', 'share'\n\nif (!documentId) {\n  return {\n    json: {\n      success: false,\n      error: 'No documentId provided'\n    }\n  };\n}\n\nconsole.log(`Tracking ${action} for document ${documentId}`);\n\n// Configuration\nconst searchEndpoint = 'https://saxmegamind-search.search.windows.net';\nconst searchKey = 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO';\n\ntry {\n  // 1. Get current document\n  const getResponse = await this.helpers.httpRequest({\n    method: 'GET',\n    url: `${searchEndpoint}/indexes/ustaxpublic/docs/${encodeURIComponent(documentId)}?api-version=2023-11-01`,\n    headers: {\n      'api-key': searchKey\n    }\n  });\n  \n  const document = getResponse;\n  \n  // 2. Increment appropriate counter\n  if (action === 'view') {\n    document.view_count = (document.view_count || 0) + 1;\n  } else if (action === 'download') {\n    document.download_count = (document.download_count || 0) + 1;\n  } else if (action === 'share') {\n    document.share_count = (document.share_count || 0) + 1;\n  }\n  \n  // 3. Update last_accessed timestamp\n  document.last_accessed = new Date().toISOString();\n  \n  // 4. Update document in index\n  const updateResponse = await this.helpers.httpRequest({\n    method: 'POST',\n    url: `${searchEndpoint}/indexes/ustaxpublic/docs/index?api-version=2023-11-01`,\n    headers: {\n      'api-key': searchKey,\n      'Content-Type': 'application/json'\n    },\n    body: {\n      value: [{\n        ...document,\n        '@search.action': 'mergeOrUpload'\n      }]\n    }\n  });\n  \n  // 5. Log click event\n  console.log('Click tracked:', {\n    documentId,\n    action,\n    userId,\n    sessionId,\n    timestamp: new Date().toISOString()\n  });\n  \n  return {\n    json: {\n      success: true,\n      message: 'Click tracked successfully',\n      documentId: documentId,\n      action: action,\n      newCount: document.view_count\n    }\n  };\n  \n} catch (error) {\n  console.error('Click tracking error:', error);\n  return {\n    json: {\n      success: false,\n      error: error.message || 'Failed to track click'\n    }\n  };\n}"
+      },
+      "id": "tax-click-processor",
+      "name": "Process Click Tracking",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3600,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "tax-search-response",
+      "name": "Send Tax Search Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -3200,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "tax-feedback-response",
+      "name": "Send Feedback Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -3200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "tax-click-response",
+      "name": "Send Click Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -3200,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Tax Search & Learning System",
+        "height": 500,
+        "width": 1200,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -4200,
+        100
+      ],
+      "id": "tax-sticky-note",
+      "name": "Tax Search Sticky Note"
+    }
+  ],
+  "connections": {
+    "tax-search-webhook": {
+      "main": [
+        [
+          {
+            "node": "tax-search-processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tax-search-processor": {
+      "main": [
+        [
+          {
+            "node": "tax-search-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tax-feedback-webhook": {
+      "main": [
+        [
+          {
+            "node": "tax-feedback-processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tax-feedback-processor": {
+      "main": [
+        [
+          {
+            "node": "tax-feedback-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tax-click-webhook": {
+      "main": [
+        [
+          {
+            "node": "tax-click-processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tax-click-processor": {
+      "main": [
+        [
+          {
+            "node": "tax-click-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
