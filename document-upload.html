@@ -1221,8 +1221,7 @@
                 'upload': { stepId: 'step-upload', progress: 64 },
                 'index': { stepId: 'step-index', progress: 80 },
                 'embeddings': { stepId: 'step-embeddings', progress: 100 },
-                'complete': { stepId: null, progress: 100 },
-                'error': { stepId: null, progress: 0 }
+                'complete': { stepId: null, progress: 100 }
             };
             
             // Update modal text
@@ -1231,21 +1230,7 @@
                 modalSubtitle.textContent = subtitle;
             }
             
-            if (step === 'error') {
-                // Show error state
-                modalTitle.style.color = '#dc2626';
-                modalSubtitle.style.color = '#dc2626';
-                uploadCompleteActions.style.display = 'block';
-                
-                // Mark current step as failed
-                const currentStep = document.querySelector('.upload-step[style*="opacity: 1"]');
-                if (currentStep) {
-                    currentStep.querySelector('.step-icon').style.background = 'rgba(220, 38, 38, 0.1)';
-                    currentStep.querySelector('.step-icon').style.color = '#dc2626';
-                    currentStep.querySelector('.step-status').textContent = '✗';
-                    currentStep.querySelector('.step-status').style.color = '#dc2626';
-                }
-            } else if (step === 'complete') {
+            if (step === 'complete') {
                 // Show success state
                 modalTitle.style.color = '#10b981';
                 modalSubtitle.style.color = '#64748b';
@@ -1269,6 +1254,19 @@
                     progressFill.style.width = stepInfo.progress + '%';
                     
                     if (stepInfo.stepId) {
+                        // Complete previous steps
+                        const allSteps = ['step-hash', 'step-duplicate', 'step-chunk', 'step-upload', 'step-index', 'step-embeddings'];
+                        const currentIndex = allSteps.indexOf(stepInfo.stepId);
+                        
+                        for (let i = 0; i < currentIndex; i++) {
+                            const prevStepElement = document.getElementById(allSteps[i]);
+                            prevStepElement.style.opacity = '1';
+                            prevStepElement.querySelector('.step-icon').style.background = 'rgba(16, 185, 129, 0.1)';
+                            prevStepElement.querySelector('.step-icon').style.color = '#10b981';
+                            prevStepElement.querySelector('.step-status').textContent = '✓';
+                            prevStepElement.querySelector('.step-status').style.color = '#10b981';
+                        }
+                        
                         // Activate current step
                         const stepElement = document.getElementById(stepInfo.stepId);
                         stepElement.style.opacity = '1';
@@ -1280,9 +1278,53 @@
             }
         }
         
+        function showUploadError(errorMessage) {
+            const modalTitle = document.getElementById('modalTitle');
+            const modalSubtitle = document.getElementById('modalSubtitle');
+            const uploadCompleteActions = document.getElementById('uploadCompleteActions');
+            
+            // Show error state
+            modalTitle.textContent = 'Upload Failed';
+            modalTitle.style.color = '#dc2626';
+            modalSubtitle.textContent = errorMessage;
+            modalSubtitle.style.color = '#dc2626';
+            
+            // Find and mark the current active step as failed
+            const activeSteps = document.querySelectorAll('.upload-step[style*="opacity: 1"]');
+            if (activeSteps.length > 0) {
+                const lastActiveStep = activeSteps[activeSteps.length - 1];
+                lastActiveStep.querySelector('.step-icon').style.background = 'rgba(220, 38, 38, 0.1)';
+                lastActiveStep.querySelector('.step-icon').style.color = '#dc2626';
+                lastActiveStep.querySelector('.step-status').textContent = '✗';
+                lastActiveStep.querySelector('.step-status').style.color = '#dc2626';
+            }
+            
+            // Update action buttons to include retry
+            uploadCompleteActions.innerHTML = `
+                <button onclick="retryUpload()" style="padding: 10px 20px; background: #f59e0b; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; margin-right: 10px;">🔄 Retry Upload</button>
+                <button onclick="closeUploadModal()" style="padding: 10px 20px; background: #f3f4f6; color: #374151; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">Close</button>
+            `;
+            uploadCompleteActions.style.display = 'block';
+        }
+        
+        function retryUpload() {
+            // Reset the form state and retry the upload
+            closeUploadModal();
+            
+            // Trigger the form submission again
+            setTimeout(() => {
+                handleFormSubmit(new Event('submit'));
+            }, 100);
+        }
+        
         function closeUploadModal() {
             const modal = document.getElementById('uploadModal');
             modal.style.display = 'none';
+            
+            // Reset form state
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Upload Document';
+            progressBar.style.display = 'none';
         }
 
         function loadDepartmentDocuments() {
@@ -3075,7 +3117,7 @@
                 })
                 .catch(error => {
                     console.error('Upload failed:', error);
-                    updateUploadProgress('error', 'Upload Failed', error.message || 'An error occurred during upload');
+                    showUploadError(error.message || 'An error occurred during upload');
                     handleUploadError(error);
                 });
         }
