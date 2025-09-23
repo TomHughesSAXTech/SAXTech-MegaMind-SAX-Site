@@ -1279,9 +1279,17 @@
         }
         
         function showUploadError(errorMessage) {
+            console.log('showUploadError called with:', errorMessage);
+            
             const modalTitle = document.getElementById('modalTitle');
             const modalSubtitle = document.getElementById('modalSubtitle');
             const uploadCompleteActions = document.getElementById('uploadCompleteActions');
+            
+            if (!modalTitle || !modalSubtitle || !uploadCompleteActions) {
+                console.error('Modal elements not found!');
+                alert('Upload failed: ' + errorMessage);
+                return;
+            }
             
             // Show error state
             modalTitle.textContent = 'Upload Failed';
@@ -1307,15 +1315,74 @@
             uploadCompleteActions.style.display = 'block';
         }
         
+        // Make showUploadError globally accessible
+        window.showUploadError = showUploadError;
+        
         function retryUpload() {
-            // Reset the form state and retry the upload
-            closeUploadModal();
+            console.log('Retry upload initiated');
             
-            // Trigger the form submission again
-            setTimeout(() => {
-                handleFormSubmit(new Event('submit'));
-            }, 100);
+            // Reset modal state without closing
+            const modalTitle = document.getElementById('modalTitle');
+            const modalSubtitle = document.getElementById('modalSubtitle');
+            const uploadCompleteActions = document.getElementById('uploadCompleteActions');
+            
+            modalTitle.textContent = 'Uploading Document';
+            modalTitle.style.color = '#111827';
+            modalSubtitle.textContent = 'Your document is being processed...';
+            modalSubtitle.style.color = '#6b7280';
+            
+            // Reset progress steps
+            resetUploadProgress();
+            
+            // Hide actions
+            uploadCompleteActions.style.display = 'none';
+            
+            // Retry the upload with the last file
+            if (window.lastUploadedFile && window.lastUploadFormData) {
+                console.log('Retrying upload with cached file:', window.lastUploadedFile.name);
+                
+                // Disable submit button during retry
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Processing...';
+                
+                // Call the same upload method as in the original form submission
+                uploadDocumentMultipart(window.lastUploadFormData)
+                    .then(response => {
+                        updateUploadProgress('complete', 'Upload Complete!', 'Your document has been successfully processed');
+                        completeUpload();
+                    })
+                    .catch(error => {
+                        console.error('Retry upload failed:', error);
+                        const errorMessage = error.message === 'Upload failed - see modal for details' 
+                            ? 'Retry failed due to server error - check console for details'
+                            : (error.message || 'An error occurred during retry upload');
+                        
+                        showUploadError(errorMessage);
+                        handleUploadError(error);
+                    });
+            } else {
+                console.error('No cached file/form data for retry');
+                showUploadError('Cannot retry: no file data available. Please close and try again.');
+            }
         }
+        
+        // Helper function to reset upload progress state
+        function resetUploadProgress() {
+            const steps = ['step-hash', 'step-duplicate', 'step-chunk', 'step-upload', 'step-index', 'step-embeddings'];
+            steps.forEach(stepId => {
+                const step = document.getElementById(stepId);
+                step.style.opacity = '0.5';
+                step.querySelector('.step-status').textContent = '';
+                step.querySelector('.step-icon').style.background = '#f1f5f9';
+                step.querySelector('.step-icon').style.color = '#94a3b8';
+            });
+            
+            // Reset progress bar
+            document.getElementById('modalProgressFill').style.width = '0%';
+        }
+        
+        // Make retryUpload globally accessible
+        window.retryUpload = retryUpload;
         
         function closeUploadModal() {
             const modal = document.getElementById('uploadModal');
@@ -3106,6 +3173,14 @@
             if (updateTypeSelect.value === 'update') {
                 formData.append('existingDocId', selectedSOPIdInput.value);
             }
+            
+            // Cache the file and form data for retry functionality
+            window.lastUploadedFile = fileInput.files[0];
+            window.lastUploadFormData = formData;
+            console.log('Cached upload data for retry:', {
+                fileName: window.lastUploadedFile.name,
+                formDataKeys: Array.from(formData.keys())
+            });
 
             // Upload to Azure Function (with multipart support for large files)
             uploadDocumentMultipart(formData)
@@ -3117,10 +3192,14 @@
                 })
                 .catch(error => {
                     console.error('Upload failed:', error);
-                    // Only show error if it hasn't been shown already by the upload function
-                    if (error.message !== 'Upload failed - see modal for details') {
-                        showUploadError(error.message || 'An error occurred during upload');
-                    }
+                    console.error('Error message:', error.message);
+                    
+                    // Always show error in modal - the upload function may not have done it properly
+                    const errorMessage = error.message === 'Upload failed - see modal for details' 
+                        ? 'Upload failed due to server error - check console for details'
+                        : (error.message || 'An error occurred during upload');
+                    
+                    showUploadError(errorMessage);
                     handleUploadError(error);
                 });
         }

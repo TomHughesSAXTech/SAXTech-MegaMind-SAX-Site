@@ -146,21 +146,22 @@ async function uploadDocumentMultipart(formData) {
         
         // Handle response
         if (!response.ok) {
-            // Show error immediately without updating progress to indexing
-            if (window.showUploadError) {
-                const errorText = await response.text();
-                try {
-                    const errorJson = JSON.parse(errorText);
-                    const errorMessage = errorJson.error?.message || errorJson.message || `HTTP ${response.status}`;
-                    window.showUploadError(errorMessage);
-                } catch (e) {
-                    window.showUploadError(`Upload failed: HTTP ${response.status} - ${errorText}`);
-                }
-            }
             const errorText = await response.text();
             console.error('n8n webhook error response:', errorText);
             
-            // Error was already handled above - just throw to be caught by caller
+            // Show error immediately without updating progress to indexing
+            let errorMessage = `Upload failed: HTTP ${response.status}`;
+            try {
+                const errorJson = JSON.parse(errorText);
+                errorMessage = errorJson.error?.message || errorJson.message || errorMessage;
+            } catch (e) {
+                errorMessage = `Upload failed: HTTP ${response.status} - ${errorText}`;
+            }
+            
+            if (window.showUploadError) {
+                window.showUploadError(errorMessage);
+            }
+            
             throw new Error('Upload failed - see modal for details');
         }
         
@@ -174,13 +175,14 @@ async function uploadDocumentMultipart(formData) {
         
         // Check for errors in the result
         if (result.success === false) {
+            const errorMessage = result.message || result.error || 'Upload failed';
+            console.error('Upload result error:', errorMessage);
+            
             if (window.showUploadError) {
-                const errorMessage = result.message || result.error || 'Upload failed';
                 window.showUploadError(errorMessage);
-                throw new Error('Upload failed - see modal for details');
-            } else {
-                throw new Error(result.message || result.error || 'Upload failed');
             }
+            
+            throw new Error('Upload failed - see modal for details');
         }
         
         // Update progress for embeddings only after successful indexing
