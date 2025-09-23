@@ -1497,6 +1497,12 @@
             window.lastUploadFormData = null;
             
             console.log('Upload modal closed and form reset');
+            
+            // Auto-refresh page to reload documents after any upload attempt
+            console.log('Auto-refreshing page to reload document list...');
+            setTimeout(() => {
+                window.location.reload();
+            }, 500); // Small delay to ensure modal closes smoothly
         }
         
         // Make closeUploadModal globally accessible
