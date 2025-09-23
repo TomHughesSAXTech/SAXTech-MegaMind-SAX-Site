@@ -34,6 +34,9 @@
         ]
     };
 
+    // Make CONFIG globally accessible for other scripts
+    window.CONFIG = CONFIG;
+
     // State
     let state = {
         documents: [],
