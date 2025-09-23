@@ -1148,10 +1148,20 @@
                 const step = document.getElementById(stepId);
                 step.style.opacity = '0.5';
                 step.querySelector('.step-status').textContent = '';
+                // Reset colors
+                step.querySelector('.step-icon').style.background = '#f1f5f9';
+                step.querySelector('.step-icon').style.color = '#94a3b8';
             });
             
-            // Start animation
-            simulateUploadSteps();
+            // Reset modal state
+            document.getElementById('modalTitle').textContent = 'Processing Document';
+            document.getElementById('modalTitle').style.color = '#1e293b';
+            document.getElementById('modalSubtitle').textContent = 'Please wait while we process your document';
+            document.getElementById('modalSubtitle').style.color = '#64748b';
+            document.getElementById('modalProgressFill').style.width = '0%';
+            document.getElementById('uploadCompleteActions').style.display = 'none';
+            
+            // Don't start fake animation - wait for real progress updates
         }
         
         async function simulateUploadSteps() {
@@ -1196,6 +1206,78 @@
             
             // Show action buttons
             document.getElementById('uploadCompleteActions').style.display = 'block';
+        }
+        
+        function updateUploadProgress(step, title, subtitle) {
+            const modalTitle = document.getElementById('modalTitle');
+            const modalSubtitle = document.getElementById('modalSubtitle');
+            const progressFill = document.getElementById('modalProgressFill');
+            const uploadCompleteActions = document.getElementById('uploadCompleteActions');
+            
+            const stepMap = {
+                'hash': { stepId: 'step-hash', progress: 16 },
+                'duplicate': { stepId: 'step-duplicate', progress: 32 },
+                'chunk': { stepId: 'step-chunk', progress: 48 },
+                'upload': { stepId: 'step-upload', progress: 64 },
+                'index': { stepId: 'step-index', progress: 80 },
+                'embeddings': { stepId: 'step-embeddings', progress: 100 },
+                'complete': { stepId: null, progress: 100 },
+                'error': { stepId: null, progress: 0 }
+            };
+            
+            // Update modal text
+            modalTitle.textContent = title;
+            if (subtitle) {
+                modalSubtitle.textContent = subtitle;
+            }
+            
+            if (step === 'error') {
+                // Show error state
+                modalTitle.style.color = '#dc2626';
+                modalSubtitle.style.color = '#dc2626';
+                uploadCompleteActions.style.display = 'block';
+                
+                // Mark current step as failed
+                const currentStep = document.querySelector('.upload-step[style*="opacity: 1"]');
+                if (currentStep) {
+                    currentStep.querySelector('.step-icon').style.background = 'rgba(220, 38, 38, 0.1)';
+                    currentStep.querySelector('.step-icon').style.color = '#dc2626';
+                    currentStep.querySelector('.step-status').textContent = '✗';
+                    currentStep.querySelector('.step-status').style.color = '#dc2626';
+                }
+            } else if (step === 'complete') {
+                // Show success state
+                modalTitle.style.color = '#10b981';
+                modalSubtitle.style.color = '#64748b';
+                progressFill.style.width = '100%';
+                uploadCompleteActions.style.display = 'block';
+                
+                // Mark all steps as complete
+                const allSteps = ['step-hash', 'step-duplicate', 'step-chunk', 'step-upload', 'step-index', 'step-embeddings'];
+                allSteps.forEach(stepId => {
+                    const stepElement = document.getElementById(stepId);
+                    stepElement.style.opacity = '1';
+                    stepElement.querySelector('.step-icon').style.background = 'rgba(16, 185, 129, 0.1)';
+                    stepElement.querySelector('.step-icon').style.color = '#10b981';
+                    stepElement.querySelector('.step-status').textContent = '✓';
+                    stepElement.querySelector('.step-status').style.color = '#10b981';
+                });
+            } else {
+                // Show progress state
+                const stepInfo = stepMap[step];
+                if (stepInfo) {
+                    progressFill.style.width = stepInfo.progress + '%';
+                    
+                    if (stepInfo.stepId) {
+                        // Activate current step
+                        const stepElement = document.getElementById(stepInfo.stepId);
+                        stepElement.style.opacity = '1';
+                        stepElement.querySelector('.step-icon').style.background = 'rgba(59, 130, 246, 0.1)';
+                        stepElement.querySelector('.step-icon').style.color = '#3b82f6';
+                        stepElement.querySelector('.step-text').textContent = subtitle || stepElement.querySelector('.step-text').textContent;
+                    }
+                }
+            }
         }
         
         function closeUploadModal() {
@@ -2962,6 +3044,7 @@
 
             // Show upload modal
             showUploadModal();
+            updateUploadProgress('hash', 'Calculating document hash...');
             
             submitBtn.disabled = true;
             submitBtn.textContent = 'Processing...';
@@ -2985,20 +3068,14 @@
             // Upload to Azure Function (with multipart support for large files)
             uploadDocumentMultipart(formData)
                 .then(response => {
+                    updateUploadProgress('complete', 'Upload Complete!', 'Your document has been successfully processed');
                     completeUpload();
                     // Don't close the modal automatically - let user decide
                     // Modal will show completion status with buttons to refresh or close
                 })
                 .catch(error => {
                     console.error('Upload failed:', error);
-                    // Update modal to show error
-                    const modalTitle = document.getElementById('modalTitle');
-                    const modalSubtitle = document.getElementById('modalSubtitle');
-                    modalTitle.textContent = 'Upload Failed';
-                    modalTitle.style.color = '#dc2626';
-                    modalSubtitle.textContent = error.message || 'An error occurred during upload';
-                    modalSubtitle.style.color = '#dc2626';
-                    document.getElementById('uploadCompleteActions').style.display = 'block';
+                    updateUploadProgress('error', 'Upload Failed', error.message || 'An error occurred during upload');
                     handleUploadError(error);
                 });
         }

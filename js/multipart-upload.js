@@ -23,6 +23,11 @@ async function uploadDocumentMultipart(formData) {
         if (useMultipart) {
             console.log('Using multipart upload for large file (>' + (file.size / (1024 * 1024)).toFixed(2) + 'MB)...');
             
+            // Update progress
+            if (window.updateUploadProgress) {
+                window.updateUploadProgress('duplicate', 'Checking for duplicates...');
+            }
+            
             // Create FormData for multipart upload
             const multipartData = new FormData();
             
@@ -46,6 +51,11 @@ async function uploadDocumentMultipart(formData) {
             
             console.log('Uploading via multipart to n8n workflow...');
             
+            // Update progress
+            if (window.updateUploadProgress) {
+                window.updateUploadProgress('upload', 'Uploading to cloud storage...');
+            }
+            
             // Send as multipart/form-data (no Content-Type header, browser sets it with boundary)
             response = await fetch(API_CONFIG.n8n.webhookUrl, {
                 method: 'POST',
@@ -54,6 +64,11 @@ async function uploadDocumentMultipart(formData) {
             
         } else {
             console.log('Using base64 upload for small file (<1.5MB)...');
+            
+            // Update progress
+            if (window.updateUploadProgress) {
+                window.updateUploadProgress('duplicate', 'Checking for duplicates...');
+            }
             
             // Convert file to base64 for small files
             const fileContent = await fileToBase64(file);
@@ -114,6 +129,11 @@ async function uploadDocumentMultipart(formData) {
             
             console.log('Uploading JSON to n8n workflow...');
             
+            // Update progress
+            if (window.updateUploadProgress) {
+                window.updateUploadProgress('upload', 'Uploading to cloud storage...');
+            }
+            
             // Send as JSON for small files
             response = await fetch(API_CONFIG.n8n.webhookUrl, {
                 method: 'POST',
@@ -122,6 +142,11 @@ async function uploadDocumentMultipart(formData) {
                 },
                 body: JSON.stringify(n8nPayload)
             });
+        }
+        
+        // Update progress after upload
+        if (window.updateUploadProgress) {
+            window.updateUploadProgress('index', 'Indexing for search...');
         }
         
         // Handle response
@@ -145,6 +170,11 @@ async function uploadDocumentMultipart(formData) {
         
         const result = await response.json();
         console.log('Document uploaded successfully:', result);
+        
+        // Update progress for embeddings
+        if (window.updateUploadProgress) {
+            window.updateUploadProgress('embeddings', 'Creating embeddings...');
+        }
         
         // Check for errors in the result
         if (result.success === false) {
