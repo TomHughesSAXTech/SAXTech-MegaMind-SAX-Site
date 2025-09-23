@@ -9,10 +9,18 @@ import re
 import hashlib
 from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Any
-from azure.storage.blob import BlobServiceClient
-from azure.search.documents import SearchClient
-from azure.core.credentials import AzureKeyCredential
-from azure.search.documents.models import IndexAction
+try:
+    from azure.storage.blob import BlobServiceClient
+except Exception:
+    BlobServiceClient = None  # Will be None until dependencies are available
+try:
+    from azure.search.documents import SearchClient
+    from azure.core.credentials import AzureKeyCredential
+    from azure.search.documents.models import IndexAction
+except Exception:
+    SearchClient = None
+    AzureKeyCredential = None
+    IndexAction = None
 import time
 from io import StringIO
 try:

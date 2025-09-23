@@ -3,5 +3,3 @@ azure-storage-blob
 azure-search-documents
 azure-core
 requests
-lxml
-pdfminer.six
