@@ -764,21 +764,16 @@
                 <div class="admin-card">
                     <h2>🔍 Query Index</h2>
                     <div class="form-group">
+                        <label>Select Index</label>
+                        <select id="indexSelector"></select>
+                    </div>
+                    <div class="form-group">
                         <label>Search Query</label>
                         <input type="text" id="searchQuery" placeholder="Enter search terms or * for all">
                     </div>
                     <div class="form-group">
                         <label>Filter (OData)</label>
                         <input type="text" id="searchFilter" placeholder="e.g., department eq 'IT'">
-                    </div>
-                    <div class="form-group">
-                        <label>Max Results</label>
-                        <select id="maxResults">
-                            <option value="10">10</option>
-                            <option value="25">25</option>
-                            <option value="50">50</option>
-                            <option value="100">100</option>
-                        </select>
                     </div>
                     <button class="btn btn-primary" onclick="queryIndex()">Search</button>
                 </div>
@@ -1067,8 +1062,9 @@
             } else if (tab === 'index') {
                 // Load departments and refresh stats when switching to index tab
                 loadDepartments();
+                initIndexSelector();
                 refreshStats();
-            } else if (tab === 'conversation') {
+            }
                 // Initialize conversation tab
                 initializeConversationTab();
             } else if (tab === 'sessions') {
@@ -1452,10 +1448,46 @@
         const INDEX_CONFIG = {
             searchEndpoint: 'https://saxmegamind-search.search.windows.net',
             searchApiKey: 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO',
-            indexName: 'sop-documents',
+            indexName: localStorage.getItem('megamind_selected_index') || 'sop-documents',
             functionUrl: 'https://saxtechmegamindfunctions.azurewebsites.net/api',
             functionKey: 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw=='
         };
+
+        // Provide index list management via localStorage (fallback defaults)
+        function getIndexList() {
+            try {
+                const saved = localStorage.getItem('megamind_indexes');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (Array.isArray(parsed) && parsed.length) return parsed;
+                }
+            } catch {}
+            return [
+                { name: 'sop-documents', label: 'sop-documents' },
+                { name: 'knowledge-documents', label: 'knowledge-documents' },
+                { name: 'policy-documents', label: 'policy-documents' },
+                { name: 'training-documents', label: 'training-documents' }
+            ];
+        }
+
+        function initIndexSelector() {
+            const list = getIndexList();
+            const sel = document.getElementById('indexSelector');
+            if (!sel) return;
+            sel.innerHTML = '';
+            list.forEach(idx => {
+                const opt = document.createElement('option');
+                opt.value = idx.name;
+                opt.textContent = idx.label || idx.name;
+                if (idx.name === INDEX_CONFIG.indexName) opt.selected = true;
+                sel.appendChild(opt);
+            });
+            sel.addEventListener('change', () => {
+                INDEX_CONFIG.indexName = sel.value;
+                localStorage.setItem('megamind_selected_index', sel.value);
+                refreshStats();
+            });
+        }
 
         function showIndexAlert(type, message) {
             const alertMap = {
@@ -1525,7 +1557,8 @@
                             'x-functions-key': INDEX_CONFIG.functionKey
                         },
                         body: JSON.stringify({
-                            operation: 'stats'
+                            operation: 'stats',
+                            indexName: INDEX_CONFIG.indexName
                         })
                     }
                 );
@@ -1556,7 +1589,8 @@
                             query: '*',
                             top: 10,
                             orderby: 'uploadDate desc',
-                            select: 'uploadDate,createdDate,lastModified'
+                            select: 'uploadDate,createdDate,lastModified',
+                            indexName: INDEX_CONFIG.indexName
                         })
                     }
                 );
@@ -1600,34 +1634,62 @@
         async function queryIndex() {
             const query = document.getElementById('searchQuery').value || '*';
             const filter = document.getElementById('searchFilter').value;
-            const top = document.getElementById('maxResults').value;
+            // Fetch all results with paging (1000/page)
             
             document.getElementById('resultsContainer').style.display = 'block';
             document.getElementById('loading').classList.add('show');
             document.getElementById('results').innerHTML = '';
             
             try {
-                const response = await fetch(
-                    `${INDEX_CONFIG.functionUrl}/documents/search`,
-                    {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'x-functions-key': INDEX_CONFIG.functionKey
-                        },
-                        body: JSON.stringify({
-                            query: query,
-                            search: query,
-                            filter: filter,
-                            top: parseInt(top),
-                            select: 'id,title,fileName,department,documentType,uploadDate,createdDate,author,fileSize,status,vectorized,chunkCount,chunks,conversionMethod,contentHash,contentLength,metadata,content,totalCharacters'
-                        })
-                    }
-                );
-                
-                if (response.ok) {
+                const pageSize = 1000; // Azure Search max per request
+                let allDocs = [];
+                let seenIds = new Set();
+                let skip = 0;
+                let page = 0;
+                let got = 0;
+                do {
+                    page++;
+                    const response = await fetch(
+                        `${INDEX_CONFIG.functionUrl}/documents/search`,
+                        {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'x-functions-key': INDEX_CONFIG.functionKey
+                            },
+                            body: JSON.stringify({
+                                query: query,
+                                search: query,
+                                filter: filter,
+                                top: pageSize,
+                                skip: skip,
+                                indexName: INDEX_CONFIG.indexName,
+                                select: 'id,title,fileName,department,documentType,uploadDate,createdDate,author,fileSize,status,vectorized,chunkCount,chunks,conversionMethod,contentHash,contentLength,metadata,content,totalCharacters'
+                            })
+                        }
+                    );
+                    if (!response.ok) throw new Error('Search failed');
                     const data = await response.json();
-                    const documents = data.results || data.value || [];
+                    const docs = data.results || data.value || [];
+                    got = docs.length;
+
+                    // Append only new docs by id
+                    const before = allDocs.length;
+                    docs.forEach(d => {
+                        const id = d.id || `${d.fileName}-${d.uploadDate || d.createdDate || ''}`;
+                        if (!seenIds.has(id)) {
+                            seenIds.add(id);
+                            allDocs.push(d);
+                        }
+                    });
+
+                    skip += got;
+                    // Safety break to avoid endless loop or no-growth
+                    if (page > 50) break;
+                    if (allDocs.length === before && got > 0 && skip > 0) break;
+                } while (got === pageSize);
+
+                const documents = allDocs;
                     
                     // Debug: Log first document to see structure
                     if (documents.length > 0) {
@@ -1642,7 +1704,7 @@
                     }
                     
                     displayResults(documents);
-                    showIndexAlert('success', `Found ${documents.length} documents`);
+                    showIndexAlert('success', `Found ${documents.length} documents in ${INDEX_CONFIG.indexName}`);
                 } else {
                     throw new Error('Search failed');
                 }

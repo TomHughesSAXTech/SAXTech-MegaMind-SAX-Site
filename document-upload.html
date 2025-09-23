@@ -749,23 +749,32 @@
                     <div class="portal-title">Document Management Portal</div>
                 </div>
             </div>
-            <div class="header-meta" style="display: flex; gap: 24px; align-items: center;">
-                <div style="display: flex; gap: 16px; padding: 8px 16px; background: rgba(255,255,255,0.1); border-radius: 8px;">
-                    <div style="text-align: center;">
-                        <div style="font-size: 20px; font-weight: bold; color: #FFD700;" id="totalDocCount">0</div>
-                        <div style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Documents</div>
-                    </div>
-                    <div style="text-align: center; border-left: 1px solid rgba(255,255,255,0.2); padding-left: 16px;">
-                        <div style="font-size: 20px; font-weight: bold; color: #FFD700;" id="totalIndexSize">0 MB</div>
-                        <div style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Index Size</div>
-                    </div>
-                    <div style="text-align: center; border-left: 1px solid rgba(255,255,255,0.2); padding-left: 16px;">
-                        <div style="font-size: 20px; font-weight: bold; color: #FFD700;" id="lastIndexUpdate">--</div>
-                        <div style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Last Update</div>
-                    </div>
-                    <div style="text-align: center; border-left: 1px solid rgba(255,255,255,0.2); padding-left: 16px;">
-                        <div style="font-size: 20px; font-weight: bold; color: #FFD700;" id="vectorizedCount">0</div>
-                        <div style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Vectorized</div>
+            <div class="header-meta" style="display: flex; gap: 24px; align-items: center; width: 100%; justify-content: flex-end;">
+                <!-- Multi-index stats container -->
+                <div id="indexesHeaderStats" style="display: grid; grid-auto-flow: column; gap: 12px; align-items: stretch; overflow-x: auto; padding: 6px; background: rgba(255,255,255,0.06); border-radius: 10px;">
+                    <!-- Cards will be injected by JS. We keep the original single-index card as first fallback -->
+                    <div class="index-card" data-index="sop-documents" style="min-width: 260px; display: flex; gap: 16px; padding: 10px 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px;">
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            <div style="font-size: 11px; color:#cbd5e1; text-transform: uppercase; letter-spacing:.4px;">sop-documents</div>
+                            <div style="display:flex; gap:12px;">
+                                <div style="text-align:center;">
+                                    <div style="font-size: 18px; font-weight: bold; color: #FFD700;" id="totalDocCount">0</div>
+                                    <div style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Documents</div>
+                                </div>
+                                <div style="text-align: center; border-left: 1px solid rgba(255,255,255,0.2); padding-left: 12px;">
+                                    <div style="font-size: 18px; font-weight: bold; color: #FFD700;" id="totalIndexSize">0 MB</div>
+                                    <div style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Index Size</div>
+                                </div>
+                                <div style="text-align: center; border-left: 1px solid rgba(255,255,255,0.2); padding-left: 12px;">
+                                    <div style="font-size: 18px; font-weight: bold; color: #FFD700;" id="lastIndexUpdate">--</div>
+                                    <div style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Last Update</div>
+                                </div>
+                                <div style="text-align: center; border-left: 1px solid rgba(255,255,255,0.2); padding-left: 12px;">
+                                    <div style="font-size: 18px; font-weight: bold; color: #FFD700;" id="vectorizedCount">0</div>
+                                    <div style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Vectorized</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1126,8 +1135,8 @@
             });
         }
         
-        // Load index statistics on page load
-        loadIndexStatistics();
+        // Load index statistics on page load (all indexes)
+        loadAllIndexStatistics();
         
         // Load departments from localStorage (managed in admin.html)
         loadDepartmentsFromLocalStorage();
@@ -2825,7 +2834,121 @@
             }
         }
         
-        // Load index statistics
+        // Utility: list of indexes (editable via Admin; fallback defaults)
+        function getConfiguredIndexes() {
+            try {
+                const saved = localStorage.getItem('megamind_indexes');
+                if (saved) {
+                    const list = JSON.parse(saved);
+                    if (Array.isArray(list) && list.length) return list;
+                }
+            } catch {}
+            // Fallback: keep sop-documents plus three placeholders until admin config sets real ones
+            return [
+                { name: 'sop-documents', label: 'sop-documents' },
+                { name: 'knowledge-documents', label: 'knowledge-documents' },
+                { name: 'policy-documents', label: 'policy-documents' },
+                { name: 'training-documents', label: 'training-documents' }
+            ];
+        }
+
+        // Render header cards for each index and populate stats
+        async function loadAllIndexStatistics() {
+            const indexes = getConfiguredIndexes();
+            const container = document.getElementById('indexesHeaderStats');
+            if (!container) return;
+
+            // Clear all except the first fallback card markup
+            container.innerHTML = '';
+
+            // Create a card per index
+            indexes.forEach((idx, i) => {
+                const card = document.createElement('div');
+                card.className = 'index-card';
+                card.setAttribute('data-index', idx.name);
+                card.style.cssText = 'min-width: 260px; display:flex; gap:16px; padding:10px 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px;';
+                card.innerHTML = `
+                    <div style="display:flex; flex-direction:column; gap:4px;">
+                        <div style="font-size: 11px; color:#cbd5e1; text-transform: uppercase; letter-spacing:.4px;">${idx.label || idx.name}</div>
+                        <div style="display:flex; gap:12px;">
+                            <div style="text-align:center;">
+                                <div style="font-size: 18px; font-weight: bold; color: #FFD700;" id="docCount-${idx.name}">0</div>
+                                <div style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Documents</div>
+                            </div>
+                            <div style="text-align: center; border-left: 1px solid rgba(255,255,255,0.2); padding-left: 12px;">
+                                <div style="font-size: 18px; font-weight: bold; color: #FFD700;" id="indexSize-${idx.name}">0 MB</div>
+                                <div style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Index Size</div>
+                            </div>
+                            <div style="text-align: center; border-left: 1px solid rgba(255,255,255,0.2); padding-left: 12px;">
+                                <div style="font-size: 18px; font-weight: bold; color: #FFD700;" id="lastUpdate-${idx.name}">--</div>
+                                <div style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Last Update</div>
+                            </div>
+                            <div style="text-align: center; border-left: 1px solid rgba(255,255,255,0.2); padding-left: 12px;">
+                                <div style="font-size: 18px; font-weight: bold; color: #FFD700;" id="vectorized-${idx.name}">0</div>
+                                <div style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Vectorized</div>
+                            </div>
+                        </div>
+                    </div>`;
+                container.appendChild(card);
+            });
+
+            // Populate stats for each index using the documents/search function which accepts indexName
+            for (const idx of indexes) {
+                try {
+                    // 1) Get count only
+                    const countResp = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'x-functions-key': API_CONFIG.functionKey },
+                        body: JSON.stringify({ query: '*', top: 0, indexName: idx.name })
+                    });
+                    let totalDocs = 0;
+                    if (countResp.ok) {
+                        const countData = await countResp.json();
+                        totalDocs = countData['@odata.count'] || (countData.value ? countData.value.length : 0) || 0;
+                    }
+                    const docEl = document.getElementById(`docCount-${idx.name}`);
+                    if (docEl) docEl.textContent = totalDocs.toLocaleString();
+
+                    // 2) Estimate size and vectorized
+                    const sizeMB = (totalDocs * 50 / 1024).toFixed(1); // keep same heuristic
+                    const sizeEl = document.getElementById(`indexSize-${idx.name}`);
+                    if (sizeEl) sizeEl.textContent = `${sizeMB} MB`;
+                    const vecEl = document.getElementById(`vectorized-${idx.name}`);
+                    if (vecEl) vecEl.textContent = Math.floor(totalDocs * 0.8).toLocaleString();
+
+                    // 3) Find last update based on latest upload/created/modified date
+                    const latestResp = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'x-functions-key': API_CONFIG.functionKey },
+                        body: JSON.stringify({ query: '*', top: 10, orderby: 'uploadDate desc', select: 'uploadDate,createdDate,modifiedDate', indexName: idx.name })
+                    });
+                    if (latestResp.ok) {
+                        const latest = await latestResp.json();
+                        const docs = latest.value || latest.results || [];
+                        let mostRecent = null;
+                        docs.forEach(d => {
+                            [d.uploadDate, d.createdDate, d.modifiedDate].filter(Boolean).forEach(ds => {
+                                const dt = new Date(ds);
+                                if (!mostRecent || dt > mostRecent) mostRecent = dt;
+                            });
+                        });
+                        const target = document.getElementById(`lastUpdate-${idx.name}`);
+                        if (target) {
+                            if (mostRecent) {
+                                const opts = { timeZone: 'America/New_York', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true };
+                                target.textContent = new Intl.DateTimeFormat('en-US', opts).format(mostRecent);
+                            } else {
+                                target.textContent = '--';
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Failed index stats for', idx.name, e);
+                }
+            }
+        }
+
+        // Legacy single-index stats (kept for backward compatibility but no longer used) 
         async function loadIndexStatistics() {
             try {
                 // First get document count
