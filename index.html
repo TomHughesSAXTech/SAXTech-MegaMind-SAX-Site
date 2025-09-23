@@ -3157,7 +3157,15 @@
                                 }
                                 
                                 // Handle response with audio
-                                const responseText = result.response || 'I received your message but couldn\'t generate a response.';
+                                // Prefer HTML-friendly fields first to ensure rich rendering for all profiles (e.g., SAX Trainer)
+                                let responseText = (
+                                    result.htmlResponse ||
+                                    result.formattedHtml ||
+                                    result.response ||
+                                    result.output ||
+                                    result.text ||
+                                    'I received your message but couldn\'t generate a response.'
+                                );
                                 
                                 // Try to get audio data from various possible fields
                                 let audioData = null;
