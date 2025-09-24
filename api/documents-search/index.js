@@ -26,9 +26,14 @@ module.exports = async function (context, req) {
             select,
             top = 50,
             skip = 0,
-            orderby,
-            indexName = 'sop-documents'
+            orderby
         } = req.body || {};
+
+        // Determine index name via URL route > query > body > default
+        const routeIndex = (req.params && (req.params.indexName || req.params.index)) || (req.bindingData && (req.bindingData.indexName || req.bindingData.index));
+        const queryIndex = (req.query && (req.query.index || req.query.i)) || undefined;
+        const bodyIndex = (req.body && (req.body.indexName || req.body.index)) || undefined;
+        const indexName = routeIndex || queryIndex || bodyIndex || 'sop-documents';
 
         // Azure Search configuration
         const searchServiceName = 'saxmegamind-search';

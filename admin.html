@@ -1641,7 +1641,7 @@
 // 1) Document count via SWA API, fallback to Function App
                 let totalDocs = 0;
                 try {
-                    const statsResponse = await fetch('/api/documents-search', {
+const statsResponse = await fetch(`/api/documents-search/${currentIndex}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ search: '*', query: '*', top: 0, indexName: currentIndex })
@@ -1680,7 +1680,7 @@
 // 2) Recent doc date via SWA API, fallback to Function App
                 let documents = [];
                 try {
-                    const searchResponse = await fetch('/api/documents-search', {
+const searchResponse = await fetch(`/api/documents-search/${currentIndex}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -1777,7 +1777,7 @@
                     page++;
 let response;
                     try {
-                        response = await fetch('/api/documents-search', {
+response = await fetch(`/api/documents-search/${currentIndex}`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({

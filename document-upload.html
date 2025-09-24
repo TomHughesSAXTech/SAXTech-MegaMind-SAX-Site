@@ -2898,7 +2898,7 @@
 
                     // Count via same-origin API to avoid CORS and ensure indexName honored
                     try {
-const countResp = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
+const countResp = await fetch(`/api/documents-search/${idx.name}`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -2923,7 +2923,7 @@ const countResp = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.searc
                     if (vecEl) vecEl.textContent = Math.floor(totalDocs * 0.8).toLocaleString();
 
                     // 3) Find last update based on latest upload/created/lastModified date for this index
-const latestResp = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
+const latestResp = await fetch(`/api/documents-search/${idx.name}`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
