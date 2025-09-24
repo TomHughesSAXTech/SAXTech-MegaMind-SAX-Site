@@ -1155,6 +1155,9 @@
             <button id="signOutBtn" class="sign-out-btn">Sign Out</button>
             <button onclick="openDocumentPortal()" class="sign-out-btn" style="margin-left: 10px;">Documents</button>
         </div>
+        <div style="margin-top: 8px; text-align: right;">
+            <button id="conversationHistoryBtn" class="sign-out-btn" style="margin-left: 10px;" onclick="openConversationHistory()">Conversation History</button>
+        </div>
     </div>
 
     <!-- Large 3D Spinning Personality Carousel -->
@@ -1843,6 +1846,14 @@
                 alert('Login failed: ' + error.message);
             }
         });
+
+        // Quick nav helpers
+        function openDocumentPortal() {
+            window.location.href = '/document-upload.html';
+        }
+        function openConversationHistory() {
+            window.location.href = '/admin.html#sessions';
+        }
 
         // Sign out (local only - doesn't sign out of Microsoft 365)
         signOutBtn.addEventListener('click', () => {
