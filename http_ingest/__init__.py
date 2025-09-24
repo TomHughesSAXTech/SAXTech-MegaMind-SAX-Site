@@ -11,7 +11,10 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir))
         if ROOT_DIR not in sys.path:
             sys.path.append(ROOT_DIR)
-        from function_app import WeeklyTaxIngestion  # lazy import
+        try:
+            from function_app import WeeklyTaxIngestion  # prefer main module if present
+        except Exception:
+            from app_core import WeeklyTaxIngestion  # fallback if function_app.py disabled/renamed
         WeeklyTaxIngestion(None)
         return func.HttpResponse("Tax ingestion completed", status_code=200)
     except Exception as e:

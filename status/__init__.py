@@ -11,7 +11,10 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir))
         if ROOT_DIR not in sys.path:
             sys.path.append(ROOT_DIR)
-        from function_app import get_last_processed_state
+        try:
+            from function_app import get_last_processed_state
+        except Exception:
+            from app_core import get_last_processed_state
         st = get_last_processed_state() or {}
         payload = {
             'last_usc_release': st.get('last_usc_release'),
