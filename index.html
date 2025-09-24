@@ -244,6 +244,34 @@
             background: rgba(255,255,255,0.1);
         }
 
+        /* Conversation history dropdown (aligned with profile buttons) */
+        .history-wrap {
+            position: relative;
+            display: inline-block;
+            margin-left: 10px;
+        }
+        .history-panel {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            background: rgba(255,255,255,0.98);
+            border: 1px solid rgba(255,215,0,0.4);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            min-width: 340px;
+            max-width: 420px;
+            max-height: 420px;
+            overflow-y: auto;
+            z-index: 1001;
+            display: none;
+        }
+        .history-panel.active { display: block; }
+        .history-item { padding: 12px 14px; border-bottom: 1px solid rgba(0,0,0,0.06); cursor: pointer; }
+        .history-item:hover { background: rgba(255,215,0,0.08); }
+        .history-item-title { font-weight: 600; color: #222; font-size: 13px; margin-bottom: 4px; }
+        .history-item-time { font-size: 11px; color: #777; }
+        .history-empty, .history-loading { padding: 14px; font-size: 12px; color: #777; text-align: center; }
+
         /* Admin indicator */
         .admin-badge {
             background: linear-gradient(135deg, #FF4500, #FF6B47);
@@ -1154,9 +1182,14 @@
             <div id="adminBadge" class="admin-badge hidden">Admin</div>
             <button id="signOutBtn" class="sign-out-btn">Sign Out</button>
             <button onclick="openDocumentPortal()" class="sign-out-btn" style="margin-left: 10px;">Documents</button>
-        </div>
-        <div style="margin-top: 8px; text-align: right;">
-            <button id="conversationHistoryBtn" class="sign-out-btn" style="margin-left: 10px;" onclick="openConversationHistory()">Conversation History</button>
+            <div class="history-wrap">
+                <button id="historyToggleBtn" class="sign-out-btn" onclick="toggleHistoryPanel()">Conversation History ▾</button>
+                <div id="historyPanel" class="history-panel">
+                    <div id="historyLoading" class="history-loading">Loading...</div>
+                    <div id="historyEmpty" class="history-empty" style="display:none;">No conversation history</div>
+                    <div id="historyList"></div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1854,6 +1887,81 @@
         function openConversationHistory() {
             window.location.href = '/admin.html#sessions';
         }
+        
+        // Inline dropdown version
+        let historyOpen = false;
+        function toggleHistoryPanel() {
+            const panel = document.getElementById('historyPanel');
+            const loading = document.getElementById('historyLoading');
+            const list = document.getElementById('historyList');
+            const empty = document.getElementById('historyEmpty');
+            historyOpen = !historyOpen;
+            if (historyOpen) {
+                panel.classList.add('active');
+                // Load local history snapshots
+                loading.style.display = 'block';
+                empty.style.display = 'none';
+                list.innerHTML = '';
+                const snapshots = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith('megamind_conversation_')) {
+                        try {
+                            const data = JSON.parse(localStorage.getItem(key));
+                            if (data && Array.isArray(data.messages)) snapshots.push(data);
+                        } catch {}
+                    }
+                }
+                // Sort newest first
+                snapshots.sort((a,b)=> new Date(b.timestamp||0) - new Date(a.timestamp||0));
+                loading.style.display = 'none';
+                if (snapshots.length === 0) {
+                    empty.style.display = 'block';
+                    return;
+                }
+                // Render list (max 12)
+                snapshots.slice(0,12).forEach((conv, idx) => {
+                    const firstUser = conv.messages.find(m=>m.role==='user');
+                    const firstBot = conv.messages.find(m=>m.role==='assistant');
+                    const title = (firstUser?.content || firstBot?.content || 'Conversation').slice(0,60);
+                    const time = new Date(conv.timestamp || Date.now()).toLocaleString();
+                    const item = document.createElement('div');
+                    item.className = 'history-item';
+                    item.innerHTML = `<div class="history-item-title">${escapeHtml(title)}</div>
+                                      <div class="history-item-time">${time}</div>`;
+                    item.addEventListener('click', ()=> loadConversationFromSnapshot(conv));
+                    list.appendChild(item);
+                });
+            } else {
+                panel.classList.remove('active');
+            }
+        }
+        
+        function escapeHtml(str){
+            try { return String(str).replace(/[&<>"']/g, s=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[s])); } catch { return str; }
+        }
+        
+        function loadConversationFromSnapshot(conv){
+            const messages = conv?.messages || [];
+            chatMessages.innerHTML='';
+            messages.forEach(msg=>{
+                if (msg.role==='user') addMessage('user', msg.content, null, false);
+                else if (msg.role==='assistant') addMessage('bot', msg.content, null, false);
+            });
+            // Close panel
+            toggleHistoryPanel();
+        }
+        
+        // Close history panel when clicking outside
+        document.addEventListener('click', (e)=>{
+            if (!e.target.closest('.history-wrap')) {
+                const panel = document.getElementById('historyPanel');
+                if (panel && panel.classList.contains('active')) {
+                    panel.classList.remove('active');
+                    historyOpen = false;
+                }
+            }
+        });
 
         // Sign out (local only - doesn't sign out of Microsoft 365)
         signOutBtn.addEventListener('click', () => {
