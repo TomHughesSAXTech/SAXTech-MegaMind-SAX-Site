@@ -1,12 +1,29 @@
 {
+  "routes": [
+    {
+      "route": "/api/index/maintenance",
+      "rewrite": "https://saxtechmegamindfunctions.azurewebsites.net/api/index/maintenance",
+      "allowedRoles": ["anonymous"]
+    }
+  ],
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["*.{css,scss,js,png,gif,ico,jpg,svg,woff,woff2,ttf,eot,json,txt}"]
-  },
-  "mimeTypes": {
-    ".png": "image/png",
-    ".jpg": "image/jpeg",
-    ".gif": "image/gif",
-    ".svg": "image/svg+xml"
+    "exclude": [
+      "/api/*",
+      "*.css",
+      "*.scss",
+      "*.js",
+      "*.png",
+      "*.gif",
+      "*.ico",
+      "*.jpg",
+      "*.svg",
+      "*.woff",
+      "*.woff2",
+      "*.ttf",
+      "*.eot",
+      "*.json",
+      "*.txt"
+    ]
   }
 }
