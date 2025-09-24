@@ -1,1 +1,59 @@
-<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=index.html.backup-20250918-004806"><script>location.replace('index.html.backup-20250918-004806');</script><title>Redirecting…</title></head><body>Redirecting…</body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MegaMind SAX</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; padding: 24px; background: #0f172a; color: #e2e8f0; }
+    .card { max-width: 900px; margin: 0 auto; background: #0b1220; border: 1px solid #1f2937; border-radius: 12px; padding: 24px; }
+    h1 { margin: 0 0 12px; font-size: 22px; }
+    .muted { color: #94a3b8; font-size: 14px; }
+    .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    button { background: #2563eb; color: white; border: 0; padding: 10px 14px; border-radius: 8px; cursor: pointer; }
+    button.secondary { background: #1f2937; }
+    .hidden { display: none; }
+    pre { background: #0a0f1c; padding: 12px; border-radius: 8px; overflow: auto; }
+    .error { color: #fecaca; }
+  </style>
+  <script src="https://alcdn.msauth.net/browser/2.46.0/js/msal-browser.min.js" crossorigin="anonymous"></script>
+  <noscript><div style="color:#fecaca">JavaScript is required to sign in.</div></noscript>
+</head>
+<body>
+  <div class="card">
+    <h1>MegaMind SAX</h1>
+    <div class="muted">Sign in with your work account. Access is restricted to members of the MegaMind-SAX-Access group.</div>
+    <div class="row" style="margin-top:16px">
+      <button id="btnSignIn">Sign in</button>
+      <button id="btnSignOut" class="secondary hidden">Sign out</button>
+    </div>
+    <div id="status" class="muted" style="margin-top:12px"></div>
+    <div id="error" class="error"></div>
+    <div id="content" class="hidden" style="margin-top:16px">
+      <h2>Welcome</h2>
+      <div class="muted">You are signed in and authorized. Continue to use the site.</div>
+    </div>
+    <details style="margin-top:16px">
+      <summary>Technical details</summary>
+      <pre id="details"></pre>
+    </details>
+  </div>
+  <script>
+  const AAD_CLIENT_ID = "4fae91a2-eac8-485e-bf00-968e39620422f";
+  const AAD_AUTHORITY = "https://login.microsoftonline.com/organizations";
+  const GROUP_ALLOWED = "c487a7b3-4461-46f0-b07e-d0b1bece655e";
+  const msalConfig = { auth: { clientId: AAD_CLIENT_ID, authority: AAD_AUTHORITY, redirectUri: window.location.origin + "/", postLogoutRedirectUri: window.location.origin + "/" }, cache: { cacheLocation: "localStorage", storeAuthStateInCookie: false } };
+  const msalInstance = new msal.PublicClientApplication(msalConfig);
+  const els = { signIn: document.getElementById("btnSignIn"), signOut: document.getElementById("btnSignOut"), status: document.getElementById("status"), error: document.getElementById("error"), content: document.getElementById("content"), details: document.getElementById("details") };
+  function uiSignedOut(){ els.signIn.classList.remove("hidden"); els.signOut.classList.add("hidden"); els.content.classList.add("hidden"); els.status.textContent="Not signed in.";}
+  function uiSignedIn(msg){ els.signIn.classList.add("hidden"); els.signOut.classList.remove("hidden"); els.status.textContent=msg||"Signed in.";}
+  function showError(e){ console.error(e); els.error.textContent=(e&&(e.message||e.errorMessage))||String(e||"Unknown error"); }
+  async function ensureIdTokenClaims(){ try{ const r=await msalInstance.acquireTokenSilent({scopes:["openid","profile"]}); return r?.idTokenClaims||null; }catch{return null;} }
+  function isAuthorizedByGroup(claims){ if(!claims) return false; if(Array.isArray(claims.groups)&&claims.groups.includes(GROUP_ALLOWED)) return true; if(claims.hasgroups){ els.error.innerHTML="Your token omitted groups due to overage. Admin can enable Graph-based checks."; } return false; }
+  async function onPageLoad(){ try{ const resp=await msalInstance.handleRedirectPromise(); if(resp?.account){ msalInstance.setActiveAccount(resp.account); } let account=msalInstance.getActiveAccount()||msalInstance.getAllAccounts()[0]||null; if(!account){ uiSignedOut(); return; } uiSignedIn("Signed in as "+(account.username||account.homeAccountId)); let claims=resp?.idTokenClaims||account?.idTokenClaims||null; if(!claims) claims=await ensureIdTokenClaims(); els.details.textContent=JSON.stringify({username:account.username,tenantId:claims?.tid,groups:claims?.groups,hasgroups:claims?.hasgroups},null,2); if(isAuthorizedByGroup(claims)){ els.content.classList.remove("hidden"); } else { els.content.classList.add("hidden"); els.status.textContent="Signed in, but not authorized for MegaMind-SAX-Access."; } } catch(e){ showError(e); uiSignedOut(); } }
+  els.signIn.onclick=()=>msalInstance.loginRedirect({scopes:["openid","profile"]});
+  els.signOut.onclick=()=>{ const account=msalInstance.getActiveAccount(); msalInstance.logoutRedirect({account}); };
+  onPageLoad();
+  </script>
+</body>
+</html>
