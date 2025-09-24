@@ -1687,8 +1687,8 @@ const searchResponse = await fetch(`/api/documents-search/${currentIndex}`, {
                             search: '*',
                             query: '*',
                             top: 10,
-                            orderby: 'metadata_storage_last_modified desc',
-                            select: 'uploadDate,createdDate,lastModified,metadata_storage_last_modified',
+orderby: 'modifiedDate desc, metadata_storage_last_modified desc, uploadDate desc, createdDate desc',
+select: 'uploadDate,createdDate,modifiedDate,lastModified,metadata_storage_last_modified',
                             indexName: currentIndex
                         })
                     });
@@ -1710,8 +1710,8 @@ const searchResponse = await fetch(`/api/documents-search/${currentIndex}`, {
                                 search: '*',
                                 query: '*',
                                 top: 10,
-                                orderby: 'metadata_storage_last_modified desc',
-                                select: 'uploadDate,createdDate,lastModified,metadata_storage_last_modified',
+orderby: 'modifiedDate desc, metadata_storage_last_modified desc, uploadDate desc, createdDate desc',
+select: 'uploadDate,createdDate,modifiedDate,lastModified,metadata_storage_last_modified',
                                 indexName: currentIndex
                             })
                         });
@@ -1729,7 +1729,7 @@ const searchResponse = await fetch(`/api/documents-search/${currentIndex}`, {
                 if (documents && documents.length > 0) {
                     let mostRecentDate = null;
                     documents.forEach(doc => {
-                        const dates = [doc.uploadDate, doc.createdDate, doc.lastModified, doc.metadata_storage_last_modified].filter(d => d);
+const dates = [doc.uploadDate, doc.createdDate, doc.modifiedDate, doc.lastModified, doc.metadata_storage_last_modified].filter(d => d);
                         dates.forEach(dateStr => {
                             const date = new Date(dateStr);
                             if (!mostRecentDate || date > mostRecentDate) {
