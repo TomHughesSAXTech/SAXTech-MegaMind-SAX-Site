@@ -1557,68 +1557,95 @@
                 const currentIndex = (selEl && selEl.value) ? selEl.value : INDEX_CONFIG.indexName;
                 INDEX_CONFIG.indexName = currentIndex; // keep in sync
 
-                // Get document count from index maintenance
-                // Use same-origin API to avoid FunctionApp indexName drift
-const statsResponse = await fetch('/api/documents-search', {
+                // 1) Document count via SWA API, fallback to Function App
+                let totalDocs = 0;
+                let statsResponse = await fetch('/api/documents-search', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ search: '*', top: 0, indexName: currentIndex })
+                    body: JSON.stringify({ search: '*', query: '*', top: 0, indexName: currentIndex })
                 });
-                
-                let totalDocs = 0;
                 if (statsResponse.ok) {
                     const statsData = await statsResponse.json();
                     totalDocs = statsData['@odata.count'] || (statsData.value ? statsData.value.length : 0) || 0;
-                    document.getElementById('totalDocs').textContent = totalDocs;
-                    
-                    // Calculate size
-                    const sizeInMB = (totalDocs * 50 / 1024).toFixed(1);
-                    document.getElementById('indexSize').textContent = `${sizeInMB} MB`;
+                } else {
+                    const fbStats = await fetch(`${INDEX_CONFIG.functionUrl}/documents/search`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-functions-key': INDEX_CONFIG.functionKey
+                        },
+                        body: JSON.stringify({ search: '*', query: '*', top: 0, indexName: currentIndex })
+                    });
+                    if (fbStats.ok) {
+                        const statsData = await fbStats.json();
+                        totalDocs = statsData['@odata.count'] || (statsData.value ? statsData.value.length : 0) || 0;
+                    }
                 }
-                
-                // Query for the most recent document
-const searchResponse = await fetch('/api/documents-search', {
+                document.getElementById('totalDocs').textContent = totalDocs;
+                const sizeInMB = (totalDocs * 50 / 1024).toFixed(1);
+                document.getElementById('indexSize').textContent = `${sizeInMB} MB`;
+
+                // 2) Recent doc date via SWA API, fallback to Function App
+                let documents = [];
+                let searchResponse = await fetch('/api/documents-search', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         search: '*',
+                        query: '*',
                         top: 10,
                         orderby: 'metadata_storage_last_modified desc',
                         select: 'uploadDate,createdDate,lastModified,metadata_storage_last_modified',
                         indexName: currentIndex
                     })
                 });
-                
                 if (searchResponse.ok) {
                     const searchData = await searchResponse.json();
-                    const documents = searchData.value || searchData.results || [];
-                    
-                    if (documents && documents.length > 0) {
-                        let mostRecentDate = null;
-                        documents.forEach(doc => {
-                            const dates = [doc.uploadDate, doc.createdDate, doc.lastModified, doc.metadata_storage_last_modified].filter(d => d);
-                            dates.forEach(dateStr => {
-                                const date = new Date(dateStr);
-                                if (!mostRecentDate || date > mostRecentDate) {
-                                    mostRecentDate = date;
-                                }
-                            });
-                        });
-                        
-                        if (mostRecentDate) {
-                            const formatted = formatDateToEST(mostRecentDate.toISOString());
-                            document.getElementById('lastUpdate').textContent = formatted;
-                        } else {
-                            document.getElementById('lastUpdate').textContent = '--';
-                        }
-                    } else {
-                        document.getElementById('lastUpdate').textContent = 'No documents';
-                    }
-                    
-                    showIndexAlert('success', 'Statistics refreshed successfully');
+                    documents = searchData.value || searchData.results || [];
                 } else {
-                    throw new Error('Failed to fetch recent documents');
+                    const fbRecent = await fetch(`${INDEX_CONFIG.functionUrl}/documents/search`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-functions-key': INDEX_CONFIG.functionKey
+                        },
+                        body: JSON.stringify({
+                            search: '*',
+                            query: '*',
+                            top: 10,
+                            orderby: 'metadata_storage_last_modified desc',
+                            select: 'uploadDate,createdDate,lastModified,metadata_storage_last_modified',
+                            indexName: currentIndex
+                        })
+                    });
+                    if (fbRecent.ok) {
+                        const searchData = await fbRecent.json();
+                        documents = searchData.value || searchData.results || [];
+                    }
                 }
+
+                if (documents && documents.length > 0) {
+                    let mostRecentDate = null;
+                    documents.forEach(doc => {
+                        const dates = [doc.uploadDate, doc.createdDate, doc.lastModified, doc.metadata_storage_last_modified].filter(d => d);
+                        dates.forEach(dateStr => {
+                            const date = new Date(dateStr);
+                            if (!mostRecentDate || date > mostRecentDate) {
+                                mostRecentDate = date;
+                            }
+                        });
+                    });
+                    if (mostRecentDate) {
+                        const formatted = formatDateToEST(mostRecentDate.toISOString());
+                        document.getElementById('lastUpdate').textContent = formatted;
+                    } else {
+                        document.getElementById('lastUpdate').textContent = '--';
+                    }
+                } else {
+                    document.getElementById('lastUpdate').textContent = 'No documents';
+                }
+
+                showIndexAlert('success', 'Statistics refreshed successfully');
             } catch (error) {
                 showIndexAlert('error', 'Error fetching statistics: ' + error.message);
                 document.getElementById('lastUpdate').textContent = 'Error';
