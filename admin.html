@@ -1638,58 +1638,51 @@
                 const currentIndex = (selEl && selEl.value) ? selEl.value : INDEX_CONFIG.indexName;
                 INDEX_CONFIG.indexName = currentIndex; // keep in sync
 
-                // 1) Document count via SWA API, fallback to Function App
+// 1) Document count via SWA API, fallback to Function App
                 let totalDocs = 0;
-                let statsResponse = await fetch('/api/documents-search', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ search: '*', query: '*', top: 0, indexName: currentIndex })
-                });
-                if (statsResponse.ok) {
-                    const statsData = await statsResponse.json();
-                    totalDocs = statsData['@odata.count'] || (statsData.value ? statsData.value.length : 0) || 0;
-                } else {
-                    const fbStats = await fetch(`${INDEX_CONFIG.functionUrl}/documents/search`, {
+                try {
+                    const statsResponse = await fetch('/api/documents-search', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'x-functions-key': INDEX_CONFIG.functionKey
-                        },
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ search: '*', query: '*', top: 0, indexName: currentIndex })
                     });
-                    if (fbStats.ok) {
-                        const statsData = await fbStats.json();
+                    if (statsResponse.ok) {
+                        const statsData = await statsResponse.json();
                         totalDocs = statsData['@odata.count'] || (statsData.value ? statsData.value.length : 0) || 0;
+                    } else {
+                        throw new Error(`SWA API returned ${statsResponse.status}`);
+                    }
+                } catch (e) {
+                    // Fallback to Function App
+                    try {
+                        const fbStats = await fetch(`${INDEX_CONFIG.functionUrl}/documents/search`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'x-functions-key': INDEX_CONFIG.functionKey
+                            },
+                            body: JSON.stringify({ search: '*', query: '*', top: 0, indexName: currentIndex })
+                        });
+                        if (fbStats.ok) {
+                            const statsData = await fbStats.json();
+                            totalDocs = statsData['@odata.count'] || (statsData.value ? statsData.value.length : 0) || 0;
+                        } else {
+                            throw new Error(`FunctionApp API returned ${fbStats.status}`);
+                        }
+                    } catch (fe) {
+                        console.error('Both SWA and FunctionApp stats failed:', e?.message || e, fe?.message || fe);
                     }
                 }
                 document.getElementById('totalDocs').textContent = totalDocs;
                 const sizeInMB = (totalDocs * 50 / 1024).toFixed(1);
                 document.getElementById('indexSize').textContent = `${sizeInMB} MB`;
 
-                // 2) Recent doc date via SWA API, fallback to Function App
+// 2) Recent doc date via SWA API, fallback to Function App
                 let documents = [];
-                let searchResponse = await fetch('/api/documents-search', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        search: '*',
-                        query: '*',
-                        top: 10,
-                        orderby: 'metadata_storage_last_modified desc',
-                        select: 'uploadDate,createdDate,lastModified,metadata_storage_last_modified',
-                        indexName: currentIndex
-                    })
-                });
-                if (searchResponse.ok) {
-                    const searchData = await searchResponse.json();
-                    documents = searchData.value || searchData.results || [];
-                } else {
-                    const fbRecent = await fetch(`${INDEX_CONFIG.functionUrl}/documents/search`, {
+                try {
+                    const searchResponse = await fetch('/api/documents-search', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'x-functions-key': INDEX_CONFIG.functionKey
-                        },
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             search: '*',
                             query: '*',
@@ -1699,9 +1692,37 @@
                             indexName: currentIndex
                         })
                     });
-                    if (fbRecent.ok) {
-                        const searchData = await fbRecent.json();
+                    if (searchResponse.ok) {
+                        const searchData = await searchResponse.json();
                         documents = searchData.value || searchData.results || [];
+                    } else {
+                        throw new Error(`SWA API returned ${searchResponse.status}`);
+                    }
+                } catch (e) {
+                    try {
+                        const fbRecent = await fetch(`${INDEX_CONFIG.functionUrl}/documents/search`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'x-functions-key': INDEX_CONFIG.functionKey
+                            },
+                            body: JSON.stringify({
+                                search: '*',
+                                query: '*',
+                                top: 10,
+                                orderby: 'metadata_storage_last_modified desc',
+                                select: 'uploadDate,createdDate,lastModified,metadata_storage_last_modified',
+                                indexName: currentIndex
+                            })
+                        });
+                        if (fbRecent.ok) {
+                            const searchData = await fbRecent.json();
+                            documents = searchData.value || searchData.results || [];
+                        } else {
+                            throw new Error(`FunctionApp API returned ${fbRecent.status}`);
+                        }
+                    } catch (fe) {
+                        console.error('Both SWA and FunctionApp recent-docs failed:', e?.message || e, fe?.message || fe);
                     }
                 }
 
@@ -1754,20 +1775,41 @@
                 let got = 0;
                 do {
                     page++;
-const response = await fetch('/api/documents-search', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            query: query,
-                            search: query,
-                            filter: filter,
-                            top: pageSize,
-                            skip: skip,
-                            indexName: currentIndex,
-                            select: 'id,title,fileName,department,documentType,uploadDate,createdDate,lastModified,metadata_storage_last_modified,author,fileSize,status,vectorized,chunkCount,chunks,conversionMethod,contentHash,contentLength,metadata,content,totalCharacters'
-                        })
-                    });
-                    if (!response.ok) throw new Error('Search failed');
+let response;
+                    try {
+                        response = await fetch('/api/documents-search', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                query: query,
+                                search: query,
+                                filter: filter,
+                                top: pageSize,
+                                skip: skip,
+                                indexName: currentIndex,
+                                select: 'id,title,fileName,department,documentType,uploadDate,createdDate,lastModified,metadata_storage_last_modified,author,fileSize,status,vectorized,chunkCount,chunks,conversionMethod,contentHash,contentLength,metadata,content,totalCharacters'
+                            })
+                        });
+                        if (!response.ok) throw new Error('SWA search failed');
+                    } catch (e) {
+                        response = await fetch(`${INDEX_CONFIG.functionUrl}/documents/search`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'x-functions-key': INDEX_CONFIG.functionKey
+                            },
+                            body: JSON.stringify({
+                                query: query,
+                                search: query,
+                                filter: filter,
+                                top: pageSize,
+                                skip: skip,
+                                indexName: currentIndex,
+                                select: 'id,title,fileName,department,documentType,uploadDate,createdDate,lastModified,metadata_storage_last_modified,author,fileSize,status,vectorized,chunkCount,chunks,conversionMethod,contentHash,contentLength,metadata,content,totalCharacters'
+                            })
+                        });
+                        if (!response.ok) throw new Error('FunctionApp search failed');
+                    }
                     const data = await response.json();
                     const docs = data.results || data.value || [];
                     got = docs.length;
