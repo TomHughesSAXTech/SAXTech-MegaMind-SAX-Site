@@ -80,18 +80,27 @@ STORAGE_CONNECTION_STRING = os.environ.get('AzureWebJobsStorage')
 ECFR_BASE_URL = "https://www.ecfr.gov"
 USC_BASE_URL = "https://uscode.house.gov"
 
-# Initialize Azure Search client
+# Initialize Azure Search client lazily/safely for environments where SDK may be missing
 search_endpoint = f"https://{SEARCH_SERVICE_NAME}.search.windows.net"
-search_client = SearchClient(
-    endpoint=search_endpoint,
-    index_name=SEARCH_INDEX_NAME,
-    credential=AzureKeyCredential(SEARCH_API_KEY)
-) if SEARCH_API_KEY else None
+try:
+    if SEARCH_API_KEY and SearchClient and AzureKeyCredential:
+        search_client = SearchClient(
+            endpoint=search_endpoint,
+            index_name=SEARCH_INDEX_NAME,
+            credential=AzureKeyCredential(SEARCH_API_KEY)
+        )
+    else:
+        search_client = None
+except Exception:
+    search_client = None
 
 def get_storage_client():
     """Initialize storage client for state management"""
-    if STORAGE_CONNECTION_STRING:
-        return BlobServiceClient.from_connection_string(STORAGE_CONNECTION_STRING)
+    try:
+        if STORAGE_CONNECTION_STRING and BlobServiceClient:
+            return BlobServiceClient.from_connection_string(STORAGE_CONNECTION_STRING)
+    except Exception:
+        pass
     return None
 
 def get_last_processed_state():
