@@ -1898,39 +1898,12 @@
             historyOpen = !historyOpen;
             if (historyOpen) {
                 panel.classList.add('active');
-                // Load local history snapshots
+                // Try cloud history first, fallback to local snapshots
                 loading.style.display = 'block';
                 empty.style.display = 'none';
                 list.innerHTML = '';
-                const snapshots = [];
-                for (let i = 0; i < localStorage.length; i++) {
-                    const key = localStorage.key(i);
-                    if (key && key.startsWith('megamind_conversation_')) {
-                        try {
-                            const data = JSON.parse(localStorage.getItem(key));
-                            if (data && Array.isArray(data.messages)) snapshots.push(data);
-                        } catch {}
-                    }
-                }
-                // Sort newest first
-                snapshots.sort((a,b)=> new Date(b.timestamp||0) - new Date(a.timestamp||0));
-                loading.style.display = 'none';
-                if (snapshots.length === 0) {
-                    empty.style.display = 'block';
-                    return;
-                }
-                // Render list (max 12)
-                snapshots.slice(0,12).forEach((conv, idx) => {
-                    const firstUser = conv.messages.find(m=>m.role==='user');
-                    const firstBot = conv.messages.find(m=>m.role==='assistant');
-                    const title = (firstUser?.content || firstBot?.content || 'Conversation').slice(0,60);
-                    const time = new Date(conv.timestamp || Date.now()).toLocaleString();
-                    const item = document.createElement('div');
-                    item.className = 'history-item';
-                    item.innerHTML = `<div class="history-item-title">${escapeHtml(title)}</div>
-                                      <div class="history-item-time">${time}</div>`;
-                    item.addEventListener('click', ()=> loadConversationFromSnapshot(conv));
-                    list.appendChild(item);
+                loadCloudHistory().then(hadCloud => {
+                    if (!hadCloud) loadLocalHistory();
                 });
             } else {
                 panel.classList.remove('active');
@@ -1941,14 +1914,16 @@
             try { return String(str).replace(/[&<>"']/g, s=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[s])); } catch { return str; }
         }
         
-        function loadConversationFromSnapshot(conv){
-            const messages = conv?.messages || [];
+function loadConversationFromSnapshot(conv){
+            restoreConversation(conv?.messages || []);
+        }
+        
+        function restoreConversation(messages){
             chatMessages.innerHTML='';
-            messages.forEach(msg=>{
+            (messages||[]).forEach(msg=>{
                 if (msg.role==='user') addMessage('user', msg.content, null, false);
                 else if (msg.role==='assistant') addMessage('bot', msg.content, null, false);
             });
-            // Close panel
             toggleHistoryPanel();
         }
         
