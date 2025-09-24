@@ -3,16 +3,16 @@ import json
 import os, sys
 from datetime import datetime, timezone
 
-CURRENT_DIR = os.path.dirname(__file__)
-ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir))
-if ROOT_DIR not in sys.path:
-    sys.path.append(ROOT_DIR)
-import function_app as appmod
-
+# Lazy import of function_app inside main to avoid module import-time failures
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
     try:
-        st = appmod.get_last_processed_state() or {}
+        CURRENT_DIR = os.path.dirname(__file__)
+        ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir))
+        if ROOT_DIR not in sys.path:
+            sys.path.append(ROOT_DIR)
+        from function_app import get_last_processed_state
+        st = get_last_processed_state() or {}
         payload = {
             'last_usc_release': st.get('last_usc_release'),
             'last_cfr_version': st.get('last_ecfr_version'),
