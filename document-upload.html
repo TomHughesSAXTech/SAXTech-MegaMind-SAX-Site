@@ -2936,10 +2936,12 @@ body: JSON.stringify({ search: '*', top: 10, orderby: 'modifiedDate desc, metada
                         const docs = latest.value || latest.results || [];
                         let mostRecent = null;
                         docs.forEach(d => {
-[d.uploadDate, d.createdDate, d.modifiedDate, d.lastModified, d.metadata_storage_last_modified].filter(Boolean)
-                                const dt = new Date(ds);
-                                if (!mostRecent || dt > mostRecent) mostRecent = dt;
-                            });
+                            [d.uploadDate, d.createdDate, d.modifiedDate, d.lastModified, d.metadata_storage_last_modified]
+                                .filter(Boolean)
+                                .forEach(ds => {
+                                    const dt = new Date(ds);
+                                    if (!mostRecent || dt > mostRecent) mostRecent = dt;
+                                });
                         });
                         const target = document.getElementById(`lastUpdate-${idx.name}`);
                         if (target) {
