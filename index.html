@@ -1444,7 +1444,8 @@
         };
 
         const loginRequest = {
-            scopes: ["openid", "profile", "email", "User.Read"],
+            // Request elevated scope for manager endpoint (requires admin consent in tenant)
+            scopes: ["openid", "profile", "email", "User.Read", "User.Read.All"],
             prompt: "select_account",
             domainHint: "saxadvisorygroup.com",
             loginHint: "@saxadvisorygroup.com"
