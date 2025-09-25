@@ -1963,7 +1963,9 @@ function loadConversationFromSnapshot(conv){
                 const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=get&email=${encodeURIComponent(email)}&range=month&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
                 const resp = await fetch(url);
                 if (!resp.ok) {
+                    console.warn('Cloud history HTTP', resp.status);
                     if (loading) loading.style.display = 'none';
+                    if (empty) empty.style.display = 'block';
                     return false;
                 }
                 const data = await resp.json();

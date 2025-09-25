@@ -15,7 +15,7 @@ window.openDocumentPreview = async function(fileName, department) {
     
     // Check if fileName is actually a URL (for indexed web pages)
     // Be strict: only treat as URL if it has an explicit http/https scheme
-    const isUrl = /^https?:\/\/i.test(fileName);
+    const isUrl = /^https?:\/\//i.test(fileName);
     
     // If a full blob path was provided, try direct SAS preview first
     if (fullBlobPath) {
