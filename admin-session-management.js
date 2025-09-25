@@ -684,11 +684,41 @@ window.loadAllRecentSessions = async function() {
 };
 
 // Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     // Replace the existing displaySessions function with enhanced version
     if (window.displaySessions) {
         window.displaySessions = displaySessionsEnhanced;
     }
+    // Populate dropdown with All Team Conversations and all known users from recent
+    try {
+        const dd = document.getElementById('userFilterDropdown');
+        if (dd) {
+            // Insert special option for team conversations
+            const teamOpt = document.createElement('option');
+            teamOpt.value = '__ALL_TEAM__';
+            teamOpt.textContent = 'All Team Conversations';
+            dd.insertBefore(teamOpt, dd.firstChild.nextSibling); // after "All Users"
+            // Fetch recent sessions to build user list
+            const url = 'https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=recent&limit=200&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==';
+            const r = await fetch(url);
+            if (r.ok) {
+                const data = await r.json();
+                const sessions = data.sessions || data || [];
+                if (Array.isArray(sessions) && sessions.length) {
+                    // Reuse populate function to add users derived from sessions
+                    window.populateUserFilter(sessions);
+                }
+            }
+            // Hook change to trigger team load when selected
+            dd.addEventListener('change', ()=>{
+                if (dd.value === '__ALL_TEAM__') {
+                    if (typeof window.loadAllRecentSessions === 'function') window.loadAllRecentSessions();
+                } else {
+                    window.filterSessionsByUser();
+                }
+            });
+        }
+    } catch (e) { console.warn('Failed to init team/user dropdown', e); }
 });
 
 // Helper function to show status messages
