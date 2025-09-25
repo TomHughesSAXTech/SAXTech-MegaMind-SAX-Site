@@ -6,11 +6,30 @@
 // Make openDocumentPreview globally available
 window.openDocumentPreview = async function(fileName, department) {
     console.log('Opening document preview for:', fileName, 'Department:', department);
+
+    // Support full blob path passed as fileName (e.g., "Human Resources/2025 Sax Employee Handbook.pdf")
+    let fullBlobPath = null;
+    if (!department && typeof fileName === 'string' && fileName.includes('/')) {
+        fullBlobPath = fileName;
+    }
     
     // Check if fileName is actually a URL (for indexed web pages)
-    const isUrl = fileName.startsWith('http://') || fileName.startsWith('https://') || 
-                  fileName.includes('.com') || fileName.includes('.org') || 
-                  fileName.includes('.net') || fileName.includes('.gov');
+    // Be strict: only treat as URL if it has an explicit http/https scheme
+    const isUrl = /^https?:\/\/i.test(fileName);
+    
+    // If a full blob path was provided, try direct SAS preview first
+    if (fullBlobPath) {
+        try {
+            showPreviewLoading(fullBlobPath.split('/').pop());
+            const sasUrl = await generateSASUrl(fullBlobPath);
+            if (sasUrl) {
+                displayDocumentPreview(fullBlobPath.split('/').pop(), sasUrl);
+                return;
+            }
+        } catch (e) {
+            console.warn('Full-path SAS preview failed, falling back to heuristics:', e);
+        }
+    }
     
     // Check if this is indexed website content
     const fileNameLower = fileName.toLowerCase();

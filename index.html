@@ -4221,6 +4221,80 @@ function loadConversationFromSnapshot(conv){
     </div>
     -->
 
+    <!-- Chat preview delegation: make preview links work even if inline onclick is blocked -->
+    <script>
+        (function(){
+            // Intercept window.open for raw blob links anywhere in app
+            try {
+                const __oldOpen = window.open;
+                window.open = function(url, target, features){
+                    try {
+                        if (typeof url === 'string' && /blob\.core\.windows\.net\/saxdocuments\//i.test(url)) {
+                            const pathPart = decodeURIComponent(url.replace(/^https?:\/\/[^\/]*blob\.core\.windows\.net\/saxdocuments\//i, ''));
+                            if (pathPart && window.openDocumentPreview) {
+                                window.openDocumentPreview(pathPart);
+                                return null;
+                            }
+                        }
+                    } catch (e) { console.warn('open override warn:', e); }
+                    return __oldOpen.apply(window, arguments);
+                };
+            } catch (e) { console.warn('open override init failed:', e); }
+
+            document.addEventListener('click', function(e){
+                const a = e.target.closest('a');
+                if (!a) return;
+                // Explicit data attributes
+                if (a.dataset && (a.dataset.openPreview === '1' || a.dataset.previewFile)) {
+                    e.preventDefault();
+                    const file = a.dataset.previewFile || a.dataset.file || '';
+                    const dept = a.dataset.department || '';
+                    if (file && window.openDocumentPreview) {
+                        window.openDocumentPreview(file, dept);
+                    }
+                    return;
+                }
+                // Parse inline onclick if present but blocked by CSP
+                const oc = a.getAttribute('onclick');
+                if (oc && oc.includes('openDocumentPreview')) {
+                    e.preventDefault();
+                    try {
+                        // Matches openDocumentPreview('file','dept') or ("file")
+                        const m = oc.match(/openDocumentPreview\(([^)]*)\)/);
+                        if (m && m[1]) {
+                            const args = m[1]
+                                .split(',')
+                                .map(s => s.trim().replace(/^['\"]|['\"]$/g, ''));
+                            const file = args[0] || '';
+                            const dept = args[1] || '';
+                            if (file && window.openDocumentPreview) {
+                                window.openDocumentPreview(file, dept);
+                                return;
+                            }
+                        }
+                    } catch(err) {
+                        console.warn('Failed to parse preview link:', err);
+                    }
+                }
+
+                // Intercept direct links to private blob storage and open via SAS preview instead
+                try {
+                    const href = a.getAttribute('href') || '';
+                    if (/^https?:\/\/[^\/]*blob\.core\.windows\.net\/saxdocuments\//i.test(href)) {
+                        e.preventDefault();
+                        const pathPart = decodeURIComponent(href.replace(/^https?:\/\/[^\/]*blob\.core\.windows\.net\/saxdocuments\//i, ''));
+                        if (pathPart && window.openDocumentPreview) {
+                            // Pass the full path (e.g., "Human Resources/2025 Sax Employee Handbook.pdf")
+                            window.openDocumentPreview(pathPart);
+                        }
+                        return;
+                    }
+                } catch (ignore) {}
+                
+            }, true);
+        })();
+    </script>
+
     <!-- Enhanced Document Preview System -->
     <script src="js/document-preview-enhanced.js"></script>
 </body>
