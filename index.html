@@ -1396,7 +1396,7 @@
         const msalConfig = {
             auth: {
                 clientId: "23453f6d-01b3-4fa2-88c5-177f8bd56bb1", // MegaMind SAX Portal app registration
-                authority: "https://login.microsoftonline.com/a33e9b66-a6ef-43bf-9702-7cb4301d0a16", // saxadvisorygroup.com tenant
+                authority: "https://login.microsoftonline.com/3d659328-eef0-44f7-8481-5833e1051aec", // saxtechnology.com tenant
                 redirectUri: window.location.origin,
                 postLogoutRedirectUri: window.location.origin
             },
@@ -1419,8 +1419,8 @@
         const loginRequest = {
             scopes: ["openid", "profile", "email", "User.Read"],
             prompt: "select_account",
-            domainHint: "saxadvisorygroup.com",
-            loginHint: "@saxadvisorygroup.com"
+            domainHint: "saxtechnology.com",
+            loginHint: "@saxtechnology.com"
         };
 
         // Initialize MSAL instance
