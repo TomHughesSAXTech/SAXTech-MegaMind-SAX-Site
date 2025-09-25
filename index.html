@@ -1422,8 +1422,8 @@
         // Microsoft Authentication configuration
         const msalConfig = {
             auth: {
-                clientId: "23453f6d-01b3-4fa2-88c5-177f8bd56bb1", // MegaMind SAX Portal app registration
-                authority: "https://login.microsoftonline.com/3d659328-eef0-44f7-8481-5833e1051aec", // saxtechnology.com tenant
+                clientId: "93540af4-ed24-4202-a334-acd7f29bdd4b", // MegaMind SAX Portal SPA (saxadvisorygroup.com)
+                authority: "https://login.microsoftonline.com/a33e9b66-a6ef-43bf-9702-7cb4301d0a16", // saxadvisorygroup.com tenant
                 redirectUri: window.location.origin,
                 postLogoutRedirectUri: window.location.origin
             },
@@ -1446,8 +1446,8 @@
         const loginRequest = {
             scopes: ["openid", "profile", "email", "User.Read"],
             prompt: "select_account",
-            domainHint: "saxtechnology.com",
-            loginHint: "@saxtechnology.com"
+            domainHint: "saxadvisorygroup.com",
+            loginHint: "@saxadvisorygroup.com"
         };
 
         // Initialize MSAL instance
@@ -1467,7 +1467,7 @@
         }
 
         // Global variables
-        const ACCESS_GROUP_ID = "c5746514-219d-49df-b367-c6c6cc389782"; // MegaMind-SAX-Access (saxtechnology.com)
+        const ACCESS_GROUP_ID = "c487a7b3-4461-46f0-b07e-d0b1bece655e"; // MegaMind-SAX-Access (saxadvisorygroup.com)
         let currentAccount = null;
         let userProfile = null;
         let sessionId = null;
@@ -1677,6 +1677,25 @@
             try {
                 await msalInstance.initialize();
                 console.log('MSAL initialized successfully');
+
+                // Complete redirect flow if returning from an auth redirect
+                try {
+                    const redirectResult = await msalInstance.handleRedirectPromise();
+                    if (redirectResult && redirectResult.account) {
+                        currentAccount = redirectResult.account;
+                        console.log('Redirect result account:', currentAccount.username);
+                        try {
+                            await loadUserProfile();
+                            showMainApp();
+                        } catch (profileError) {
+                            console.warn('Could not load full profile after redirect:', profileError);
+                            showAuthOverlay();
+                        }
+                        return;
+                    }
+                } catch (redirErr) {
+                    console.warn('handleRedirectPromise error:', redirErr);
+                }
                 
                 // Check if user is already signed in
                 const accounts = msalInstance.getAllAccounts();
@@ -1861,19 +1880,23 @@
             }
         }
 
-        // Sign in
+        // Sign in (redirect flow to avoid popup/COOP warnings)
+        let authInProgress = false;
         signInBtn.addEventListener('click', async () => {
+            if (authInProgress) {
+                console.log('Auth already in progress, ignoring click');
+                return;
+            }
             try {
-                const loginResponse = await msalInstance.loginPopup(loginRequest);
-                console.log('Login successful:', loginResponse);
-                currentAccount = loginResponse.account;
-                console.log('Current account set:', currentAccount);
-                await loadUserProfile();
-                console.log('User profile after load:', userProfile);
-                showMainApp();
+                authInProgress = true;
+                if (signInBtn) signInBtn.disabled = true;
+                await msalInstance.loginRedirect(loginRequest);
+                // After redirect back, initialize() will detect the account and proceed
             } catch (error) {
                 console.error('Login error:', error);
                 alert('Login failed: ' + error.message);
+                authInProgress = false;
+                if (signInBtn) signInBtn.disabled = false;
             }
         });
 
@@ -2550,6 +2573,7 @@ function loadConversationFromSnapshot(conv){
                         givenName: userProfile?.givenName || '',
                         surname: userProfile?.surname || '',
                         email: userProfile?.mail || currentAccount?.username,
+                        mail: userProfile?.mail || userProfile?.email || currentAccount?.username,
                         userPrincipalName: userProfile?.userPrincipalName || currentAccount?.username,
                         
                         // Job info for role-based responses
