@@ -619,6 +619,29 @@
             pointer-events: none;
         }
 
+        /* CPA status card */
+        .cpa-status-card {
+            margin-top: 16px;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,215,0,0.35);
+            border-radius: 12px;
+            padding: 12px 14px;
+            color: #ddd;
+            font-size: 13px;
+        }
+        .cpa-status-card .cpa-status-title {
+            color: #FFD700;
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        .cpa-status-card .cpa-status-text {
+            color: #ccc;
+            line-height: 1.4;
+        }
+
         .floating-character {
             width: 220px;
             height: 220px;
@@ -1218,6 +1241,10 @@
                         <div class="big-personality-name">SAX CPA</div>
                         <div class="big-personality-role">Tax & Accounting Expert</div>
                         <div class="big-personality-description">Specialized in tax planning, accounting principles, and financial compliance. Expert in federal, state, and local tax regulations.</div>
+                        <div id="cpaStatusCard" class="cpa-status-card">
+                            <div class="cpa-status-title">Tax Index Status</div>
+                            <div id="cpaStatusText" class="cpa-status-text">Loading latest update…</div>
+                        </div>
                     </div>
                 </div>
                 <div class="big-personality-card" data-personality="trainer">
@@ -1561,6 +1588,9 @@
             
             // Initialize carousel visibility
             initializeCarousel();
+
+            // Fetch tax status early
+            try { await fetchTaxStatusAndRender(); } catch (e) { console.warn('Tax status init failed', e); }
             
             // Initialize TTS toggle handler
             const ttsToggle = document.getElementById('ttsToggle');
@@ -3585,6 +3615,79 @@ function loadConversationFromSnapshot(conv){
             }
         });
         
+        // Tax status fetcher
+        async function fetchWithTimeout(resource, options = {}) {
+            const { timeout = 8000 } = options;
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), timeout);
+            try {
+                const response = await fetch(resource, { ...options, signal: controller.signal });
+                return response;
+            } finally {
+                clearTimeout(id);
+            }
+        }
+
+        function pickLatestTimestamp(a, b) {
+            try {
+                const da = a ? Date.parse(a) : 0;
+                const db = b ? Date.parse(b) : 0;
+                return da >= db ? a : b;
+            } catch { return a || b || null; }
+        }
+
+        function fmt(dtIso) {
+            if (!dtIso) return '—';
+            try {
+                const d = new Date(dtIso);
+                return d.toLocaleString();
+            } catch { return dtIso; }
+        }
+
+        async function fetchTaxStatusAndRender() {
+            const card = document.getElementById('cpaStatusCard');
+            const el = document.getElementById('cpaStatusText');
+            if (!card || !el) return;
+
+            const candidateEndpoints = [];
+            // Relative path if functions are proxied by the same domain
+            candidateEndpoints.push('/api/status');
+            // Likely Azure Function App hosts (try both known app names)
+            candidateEndpoints.push('https://saxtech-tax-ingestor.azurewebsites.net/api/status');
+            candidateEndpoints.push('https://saxtechmegamindfunctions.azurewebsites.net/api/status');
+            // Allow override via window var if set
+            if (window.TAX_STATUS_URL) candidateEndpoints.unshift(window.TAX_STATUS_URL);
+
+            let data = null;
+            for (const url of candidateEndpoints) {
+                try {
+                    const res = await fetchWithTimeout(url, { timeout: 7000, headers: { 'Accept': 'application/json' } });
+                    if (res.ok) {
+                        data = await res.json();
+                        break;
+                    }
+                } catch (e) {
+                    // Try next
+                }
+            }
+
+            if (!data) {
+                el.textContent = 'Unable to load status';
+                return;
+            }
+
+            const lastUSC = data.last_usc_index_time || null;
+            const lastCFR = data.last_cfr_index_time || null;
+            const lastAny = pickLatestTimestamp(lastUSC, lastCFR);
+            const uscRel = data.last_usc_release || '—';
+            const cfrVer = data.last_cfr_version || '—';
+
+            el.innerHTML = `
+                <div>Last update: <strong>${fmt(lastAny)}</strong></div>
+                <div style="opacity:0.85; margin-top:4px;">USC release: <span>${uscRel}</span> • CFR version: <span>${cfrVer}</span></div>
+            `;
+        }
+
         // Stop conversation button
         const stopConversationBtn = document.getElementById('stopConversationBtn');
         if (stopConversationBtn) {
