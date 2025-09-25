@@ -1417,7 +1417,7 @@
         };
 
         const loginRequest = {
-            scopes: ["openid", "profile", "User.Read", "UserAuthenticationMethod.Read.All"],
+            scopes: ["openid", "profile", "email", "User.Read"],
             prompt: "select_account",
             domainHint: "saxadvisorygroup.com",
             loginHint: "@saxadvisorygroup.com"
@@ -1440,6 +1440,7 @@
         }
 
         // Global variables
+        const ACCESS_GROUP_ID = "c487a7b3-4461-46f0-b07e-d0b1bece655e"; // MegaMind-SAX-Access
         let currentAccount = null;
         let userProfile = null;
         let sessionId = null;
@@ -1724,7 +1725,7 @@
                 try {
                 // Try silent token acquisition first with extended scopes
                 tokenResponse = await msalInstance.acquireTokenSilent({
-                    scopes: ["User.Read", "User.ReadBasic.All", "Directory.Read.All", "UserAuthenticationMethod.Read.All"],
+                    scopes: ["User.Read"],
                     account: currentAccount
                 });
                 } catch (silentError) {
@@ -1736,32 +1737,14 @@
                         silentError.errorCode === 'interaction_required' ||
                         (silentError.message && silentError.message.includes('AADSTS65001'))) {
                         
-                        console.log('Consent or interaction required, clearing invalid session...');
-                        
-                        // Clear the invalid cached tokens
-                        if (currentAccount) {
-                            try {
-                                // Clear from MSAL cache
-                                const accounts = msalInstance.getAllAccounts();
-                                for (const account of accounts) {
-                                    await msalInstance.getTokenCache().removeAccount(account);
-                                }
-                            } catch (e) {
-                                console.log('Error clearing account cache:', e);
-                            }
-                        }
-                        
-                        // Clear localStorage items
-                        const keysToRemove = [];
-                        for (let i = 0; i < localStorage.length; i++) {
-                            const key = localStorage.key(i);
-                            if (key && (key.includes('msal') || key.includes('login.microsoftonline.com'))) {
-                                keysToRemove.push(key);
-                            }
-                        }
-                        keysToRemove.forEach(key => localStorage.removeItem(key));
-                        
-                        currentAccount = null;
+                    console.log('Consent or interaction required, initiating interactive consent...');
+
+                    // Avoid redirect loop: only attempt once per load
+                    const triedConsent = sessionStorage.getItem('megamind_sax_consent_attempted');
+                    if (!triedConsent) {
+                        sessionStorage.setItem('megamind_sax_consent_attempted', '1');
+                        await msalInstance.loginRedirect({ ...loginRequest, prompt: "consent" });
+                    }
                     }
                     
                     throw silentError; // Propagate the error up
@@ -1777,34 +1760,8 @@
                 userProfile = await response.json();
                 console.log('Full user profile loaded from Microsoft Graph:', userProfile);
                 
-                // Try to get mobile phone from authentication methods if not in profile
-                if (!userProfile.mobilePhone) {
-                    try {
-                        const authMethodsResponse = await fetch(`https://graph.microsoft.com/v1.0/users/${userProfile.id}/authentication/phoneMethods`, {
-                            headers: {
-                                'Authorization': `Bearer ${tokenResponse.accessToken}`
-                            }
-                        });
-                        
-                        if (authMethodsResponse.ok) {
-                            const authMethods = await authMethodsResponse.json();
-                            console.log('Authentication phone methods:', authMethods);
-                            
-                            // Look for mobile phone in auth methods
-                            if (authMethods.value && authMethods.value.length > 0) {
-                                const mobileMethod = authMethods.value.find(m => m.phoneType === 'mobile');
-                                if (mobileMethod && mobileMethod.phoneNumber) {
-                                    userProfile.mobilePhone = mobileMethod.phoneNumber;
-                                    console.log('Mobile phone found in auth methods:', userProfile.mobilePhone);
-                                }
-                            }
-                        } else {
-                            console.log('Could not fetch auth methods:', authMethodsResponse.status);
-                        }
-                    } catch (authError) {
-                        console.log('Error fetching auth methods:', authError);
-                    }
-                }
+                // Fetching authentication phone methods requires elevated admin consent not suitable for SPA.
+                // Skipping phoneMethods retrieval to avoid unnecessary consent prompts.
                 
                 // Try to get manager info if available
                 try {
@@ -1833,6 +1790,16 @@
                         wids: currentAccount.idTokenClaims.wids || [],
                         upn: currentAccount.idTokenClaims.upn || currentAccount.idTokenClaims.preferred_username
                     };
+                }
+
+                // Enforce group-based access (client-side)
+                const groups = userProfile?.claims?.groups || [];
+                if (!groups.includes(ACCESS_GROUP_ID)) {
+                    console.warn('Access denied: user not in required group');
+                    const authMsg = document.getElementById('authMessage');
+                    if (authMsg) authMsg.textContent = 'Access restricted. You are not a member of MegaMind-SAX-Access.';
+                    showAuthOverlay();
+                    return; // Stop further initialization
                 }
                 
                 console.log('User profile loaded with extended context:', userProfile);
@@ -1925,6 +1892,143 @@ function loadConversationFromSnapshot(conv){
                 else if (msg.role==='assistant') addMessage('bot', msg.content, null, false);
             });
             toggleHistoryPanel();
+        }
+
+        // Cloud history (Cosmos DB via SaveConversationLog) and local history helpers
+        let loadedHistorySessions = [];
+        window.loadCloudHistory = async function() {
+            const loading = document.getElementById('historyLoading');
+            const empty = document.getElementById('historyEmpty');
+            const list = document.getElementById('historyList');
+            if (loading) loading.style.display = 'block';
+            if (empty) empty.style.display = 'none';
+            if (list) list.innerHTML = '';
+            try {
+                const email = currentAccount?.username || userProfile?.mail || null;
+                if (!email) {
+                    if (loading) loading.style.display = 'none';
+                    return false;
+                }
+                const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=get&email=${encodeURIComponent(email)}&range=month&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
+                const resp = await fetch(url);
+                if (!resp.ok) {
+                    if (loading) loading.style.display = 'none';
+                    return false;
+                }
+                const data = await resp.json();
+                const sessions = Array.isArray(data) ? data : (data.sessions || data.conversations || data.data || []);
+                if (!Array.isArray(sessions) || sessions.length === 0) {
+                    if (loading) loading.style.display = 'none';
+                    if (empty) empty.style.display = 'block';
+                    return false;
+                }
+                loadedHistorySessions = sessions;
+                window.displayHistoryList(sessions);
+                if (loading) loading.style.display = 'none';
+                return true;
+            } catch (e) {
+                console.warn('Cloud history failed', e);
+                if (loading) loading.style.display = 'none';
+                return false;
+            }
+        }
+
+        window.loadLocalHistory = function() {
+            const loading = document.getElementById('historyLoading');
+            const empty = document.getElementById('historyEmpty');
+            const list = document.getElementById('historyList');
+            if (loading) loading.style.display = 'none';
+            const localSessions = [];
+            try {
+                // Preferred key pattern used in this app: <username>_session
+                const maybeKey = currentAccount?.username ? `${currentAccount.username}_session` : null;
+                if (maybeKey) {
+                    const raw = localStorage.getItem(maybeKey);
+                    if (raw) {
+                        const parsed = JSON.parse(raw);
+                        localSessions.push({
+                            sessionId: maybeKey,
+                            timestamp: parsed.lastUpdated || new Date().toISOString(),
+                            conversation: parsed.messages || []
+                        });
+                    }
+                }
+                // Fallback scan for any megamind_conversation_* snapshots
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith('megamind_conversation_')) {
+                        try {
+                            const data = JSON.parse(localStorage.getItem(key));
+                            if (data?.messages?.length) {
+                                localSessions.push({
+                                    sessionId: key,
+                                    timestamp: data.timestamp || new Date().toISOString(),
+                                    conversation: data.messages
+                                });
+                            }
+                        } catch {}
+                    }
+                }
+            } catch {}
+            if (!localSessions.length) {
+                if (empty) empty.style.display = 'block';
+                if (list) list.innerHTML = '';
+                return;
+            }
+            loadedHistorySessions = localSessions
+                .sort((a,b)=> new Date(b.timestamp) - new Date(a.timestamp))
+                .slice(0, 50);
+            window.displayHistoryList(loadedHistorySessions);
+        }
+
+        window.displayHistoryList = function(sessions) {
+            const list = document.getElementById('historyList');
+            const empty = document.getElementById('historyEmpty');
+            const loading = document.getElementById('historyLoading');
+            if (loading) loading.style.display = 'none';
+            if (!sessions || sessions.length === 0) {
+                if (empty) empty.style.display = 'block';
+                if (list) list.innerHTML = '';
+                return;
+            }
+            if (empty) empty.style.display = 'none';
+            if (!list) return;
+            list.innerHTML = '';
+            sessions.forEach((s, idx) => {
+                const item = document.createElement('div');
+                item.className = 'history-item';
+                item.onclick = () => window.loadHistorySession(idx);
+                const ts = new Date(s.timestamp || s.createdAt || Date.now());
+                const dateStr = ts.toLocaleDateString() + ' ' + ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                // Create a short title/preview
+                let preview = 'Conversation';
+                const conv = Array.isArray(s.conversation) ? s.conversation : (typeof s.conversation === 'string' ? (JSON.parse(s.conversation).messages || []) : []);
+                const firstUser = conv?.find?.(m => (m.role === 'user' || m.type === 'user') && (m.content || m.message));
+                if (firstUser) {
+                    const txt = (firstUser.content || firstUser.message).replace(/<[^>]*>/g, '').trim();
+                    preview = (txt || 'Conversation').substring(0, 60);
+                }
+                item.innerHTML = `
+                    <div class="history-item-title">${escapeHtml(preview)}</div>
+                    <div class="history-item-time">${dateStr}</div>
+                    <div class="history-item-preview">${(conv?.length||0)} messages</div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        window.loadHistorySession = function(index) {
+            const session = loadedHistorySessions[index];
+            if (!session) return;
+            let conv = [];
+            try {
+                if (Array.isArray(session.conversation)) conv = session.conversation;
+                else if (typeof session.conversation === 'string') {
+                    const parsed = JSON.parse(session.conversation);
+                    conv = Array.isArray(parsed) ? parsed : (parsed.messages || []);
+                }
+            } catch {}
+            restoreConversation(conv || []);
         }
         
         // Close history panel when clicking outside
