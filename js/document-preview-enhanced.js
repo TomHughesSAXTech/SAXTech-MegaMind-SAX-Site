@@ -972,3 +972,42 @@ function escapeHtml(text) {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Enhanced document preview system initialized');
 });
+
+// SharePoint-aware preview opener used by Trainer (ld-documents)
+// Accepts an encoded URL and prefers in-modal iframe for SharePoint preview links
+window.openDocumentPreviewUrl = function(encodedUrl) {
+    try {
+        const previewUrl = decodeURIComponent(encodedUrl || '');
+        if (!previewUrl) return;
+        const isSharePoint = /sharepoint\.com/i.test(previewUrl);
+        const isPreview = /preview/i.test(previewUrl);
+        
+        if (isSharePoint && isPreview) {
+            let modal = document.getElementById('documentPreviewModal');
+            if (!modal) modal = createPreviewModal();
+            const modalContent = modal.querySelector('.modal-content');
+            const safeTitle = (function(u){ try{ return decodeURIComponent(u.split('/').pop() || 'Preview'); }catch{ return 'Preview'; } })(previewUrl);
+            modalContent.innerHTML = `
+                <div class="modal-header" onmousedown="startDrag(event)">
+                    <div class="modal-title">
+                        <span class="doc-icon">📄</span>
+                        <h3>${escapeHtml(safeTitle)}</h3>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="action-btn" title="Open in new tab" onclick="window.open('${previewUrl.replace(/'/g, "&#39;")}', '_blank', 'noopener,noreferrer')">↗</button>
+                        <button class="modal-close" onclick="closeDocumentPreview()">×</button>
+                    </div>
+                </div>
+                <div class="modal-body" style="padding:0;height:calc(100% - 50px);background:#000;">
+                    <iframe src="${previewUrl.replace(/"/g, '&quot;')}" style="width:100%;height:100%;border:0;" allow="clipboard-read; clipboard-write" referrerpolicy="no-referrer"></iframe>
+                </div>
+            `;
+            modal.classList.add('show');
+            modal.style.display = '';
+        } else {
+            window.open(previewUrl, '_blank', 'noopener,noreferrer');
+        }
+    } catch (e) {
+        try { window.open(encodedUrl, '_blank', 'noopener,noreferrer'); } catch(_) {}
+    }
+};
