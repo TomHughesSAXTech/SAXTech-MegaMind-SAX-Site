@@ -974,39 +974,70 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // SharePoint-aware preview opener used by Trainer (ld-documents)
-// Accepts an encoded URL and prefers in-modal iframe for SharePoint preview links
+// Accepts an encoded URL and opens a modal for ALL SharePoint links, with smart embeds
 window.openDocumentPreviewUrl = function(encodedUrl) {
     try {
-        const previewUrl = decodeURIComponent(encodedUrl || '');
-        if (!previewUrl) return;
-        const isSharePoint = /sharepoint\.com/i.test(previewUrl);
-        const isPreview = /preview/i.test(previewUrl);
-        
-        if (isSharePoint && isPreview) {
-            let modal = document.getElementById('documentPreviewModal');
-            if (!modal) modal = createPreviewModal();
-            const modalContent = modal.querySelector('.modal-content');
-            const safeTitle = (function(u){ try{ return decodeURIComponent(u.split('/').pop() || 'Preview'); }catch{ return 'Preview'; } })(previewUrl);
-            modalContent.innerHTML = `
-                <div class="modal-header" onmousedown="startDrag(event)">
-                    <div class="modal-title">
-                        <span class="doc-icon">📄</span>
-                        <h3>${escapeHtml(safeTitle)}</h3>
-                    </div>
-                    <div class="modal-actions">
-                        <button class="action-btn" title="Open in new tab" onclick="window.open('${previewUrl.replace(/'/g, "&#39;")}', '_blank', 'noopener,noreferrer')">↗</button>
-                        <button class="modal-close" onclick="closeDocumentPreview()">×</button>
-                    </div>
-                </div>
-                <div class="modal-body" style="padding:0;height:calc(100% - 50px);background:#000;">
-                    <iframe src="${previewUrl.replace(/"/g, '&quot;')}" style="width:100%;height:100%;border:0;" allow="clipboard-read; clipboard-write" referrerpolicy="no-referrer"></iframe>
-                </div>
-            `;
-            modal.classList.add('show');
-            modal.style.display = '';
-        } else {
-            window.open(previewUrl, '_blank', 'noopener,noreferrer');
+        const raw = decodeURIComponent(encodedUrl || '');
+        if (!raw) return;
+
+        const url = raw;
+        const isSP = /sharepoint\.com/i.test(url);
+        const cleanForAttr = url.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+        // Infer content type
+        const ext = (url.split('?')[0].split('#')[0].split('.').pop() || '').toLowerCase();
+        const officeExt = ['doc','docx','xls','xlsx','ppt','pptx'];
+        const isOffice = officeExt.includes(ext);
+        const isPdf = ext === 'pdf';
+        const isMedia = ['mp4','webm','ogg'].includes(ext);
+
+        // Non-SharePoint: safer to open a new tab (avoid X-Frame headers)
+        if (!isSP) {
+            window.open(url, '_blank', 'noopener,noreferrer');
+            return;
         }
+
+        let modal = document.getElementById('documentPreviewModal');
+        if (!modal) modal = createPreviewModal();
+        const modalContent = modal.querySelector('.modal-content');
+
+        const safeTitle = (function(u){ try{ return decodeURIComponent(u.split('/').pop() || 'Preview'); } catch { return 'Preview'; } })(url);
+
+        let bodyHtml = '';
+        if (isOffice) {
+            const officeEmbed = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+            bodyHtml = `<iframe src="${officeEmbed}" style="width:100%;height:100%;border:0;" allow="clipboard-read; clipboard-write" referrerpolicy="no-referrer"></iframe>`;
+        } else if (isPdf) {
+            bodyHtml = `<iframe src="${cleanForAttr}" style="width:100%;height:100%;border:0;" allow="clipboard-read; clipboard-write" referrerpolicy="no-referrer"></iframe>`;
+        } else if (isMedia) {
+            bodyHtml = `
+                <video controls playsinline style="width:100%;height:100%;background:#000;">
+                  <source src="${cleanForAttr}" type="video/${ext === 'mp4' ? 'mp4' : ext}">
+                  Your browser does not support the video tag.
+                </video>`;
+        } else {
+            // Generic SharePoint file: attempt direct iframe (works for most file types)
+            bodyHtml = `<iframe src="${cleanForAttr}" style="width:100%;height:100%;border:0;" allow="clipboard-read; clipboard-write" referrerpolicy="no-referrer"></iframe>`;
+        }
+
+        modalContent.innerHTML = `
+            <div class="modal-header" onmousedown="startDrag(event)">
+                <div class="modal-title">
+                    <span class="doc-icon">📄</span>
+                    <h3>${escapeHtml(safeTitle)}</h3>
+                </div>
+                <div class="modal-actions">
+                    <button class="action-btn" title="Open in new tab" onclick="window.open('${cleanForAttr}', '_blank', 'noopener,noreferrer')">↗</button>
+                    <button class="modal-close" onclick="closeDocumentPreview()">×</button>
+                </div>
+            </div>
+            <div class="modal-body" style="padding:0;height:calc(100% - 50px);background:#000;">
+                ${bodyHtml}
+            </div>
+        `;
+        modal.classList.add('show');
+        modal.style.display = '';
+
     } catch (e) {
         try { window.open(encodedUrl, '_blank', 'noopener,noreferrer'); } catch(_) {}
     }
