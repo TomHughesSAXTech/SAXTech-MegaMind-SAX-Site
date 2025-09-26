@@ -284,6 +284,118 @@ module.exports = async function (context, req) {
                 };
                 break;
 
+            // === Deletion Operations ===
+            case 'delete': {
+                // Delete a single session by id or sessionId
+                const id = req.query.id || req.body?.id;
+                const sessionId = req.query.sessionId || req.body?.sessionId;
+                let userEmail = req.query.userEmail || req.body?.userEmail;
+
+                try {
+                    if (id) {
+                        if (!userEmail) {
+                            // Find the partition key for this id
+                            const q = {
+                                query: "SELECT c.id, c.userEmail FROM c WHERE c.id = @id",
+                                parameters: [ { name: "@id", value: id } ]
+                            };
+                            const { resources } = await container.items.query(q).fetchAll();
+                            if (resources.length === 0) throw new Error('Item not found');
+                            userEmail = resources[0].userEmail;
+                        }
+                        await container.item(id, userEmail).delete();
+                        context.res = { status: 200, headers, body: { success: true, deletedCount: 1 } };
+                        break;
+                    }
+
+                    if (!sessionId) {
+                        context.res = { status: 400, headers, body: { error: 'id or sessionId required' } };
+                        break;
+                    }
+                    const findBySession = {
+                        query: "SELECT c.id, c.userEmail FROM c WHERE c.sessionId = @sid",
+                        parameters: [ { name: "@sid", value: sessionId } ]
+                    };
+                    const { resources } = await container.items.query(findBySession).fetchAll();
+                    let count = 0;
+                    for (const r of resources) {
+                        await container.item(r.id, r.userEmail).delete();
+                        count++;
+                    }
+                    context.res = { status: 200, headers, body: { success: true, deletedCount: count } };
+                } catch (e) {
+                    context.res = { status: 500, headers, body: { error: 'Delete failed', details: e.message } };
+                }
+                break;
+            }
+
+            case 'deleteSessions': {
+                // Delete multiple by array of sessionIds or ids
+                const ids = req.body?.ids || [];
+                const sessionIds = req.body?.sessionIds || [];
+                if ((!Array.isArray(ids) || ids.length === 0) && (!Array.isArray(sessionIds) || sessionIds.length === 0)) {
+                    context.res = { status: 400, headers, body: { error: 'Provide ids[] or sessionIds[]' } };
+                    break;
+                }
+                let total = 0;
+                try {
+                    if (ids.length > 0) {
+                        for (const entry of ids) {
+                            const id = typeof entry === 'string' ? entry : entry.id;
+                            let pk = typeof entry === 'object' ? entry.userEmail : null;
+                            if (!pk) {
+                                const q = { query: "SELECT c.id, c.userEmail FROM c WHERE c.id = @id", parameters: [{ name: "@id", value: id }] };
+                                const { resources } = await container.items.query(q).fetchAll();
+                                if (resources.length) pk = resources[0].userEmail;
+                            }
+                            if (id && pk) { await container.item(id, pk).delete(); total++; }
+                        }
+                    }
+                    if (sessionIds.length > 0) {
+                        for (const sid of sessionIds) {
+                            const q = { query: "SELECT c.id, c.userEmail FROM c WHERE c.sessionId = @sid", parameters: [{ name: "@sid", value: sid }] };
+                            const { resources } = await container.items.query(q).fetchAll();
+                            for (const r of resources) { await container.item(r.id, r.userEmail).delete(); total++; }
+                        }
+                    }
+                    context.res = { status: 200, headers, body: { success: true, deletedCount: total } };
+                } catch (e) {
+                    context.res = { status: 500, headers, body: { error: 'Bulk delete failed', details: e.message } };
+                }
+                break;
+            }
+
+            case 'deleteUser': {
+                const userEmail = req.query.userEmail || req.body?.userEmail;
+                if (!userEmail) { context.res = { status: 400, headers, body: { error: 'userEmail required' } }; break; }
+                try {
+                    const q = { query: "SELECT c.id, c.userEmail FROM c WHERE c.userEmail = @u", parameters: [{ name: "@u", value: userEmail }] };
+                    const { resources } = await container.items.query(q).fetchAll();
+                    let count = 0;
+                    for (const r of resources) { await container.item(r.id, r.userEmail).delete(); count++; }
+                    context.res = { status: 200, headers, body: { success: true, deletedCount: count } };
+                } catch (e) {
+                    context.res = { status: 500, headers, body: { error: 'Delete user failed', details: e.message } };
+                }
+                break;
+            }
+
+            case 'deleteAll':
+            case 'deleteAllGlobal': {
+                const confirm = req.body?.confirmDelete || req.body?.confirm || req.query.confirm === 'true';
+                if (!confirm) { context.res = { status: 400, headers, body: { error: 'Confirmation required' } }; break; }
+                try {
+                    const q = { query: "SELECT c.id, c.userEmail FROM c" };
+                    const { resources } = await container.items.query(q).fetchAll();
+                    let count = 0;
+                    for (const r of resources) { await container.item(r.id, r.userEmail).delete(); count++; }
+                    context.res = { status: 200, headers, body: { success: true, deletedCount: count } };
+                } catch (e) {
+                    context.res = { status: 500, headers, body: { error: 'Delete all failed', details: e.message } };
+                }
+                break;
+            }
+
             default:
                 context.res = {
                     status: 400,
