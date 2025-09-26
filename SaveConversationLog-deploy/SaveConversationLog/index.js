@@ -6,11 +6,8 @@ const key = process.env.COSMOS_KEY;
 const databaseId = "ConversationHistory";
 const containerId = "Sessions";
 
-// Add fallback for local debugging
-const client = new CosmosClient({ 
-    endpoint: endpoint || "https://saxtech-conversations-sql.documents.azure.com:443/", 
-    key: key || "MWJi6vjhk26C8cVMLg0mbwSNxoka4A7gYwHCo3wFcDUNQNM3jM6PCjTzEtqyzOBa7eol1rECFEsVACDbq5QNcg=="
-});
+// Create client (env must provide endpoint and key)
+const client = new CosmosClient({ endpoint, key });
 
 module.exports = async function (context, req) {
     context.log('SaveConversationLog function processing request');
