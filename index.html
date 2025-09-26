@@ -2377,7 +2377,8 @@ function loadConversationFromSnapshot(conv){
         
         async function logToAzureDatabase(sessionId, messages) {
             // Log conversation to Azure Cosmos DB via SaveConversationLog function
-            if (!currentAccount || !currentAccount.username) return;
+            const email = currentAccount?.username || userProfile?.mail;
+            if (!email) return;
             
             try {
                 const response = await fetch('https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==', {
@@ -2388,8 +2389,8 @@ function loadConversationFromSnapshot(conv){
                     body: JSON.stringify({
                         action: 'save',
                         sessionId: sessionId,
-                        userEmail: currentAccount.username,
-                        userName: currentAccount.name || currentAccount.username,
+                        userEmail: email,
+                        userName: currentAccount?.name || email,
                         conversation: messages,
                         timestamp: new Date().toISOString(),
                         department: userProfile?.department || null,
@@ -2495,6 +2496,8 @@ function loadConversationFromSnapshot(conv){
                 content: message,
                 timestamp: new Date().toISOString()
             });
+            // Immediately persist to cloud (don’t wait for bot response)
+            saveSessionHistory();
             
             // Define webhook URL outside try block so it's accessible in catch block
             const webhookUrl = `https://workflows.saxtechnology.com/webhook/${currentWebhook}`;
