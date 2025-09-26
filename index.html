@@ -4256,6 +4256,15 @@ function loadConversationFromSnapshot(conv){
                     }
                     return;
                 }
+                // Support SharePoint modal via data-preview-url
+                if (a.dataset && a.dataset.previewUrl) {
+                    e.preventDefault();
+                    const p = a.dataset.previewUrl;
+                    if (p && window.openDocumentPreviewUrl) {
+                        window.openDocumentPreviewUrl(encodeURIComponent(p));
+                        return;
+                    }
+                }
                 // Parse inline onclick if present but blocked by CSP
                 const oc = a.getAttribute('onclick');
                 if (oc && oc.includes('openDocumentPreview')) {
@@ -4278,6 +4287,24 @@ function loadConversationFromSnapshot(conv){
                         console.warn('Failed to parse preview link:', err);
                     }
                 }
+                // Parse modal URL handler openDocumentPreviewUrl('encoded') inline if present
+                if (oc && oc.includes('openDocumentPreviewUrl')) {
+                    e.preventDefault();
+                    try {
+                        const m2 = oc.match(/openDocumentPreviewUrl\(([^)]*)\)/);
+                        if (m2 && m2[1]) {
+                            let arg = m2[1].trim().replace(/^['\"]|['\"]$/g, '');
+                            if (window.openDocumentPreviewUrl) {
+                                // Accept raw or pre-encoded
+                                const enc = /%2F|%3A|%2E/i.test(arg) ? arg : encodeURIComponent(arg);
+                                window.openDocumentPreviewUrl(enc);
+                                return;
+                            }
+                        }
+                    } catch(err) {
+                        console.warn('Failed to parse preview URL link:', err);
+                    }
+                }
 
                 // Intercept direct links to private blob storage and open via SAS preview instead
                 try {
@@ -4289,6 +4316,12 @@ function loadConversationFromSnapshot(conv){
                             // Pass the full path (e.g., "Human Resources/2025 Sax Employee Handbook.pdf")
                             window.openDocumentPreview(pathPart);
                         }
+                        return;
+                    }
+                    // Intercept direct SharePoint links and open in modal
+                    if (/sharepoint\.com/i.test(href) && window.openDocumentPreviewUrl) {
+                        e.preventDefault();
+                        window.openDocumentPreviewUrl(encodeURIComponent(href));
                         return;
                     }
                 } catch (ignore) {}
