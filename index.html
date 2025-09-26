@@ -4244,6 +4244,20 @@ function loadConversationFromSnapshot(conv){
             } catch (e) { console.warn('open override init failed:', e); }
 
             document.addEventListener('click', function(e){
+                // First handle any element (button/div/span/a) carrying data-preview-url
+                const anyPreviewEl = e.target.closest('[data-preview-url]');
+                if (anyPreviewEl && anyPreviewEl.dataset && anyPreviewEl.dataset.previewUrl) {
+                    e.preventDefault();
+                    const p = anyPreviewEl.dataset.previewUrl;
+                    if (p && window.openDocumentPreviewUrl) {
+                        // Accept raw; encode if not already
+                        const enc = /%2F|%3A|%2E/i.test(p) ? p : encodeURIComponent(p);
+                        window.openDocumentPreviewUrl(enc);
+                        return;
+                    }
+                }
+
+                // Backward-compatible: anchor-based handlers
                 const a = e.target.closest('a');
                 if (!a) return;
                 // Explicit data attributes
@@ -4256,7 +4270,7 @@ function loadConversationFromSnapshot(conv){
                     }
                     return;
                 }
-                // Support SharePoint modal via data-preview-url
+                // Support modal via data-preview-url on anchors
                 if (a.dataset && a.dataset.previewUrl) {
                     e.preventDefault();
                     const p = a.dataset.previewUrl;

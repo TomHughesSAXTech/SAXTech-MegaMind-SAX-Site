@@ -991,12 +991,8 @@ window.openDocumentPreviewUrl = function(encodedUrl) {
         const isPdf = ext === 'pdf';
         const isMedia = ['mp4','webm','ogg'].includes(ext);
 
-        // Non-SharePoint: safer to open a new tab (avoid X-Frame headers)
-        if (!isSP) {
-            window.open(url, '_blank', 'noopener,noreferrer');
-            return;
-        }
-
+        // Always use modal. For non-SharePoint URLs we still attempt to embed in an iframe.
+        // If the site blocks framing, the header provides an "Open in new tab" fallback without leaving the modal.
         let modal = document.getElementById('documentPreviewModal');
         if (!modal) modal = createPreviewModal();
         const modalContent = modal.querySelector('.modal-content');
@@ -1016,8 +1012,11 @@ window.openDocumentPreviewUrl = function(encodedUrl) {
                   Your browser does not support the video tag.
                 </video>`;
         } else {
-            // Generic SharePoint file: attempt direct iframe (works for most file types)
-            bodyHtml = `<iframe src="${cleanForAttr}" style="width:100%;height:100%;border:0;" allow="clipboard-read; clipboard-write" referrerpolicy="no-referrer"></iframe>`;
+            // Generic URL: attempt to embed. Some sites may block framing; the header fallback button remains available.
+            bodyHtml = `<iframe src="${cleanForAttr}"
+                               style="width:100%;height:100%;border:0;"
+                               sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                               referrerpolicy="no-referrer"></iframe>`;
         }
 
         modalContent.innerHTML = `
