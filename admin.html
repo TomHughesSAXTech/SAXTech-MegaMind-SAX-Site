@@ -946,10 +946,10 @@
                             <p style="color: #666; margin-top: 10px;">View and manage user conversation histories with comprehensive metrics</p>
                         </div>
                         <div style="display: flex; gap: 10px;">
-                            <button class="btn btn-success" onclick="exportToExcel()" title="Export data to Excel">
+                            <button class="btn btn-success" onclick="exportToExcel()" title="Export data to Excel (by user/date)">
                                 📊 Export Excel
                             </button>
-                            <button class="btn btn-danger" onclick="exportToPDF()" title="Generate PDF report">
+                            <button class="btn btn-danger" onclick="exportToPDF()" title="Generate PDF report (by user/date)">
                                 📄 Export PDF
                             </button>
                         </div>
@@ -1098,6 +1098,25 @@
 
     <script>
         // Admin Console - Voice Management & Index Management Combined
+
+        // Export helpers (by user and date filters)
+        function getSessionFilters() {
+            const userEmail = (document.getElementById('sessionUserEmail')?.value || '').trim() || document.getElementById('userFilterDropdown')?.value || '';
+            const range = document.getElementById('sessionDateRange')?.value || 'week';
+            return { userEmail, range };
+        }
+        function exportToExcel() {
+            const { userEmail, range } = getSessionFilters();
+            if (!userEmail) { alert('Select or enter a user email first'); return; }
+            const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=exportUser&format=xlsx&adminKey=sax-admin-2024&userEmail=${encodeURIComponent(userEmail)}&range=${encodeURIComponent(range)}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
+            window.open(url, '_blank');
+        }
+        function exportToPDF() {
+            const { userEmail, range } = getSessionFilters();
+            if (!userEmail) { alert('Select or enter a user email first'); return; }
+            const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=exportUser&format=pdf&adminKey=sax-admin-2024&userEmail=${encodeURIComponent(userEmail)}&range=${encodeURIComponent(range)}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
+            window.open(url, '_blank');
+        }
         // Fixed userProfile reference and merged all index management features
         
         // Default voice models
@@ -2396,22 +2415,22 @@ response = await fetch(`/api/documents-search/${currentIndex}`, {
         // let currentFilteredUser = null;
         async function loadSessionStats() {
             try {
-                const response = await fetch('https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=stats&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==', {
-                    headers: {
-                    }
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    document.getElementById('totalSessions').textContent = data.totalSessions || '0';
-                    document.getElementById('totalMessages').textContent = data.totalMessages || '0';
-                    document.getElementById('activeUsers').textContent = data.uniqueUsers || '0';
-                    document.getElementById('avgSessionLength').textContent = data.avgSessionLength || '0';
-                    
-                    // Calculate and display additional metrics if we have session data
-                    if (data.sessions && data.sessions.length > 0) {
-                        const metrics = calculateAggregateMetrics(data.sessions);
-                        updateMetricsDisplay(metrics);
-                    }
+                // Use wildcard fetch to compute stats client-side (avoids server aggregate limitations)
+                const response = await fetch('https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=get&email=*&range=month&limit=500&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==');
+                if (!response.ok) throw new Error('stats fetch failed');
+                const data = await response.json();
+                const sessions = data.sessions || [];
+                const totalSessions = sessions.length;
+                const totalMessages = sessions.reduce((sum, s) => sum + ((s.conversation||[]).length), 0);
+                const uniqueUsers = new Set(sessions.map(s => s.userEmail).filter(Boolean)).size;
+                const avgSessionLength = totalSessions ? (totalMessages/totalSessions).toFixed(1) : '0';
+                document.getElementById('totalSessions').textContent = totalSessions.toString();
+                document.getElementById('totalMessages').textContent = totalMessages.toString();
+                document.getElementById('activeUsers').textContent = uniqueUsers.toString();
+                document.getElementById('avgSessionLength').textContent = avgSessionLength;
+                if (sessions.length > 0) {
+                    const metrics = calculateAggregateMetrics(sessions);
+                    updateMetricsDisplay(metrics);
                 }
             } catch (error) {
                 console.error('Failed to load session stats:', error);
