@@ -546,13 +546,12 @@ window.loadAllRecentSessions = async function() {
     if (loading) loading.style.display = 'block';
     
     try {
-        // First try with wildcard
-        let url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=get&email=*&range=${range}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
-        console.log('Trying to load all recent sessions with wildcard:', url);
-        
+        // Use admin-list endpoint to fetch recent sessions across all users
+        const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
         const response = await fetch(url, {
-            method: 'GET',
-            headers: {}
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'admin-list', adminKey: 'sax-admin-2024', range: range, limit: 200 })
         });
         
         console.log('Response status:', response.status);
