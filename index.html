@@ -3908,6 +3908,21 @@ function loadConversationFromSnapshot(conv){
             return { id, name };
         }
 
+        // Helper: fetch text with timeout and safe error handling
+        async function fetchTextWithTimeout(url, options = {}, timeoutMs = 3000) {
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                const resp = await fetch(url, { ...options, signal: controller.signal });
+                const text = await resp.text().catch(() => '');
+                return { ok: resp.ok, status: resp.status, text };
+            } catch (e) {
+                return { ok: false, status: 0, text: '', error: e?.message || String(e) };
+            } finally {
+                clearTimeout(id);
+            }
+        }
+
         async function loadVoiceDropdown() {
             const voiceSelect = document.getElementById('voiceSelect');
             if (!voiceSelect) return;
@@ -3942,9 +3957,9 @@ function loadConversationFromSnapshot(conv){
 
             try {
                 // 1) Try n8n (single source of truth for frontend)
-                const response = await fetch(VOICES_CONFIG_URL, { headers: { 'Accept': 'application/json' } });
-                if (!response.ok) throw new Error('voices-config endpoint error: ' + response.status);
-                const raw = await response.text();
+                const n8nResp = await fetchTextWithTimeout(VOICES_CONFIG_URL, { headers: { 'Accept': 'application/json' } }, 3000);
+                if (!n8nResp.ok) throw new Error('voices-config endpoint error: ' + n8nResp.status + (n8nResp.error ? (' ' + n8nResp.error) : ''));
+                const raw = n8nResp.text;
                 if (!raw || !raw.trim()) throw new Error('voices-config returned empty body');
                 let data;
                 try { data = JSON.parse(raw); } catch (e) { throw new Error('voices-config non-JSON: ' + raw.substring(0,120)); }
@@ -3958,9 +3973,9 @@ function loadConversationFromSnapshot(conv){
                 console.warn('n8n voices-config failed, trying Azure Function...', n8nErr);
                 try {
                     // 2) Fallback to Azure Function used by admin console
-                    const resp2 = await fetch('https://saxtechmegamindfunctions.azurewebsites.net/api/ManageVoiceConfig', { headers: { 'Accept': 'application/json' } });
-                    if (!resp2.ok) throw new Error('ManageVoiceConfig error: ' + resp2.status);
-                    const raw2 = await resp2.text();
+                    const resp2 = await fetchTextWithTimeout('https://saxtechmegamindfunctions.azurewebsites.net/api/ManageVoiceConfig', { headers: { 'Accept': 'application/json' } }, 4000);
+                    if (!resp2.ok) throw new Error('ManageVoiceConfig error: ' + resp2.status + (resp2.error ? (' ' + resp2.error) : ''));
+                    const raw2 = resp2.text;
                     if (!raw2 || !raw2.trim()) throw new Error('ManageVoiceConfig returned empty body');
                     let config;
                     try { config = JSON.parse(raw2); } catch (e) { throw new Error('ManageVoiceConfig non-JSON: ' + raw2.substring(0,120)); }
