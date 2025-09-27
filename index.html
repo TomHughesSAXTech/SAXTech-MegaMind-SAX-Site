@@ -1313,15 +1313,8 @@
                                 </span>
                             </label>
                         </div>
-                        <select id="voiceSelect">
-                            <option value="rachel">Rachel (Female Professional)</option>
-                            <option value="clyde">Clyde (Male Professional)</option>
-                            <option value="charlotte">Charlotte (British Female)</option>
-                            <option value="bill">Bill (American Documentary)</option>
-                            <option value="george">George (British Narrator)</option>
-                            <option value="domi">Domi (Young Female)</option>
-                            <option value="nicole">Nicole (Soft Female)</option>
-                            <option value="jessie">Jessie (Warm Male)</option>
+                        <select id="voiceSelect" disabled>
+                            <option value="" disabled selected>Loading voices…</option>
                         </select>
                         <div id="ttsStatus" style="text-align: center; margin-top: 5px; font-size: 11px; color: rgba(255,255,255,0.6);">Audio: OFF</div>
                     </div>
@@ -3919,22 +3912,17 @@ function loadConversationFromSnapshot(conv){
             const voiceSelect = document.getElementById('voiceSelect');
             if (!voiceSelect) return;
 
-            const prior = readPersistedVoice().id || voiceSelect.value || '';
+            // Disable and show loading placeholder to avoid default flicker
+            voiceSelect.disabled = true;
+            voiceSelect.innerHTML = '<option value="" disabled selected>Loading voices…</option>';
 
-            try {
-                // Load from n8n (single source of truth)
-                const response = await fetch(VOICES_CONFIG_URL, { headers: { 'Accept': 'application/json' } });
-                if (!response.ok) throw new Error('voices-config endpoint error: ' + response.status);
-                const data = await response.json();
-                let voices = Array.isArray(data.voices) ? data.voices : [];
+            const prior = readPersistedVoice().id || '';
 
+            async function rebuildOptions(voices) {
                 // Normalize
-                voices = voices.map(v => ({ name: v.name || v.voiceName || '', voiceId: v.voiceId || v.id || '' }));
-
-                // Rebuild options
+                const normalized = (voices || []).map(v => ({ name: v.name || v.voiceName || '', voiceId: v.voiceId || v.id || '' })).filter(v => v.name && v.voiceId);
                 voiceSelect.innerHTML = '';
-                voices.forEach(v => {
-                    if (!v.voiceId || !v.name) return;
+                normalized.forEach(v => {
                     const opt = document.createElement('option');
                     opt.value = v.voiceId;
                     opt.textContent = v.name;
@@ -3942,44 +3930,48 @@ function loadConversationFromSnapshot(conv){
                     opt.setAttribute('data-voice-name', v.name);
                     voiceSelect.appendChild(opt);
                 });
-
                 // Preserve prior if still present, else select first
                 const exists = [...voiceSelect.options].some(o => o.value === prior);
-                if (exists && prior) voiceSelect.value = prior;
-                else if (voiceSelect.options.length > 0) voiceSelect.value = voiceSelect.options[0].value;
-
+                if (exists && prior) voiceSelect.value = prior; else if (voiceSelect.options.length > 0) voiceSelect.value = voiceSelect.options[0].value;
                 const id = voiceSelect.value;
                 const name = voiceSelect.selectedOptions?.[0]?.textContent?.trim() || '';
                 persistVoiceSelection(id, name);
+                // Enable now that we have real data
+                voiceSelect.disabled = false;
+            }
 
+            try {
+                // 1) Try n8n (single source of truth for frontend)
+                const response = await fetch(VOICES_CONFIG_URL, { headers: { 'Accept': 'application/json' } });
+                if (!response.ok) throw new Error('voices-config endpoint error: ' + response.status);
+                const data = await response.json();
+                const voices = Array.isArray(data.voices) ? data.voices : data; // support either {voices:[]} or []
+                await rebuildOptions(voices);
                 // Cache offline
                 localStorage.setItem('megamind_voice_config', JSON.stringify(voices));
-                console.log('Loaded voices from n8n:', voices.length);
-            } catch (error) {
-                console.error('Voices load failed, using cached if available:', error);
-                const saved = localStorage.getItem('megamind_voice_config');
-                if (saved) {
-                    try {
-                        let voices = JSON.parse(saved).map(v => ({ name: v.name || v.voiceName || '', voiceId: v.voiceId || v.id || '' }));
-                        voiceSelect.innerHTML = '';
-                        voices.forEach(v => {
-                            if (!v.voiceId || !v.name) return;
-                            const opt = document.createElement('option');
-                            opt.value = v.voiceId;
-                            opt.textContent = v.name;
-                            opt.setAttribute('data-voice-id', v.voiceId);
-                            opt.setAttribute('data-voice-name', v.name);
-                            voiceSelect.appendChild(opt);
-                        });
-                        const exists = [...voiceSelect.options].some(o => o.value === prior);
-                        if (exists && prior) voiceSelect.value = prior;
-                        else if (voiceSelect.options.length > 0) voiceSelect.value = voiceSelect.options[0].value;
-                        const id = voiceSelect.value;
-                        const name = voiceSelect.selectedOptions?.[0]?.textContent?.trim() || '';
-                        persistVoiceSelection(id, name);
-                        console.log('Using cached voices:', voices.length);
-                    } catch (e) {
-                        console.error('Cached voices parse error:', e);
+                console.log('Loaded voices from n8n:', Array.isArray(voices) ? voices.length : 'unknown');
+            } catch (n8nErr) {
+                console.warn('n8n voices-config failed, trying Azure Function...', n8nErr);
+                try {
+                    // 2) Fallback to Azure Function used by admin console
+                    const resp2 = await fetch('https://saxtechmegamindfunctions.azurewebsites.net/api/ManageVoiceConfig');
+                    if (!resp2.ok) throw new Error('ManageVoiceConfig error: ' + resp2.status);
+                    const config = await resp2.json();
+                    const voices = Array.isArray(config?.voices) ? config.voices : [];
+                    await rebuildOptions(voices);
+                    localStorage.setItem('megamind_voice_config', JSON.stringify(voices));
+                    console.log('Loaded voices from Azure Function:', voices.length);
+                } catch (fnErr) {
+                    console.error('Azure Function fallback failed, using cached if available:', fnErr);
+                    const saved = localStorage.getItem('megamind_voice_config');
+                    if (saved) {
+                        try {
+                            await rebuildOptions(JSON.parse(saved));
+                            console.log('Using cached voices');
+                        } catch (e) {
+                            console.error('Cached voices parse error:', e);
+                            // Leave placeholder and keep disabled
+                        }
                     }
                 }
             }
