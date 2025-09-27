@@ -3895,79 +3895,113 @@ function loadConversationFromSnapshot(conv){
             location.reload();
         };
         
-        // Load voice configuration from centralized Azure storage
+        // Centralized voices: served by n8n and persisted locally
+        const VOICES_CONFIG_URL = 'https://workflows.saxtechnology.com/webhook/voices-config';
+        const VOICE_ID_KEY = 'selectedVoiceId';
+        const VOICE_NAME_KEY = 'selectedVoiceName';
+
+        function persistVoiceSelection(id, name) {
+            if (!id) return;
+            sessionStorage.setItem(VOICE_ID_KEY, id);
+            if (name) sessionStorage.setItem(VOICE_NAME_KEY, name);
+            window.currentVoiceId = id;
+            window.currentVoiceName = name || '';
+            console.log('[Voice] Persisted:', { id, name });
+        }
+
+        function readPersistedVoice() {
+            const id = sessionStorage.getItem(VOICE_ID_KEY) || '';
+            const name = sessionStorage.getItem(VOICE_NAME_KEY) || '';
+            return { id, name };
+        }
+
         async function loadVoiceDropdown() {
             const voiceSelect = document.getElementById('voiceSelect');
-            
+            if (!voiceSelect) return;
+
+            const prior = readPersistedVoice().id || voiceSelect.value || '';
+
             try {
-                // Load from Azure Function (same config for ALL users)
-                const response = await fetch('https://saxtechmegamindfunctions.azurewebsites.net/api/ManageVoiceConfig');
-                
-                if (response.ok) {
-                    const config = await response.json();
-                    const voices = config.voices || [];
-                    
-                    voiceSelect.innerHTML = '';
-                    voices.forEach(voice => {
-                        const option = document.createElement('option');
-                        // Use voiceId as the value instead of name
-                        option.value = voice.voiceId || voice.name.toLowerCase();
-                        option.textContent = voice.name;
-                        option.setAttribute('data-voice-id', voice.voiceId || voice.name.toLowerCase());
-                        option.setAttribute('data-voice-name', voice.name);
-                        voiceSelect.appendChild(option);
-                    });
-                    
-                    // Cache in localStorage for offline use
-                    localStorage.setItem('megamind_voice_config', JSON.stringify(voices));
-                    console.log('Loaded centralized voice configuration:', voices.length, 'voices');
-                    
-                } else {
-                    throw new Error('Failed to load from cloud');
-                }
-                
+                // Load from n8n (single source of truth)
+                const response = await fetch(VOICES_CONFIG_URL, { headers: { 'Accept': 'application/json' } });
+                if (!response.ok) throw new Error('voices-config endpoint error: ' + response.status);
+                const data = await response.json();
+                let voices = Array.isArray(data.voices) ? data.voices : [];
+
+                // Normalize
+                voices = voices.map(v => ({ name: v.name || v.voiceName || '', voiceId: v.voiceId || v.id || '' }));
+
+                // Rebuild options
+                voiceSelect.innerHTML = '';
+                voices.forEach(v => {
+                    if (!v.voiceId || !v.name) return;
+                    const opt = document.createElement('option');
+                    opt.value = v.voiceId;
+                    opt.textContent = v.name;
+                    opt.setAttribute('data-voice-id', v.voiceId);
+                    opt.setAttribute('data-voice-name', v.name);
+                    voiceSelect.appendChild(opt);
+                });
+
+                // Preserve prior if still present, else select first
+                const exists = [...voiceSelect.options].some(o => o.value === prior);
+                if (exists && prior) voiceSelect.value = prior;
+                else if (voiceSelect.options.length > 0) voiceSelect.value = voiceSelect.options[0].value;
+
+                const id = voiceSelect.value;
+                const name = voiceSelect.selectedOptions?.[0]?.textContent?.trim() || '';
+                persistVoiceSelection(id, name);
+
+                // Cache offline
+                localStorage.setItem('megamind_voice_config', JSON.stringify(voices));
+                console.log('Loaded voices from n8n:', voices.length);
             } catch (error) {
-                console.error('Failed to load from cloud, using cached:', error);
-                
-                // Fallback to cached version
+                console.error('Voices load failed, using cached if available:', error);
                 const saved = localStorage.getItem('megamind_voice_config');
                 if (saved) {
                     try {
-                        const voices = JSON.parse(saved);
+                        let voices = JSON.parse(saved).map(v => ({ name: v.name || v.voiceName || '', voiceId: v.voiceId || v.id || '' }));
                         voiceSelect.innerHTML = '';
-                        
-                        voices.forEach(voice => {
-                            const option = document.createElement('option');
-                            // Use voiceId as the value instead of name
-                            option.value = voice.voiceId || voice.name.toLowerCase();
-                            option.textContent = voice.name;
-                            option.setAttribute('data-voice-id', voice.voiceId || voice.name.toLowerCase());
-                            option.setAttribute('data-voice-name', voice.name);
-                            voiceSelect.appendChild(option);
+                        voices.forEach(v => {
+                            if (!v.voiceId || !v.name) return;
+                            const opt = document.createElement('option');
+                            opt.value = v.voiceId;
+                            opt.textContent = v.name;
+                            opt.setAttribute('data-voice-id', v.voiceId);
+                            opt.setAttribute('data-voice-name', v.name);
+                            voiceSelect.appendChild(opt);
                         });
-                        
-                        console.log('Using cached voice configuration:', voices.length, 'voices');
+                        const exists = [...voiceSelect.options].some(o => o.value === prior);
+                        if (exists && prior) voiceSelect.value = prior;
+                        else if (voiceSelect.options.length > 0) voiceSelect.value = voiceSelect.options[0].value;
+                        const id = voiceSelect.value;
+                        const name = voiceSelect.selectedOptions?.[0]?.textContent?.trim() || '';
+                        persistVoiceSelection(id, name);
+                        console.log('Using cached voices:', voices.length);
                     } catch (e) {
-                        console.error('Error loading cached config:', e);
+                        console.error('Cached voices parse error:', e);
                     }
                 }
             }
-        }
-        
-        // Listen for voice config updates from admin page
-        window.addEventListener('message', (event) => {
-            if (event.data.type === 'voice_config_update') {
-                console.log('Received voice config update from admin');
-                loadVoiceDropdown();
+
+            if (!voiceSelect.__wired) {
+                voiceSelect.__wired = true;
+                voiceSelect.addEventListener('change', () => {
+                    const id = voiceSelect.value;
+                    const name = voiceSelect.selectedOptions?.[0]?.textContent?.trim() || '';
+                    console.log('[Voice] UI change ->', id, name);
+                    persistVoiceSelection(id, name);
+                });
             }
-        });
-        
+        }
+
         // Initialize on page load
         window.addEventListener('load', async () => {
             console.log('Page loaded, initializing application...');
-            loadVoiceDropdown();  // Load custom voices
-            await initialize();  // Call the main initialize function, not just initializeMSAL
+            await loadVoiceDropdown();  // Load from n8n voices-config
+            await initialize();  // Main app initialize
         });
+        
         
         // Document Portal Password Protection
         function openDocumentPortal() {
