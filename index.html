@@ -3944,8 +3944,12 @@ function loadConversationFromSnapshot(conv){
                 // 1) Try n8n (single source of truth for frontend)
                 const response = await fetch(VOICES_CONFIG_URL, { headers: { 'Accept': 'application/json' } });
                 if (!response.ok) throw new Error('voices-config endpoint error: ' + response.status);
-                const data = await response.json();
-                const voices = Array.isArray(data.voices) ? data.voices : data; // support either {voices:[]} or []
+                const raw = await response.text();
+                if (!raw || !raw.trim()) throw new Error('voices-config returned empty body');
+                let data;
+                try { data = JSON.parse(raw); } catch (e) { throw new Error('voices-config non-JSON: ' + raw.substring(0,120)); }
+                const voices = Array.isArray(data?.voices) ? data.voices : (Array.isArray(data) ? data : []); // support {voices:[]} or []
+                if (!Array.isArray(voices) || voices.length === 0) throw new Error('voices-config had no voices');
                 await rebuildOptions(voices);
                 // Cache offline
                 localStorage.setItem('megamind_voice_config', JSON.stringify(voices));
@@ -3954,10 +3958,14 @@ function loadConversationFromSnapshot(conv){
                 console.warn('n8n voices-config failed, trying Azure Function...', n8nErr);
                 try {
                     // 2) Fallback to Azure Function used by admin console
-                    const resp2 = await fetch('https://saxtechmegamindfunctions.azurewebsites.net/api/ManageVoiceConfig');
+                    const resp2 = await fetch('https://saxtechmegamindfunctions.azurewebsites.net/api/ManageVoiceConfig', { headers: { 'Accept': 'application/json' } });
                     if (!resp2.ok) throw new Error('ManageVoiceConfig error: ' + resp2.status);
-                    const config = await resp2.json();
+                    const raw2 = await resp2.text();
+                    if (!raw2 || !raw2.trim()) throw new Error('ManageVoiceConfig returned empty body');
+                    let config;
+                    try { config = JSON.parse(raw2); } catch (e) { throw new Error('ManageVoiceConfig non-JSON: ' + raw2.substring(0,120)); }
                     const voices = Array.isArray(config?.voices) ? config.voices : [];
+                    if (!Array.isArray(voices) || voices.length === 0) throw new Error('ManageVoiceConfig had no voices array');
                     await rebuildOptions(voices);
                     localStorage.setItem('megamind_voice_config', JSON.stringify(voices));
                     console.log('Loaded voices from Azure Function:', voices.length);
