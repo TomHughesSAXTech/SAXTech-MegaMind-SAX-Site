@@ -70,8 +70,8 @@ module.exports = async function (context, req) {
             // Use sessionId as the document id so UI can load/delete by sessionId reliably
             conversation.id = conversation.sessionId;
 
-            // Save to Cosmos DB
-            const { resource } = await container.items.create(conversation);
+            // Save to Cosmos DB (upsert to allow repeated saves for same sessionId)
+            const { resource } = await container.items.upsert(conversation);
 
             context.res.status = 200;
             context.res.body = { 

@@ -3995,11 +3995,16 @@ function loadConversationFromSnapshot(conv){
             }
         }
 
-        // Initialize on page load
+        // Initialize on page load (initialize UI first; fetch voices async)
         window.addEventListener('load', async () => {
             console.log('Page loaded, initializing application...');
-            await loadVoiceDropdown();  // Load from n8n voices-config
-            await initialize();  // Main app initialize
+            try {
+                await initialize(); // Main app initialize and auth
+            } catch (e) {
+                console.error('[Init] initialize() failed:', e);
+            }
+            // Load voices without blocking UI; preserve selection if present
+            loadVoiceDropdown().catch(e => console.error('[Voices] async load failed:', e));
         });
         
         

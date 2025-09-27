@@ -15,7 +15,12 @@ const voiceMapping = {};
 // Build mapping from config
 if (voiceConfig.length > 0) {
   voiceConfig.forEach(voice => {
-    voiceMapping[voice.name.toLowerCase()] = voice.id;
+    if (!voice || !voice.name) return;
+    const key = String(voice.name).toLowerCase();
+    const vid = voice.id || voice.voiceId || voice.voice_id || voice.voiceID || voice.value || null;
+    if (vid) {
+      voiceMapping[key] = vid;
+    }
   });
   console.log('Using dynamic voice configuration:', Object.keys(voiceMapping).length, 'voices');
 } else {
@@ -34,8 +39,9 @@ if (voiceConfig.length > 0) {
 }
 
 // Get voice ID
-const voiceKey = selectedVoice.toLowerCase();
-const voiceId = voiceMapping[voiceKey] || voiceMapping['rachel'];
+const voiceKey = String(selectedVoice || '').toLowerCase();
+const isLikelyId = /^[A-Za-z0-9_-]{10,}$/.test(selectedVoice || '');
+let voiceId = isLikelyId ? selectedVoice : (voiceMapping[voiceKey] || voiceMapping['rachel']);
 
 console.log(`Voice selection: requested="${selectedVoice}", key="${voiceKey}", id="${voiceId}"`);
 

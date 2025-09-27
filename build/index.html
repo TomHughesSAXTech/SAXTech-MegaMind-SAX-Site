@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MegaMind Talk</title>
+    <!-- MSAL for Microsoft sign-in -->
+    <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js" crossorigin="anonymous"></script>
     <style>
         * {
             margin: 0;
@@ -458,6 +460,59 @@
                 height: 600px;
             }
         }
+
+        /* History panel styles */
+        .history-btn {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            background: rgba(255,215,0,0.15);
+            color: #FFD700;
+            border: 1px solid rgba(255,215,0,0.4);
+            padding: 6px 12px;
+            border-radius: 14px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .history-btn:hover { background: rgba(255,215,0,0.25); }
+
+        .history-wrap { position: relative; }
+        .history-panel {
+            position: absolute;
+            right: 0;
+            top: 48px;
+            width: 360px;
+            max-height: 420px;
+            overflow-y: auto;
+            background: rgba(0,0,0,0.85);
+            border: 1px solid rgba(255,215,0,0.3);
+            border-radius: 12px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.4);
+            padding: 10px;
+            display: none;
+            z-index: 999;
+        }
+        .history-panel.active { display: block; }
+        .history-item {
+            padding: 10px;
+            margin: 6px 0;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,215,0,0.15);
+            cursor: pointer;
+        }
+        .history-item:hover { background: rgba(255,255,255,0.08); }
+        .history-item-title { color: #FFD700; font-size: 13px; margin-bottom: 4px; }
+        .history-item-time { color: #bbb; font-size: 12px; }
+        .history-item-preview { color: #aaa; font-size: 11px; margin-top: 2px; }
+        .history-actions { display: flex; gap: 6px; margin-top: 8px; }
+        .history-action { font-size: 11px; padding: 5px 8px; border-radius: 6px; border: 1px solid rgba(255,215,0,0.4); background: rgba(255,215,0,0.12); color: #FFD700; cursor: pointer; }
+        .history-action:hover { background: rgba(255,215,0,0.2); }
+        .history-action.danger { border-color: rgba(255,100,100,0.5); color: #ff7676; background: rgba(255,100,100,0.12); }
+        .history-action.danger:hover { background: rgba(255,100,100,0.2); }
+        .history-more-wrap { padding: 8px 0 4px; text-align: center; }
+        .history-more-btn { font-size: 12px; padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.08); color: #eee; cursor: pointer; }
+        .history-more-btn:hover { background: rgba(255,255,255,0.12); }
     </style>
 </head>
 <body>
@@ -541,9 +596,20 @@
 
         <!-- Chat interface -->
         <div class="chat-container">
-            <div class="chat-header">
+            <div class="chat-header" style="position: relative;">
                 <h2>MegaMind AI</h2>
                 <p>Your intelligent assistant</p>
+                <div class="history-wrap">
+                    <button id="historyBtn" class="history-btn" title="Show conversation history">History</button>
+                    <div id="historyPanel" class="history-panel">
+                        <div id="historyLoading">Loading sessions...</div>
+                        <div id="historyEmpty" style="display:none; color:#bbb; padding:8px;">No sessions found</div>
+                        <div id="historyList"></div>
+                        <div id="historyMoreWrap" class="history-more-wrap" style="display:none;">
+                            <button id="historyLoadMoreBtn" class="history-more-btn">Load more</button>
+                        </div>
+                    </div>
+                </div>
             </div>
             
             <div class="chat-messages" id="chatMessages">
@@ -561,38 +627,134 @@
     </div>
 
     <script>
-        // Authentication functions
-        function signIn() {
-            document.getElementById('authOverlay').classList.add('hidden');
-            document.getElementById('userProfile').classList.remove('hidden');
-            document.getElementById('mainApp').classList.remove('hidden');
-            
-            document.getElementById('userName').textContent = 'Demo User';
-            document.getElementById('userRole').textContent = 'Employee • SAX Technology';
-            document.getElementById('userAvatar').textContent = 'DU';
-            
-            addMessage('bot', 'Welcome to MegaMind! I\'m your AI assistant. How can I help you today?');
+        // ===== MSAL Authentication + Session Persistence =====
+        const msalConfig = {
+            auth: {
+                clientId: "93540af4-ed24-4202-a334-acd7f29bdd4b",
+                authority: "https://login.microsoftonline.com/a33e9b66-a6ef-43bf-9702-7cb4301d0a16",
+                redirectUri: window.location.origin,
+                postLogoutRedirectUri: window.location.origin
+            },
+            cache: { cacheLocation: "localStorage", storeAuthStateInCookie: true }
+        };
+        let msalInstance = null;
+        let currentAccount = null;
+        let userProfile = null;
+        let conversationHistory = [];
+        window.userSessionId = null;
+
+        const authOverlay = document.getElementById('authOverlay');
+        const userProfileDiv = document.getElementById('userProfile');
+        const mainApp = document.getElementById('mainApp');
+        const userNameEl = document.getElementById('userName');
+        const userRoleEl = document.getElementById('userRole');
+        const userAvatarEl = document.getElementById('userAvatar');
+        const chatMessagesEl = document.getElementById('chatMessages');
+        const messageInputEl = document.getElementById('messageInput');
+
+        function showAuthOverlay(){
+            authOverlay.classList.remove('hidden');
+            userProfileDiv.classList.add('hidden');
+            mainApp.classList.add('hidden');
+        }
+        function showMainApp(){
+            authOverlay.classList.add('hidden');
+            userProfileDiv.classList.remove('hidden');
+            mainApp.classList.remove('hidden');
+
+            // Start a fresh sessionId for this page load (new conversation per refresh)
+            try {
+                const newSid = 'session_' + Date.now();
+                window.userSessionId = newSid;
+                sessionStorage.setItem('megamind_sax_session_id', newSid);
+                // Clear any prior in-memory history snapshot for a clean start
+                conversationHistory = [];
+            } catch {}
+
+            // Welcome message only once per load
+            if (!sessionStorage.getItem('megamind_demo_welcome')){
+                addMessage('bot', "Welcome to MegaMind! I'm your AI assistant. How can I help you today?");
+                sessionStorage.setItem('megamind_demo_welcome','1');
+            }
         }
 
-        function signOut() {
-            document.getElementById('authOverlay').classList.remove('hidden');
-            document.getElementById('userProfile').classList.add('hidden');
-            document.getElementById('mainApp').classList.add('hidden');
-            document.getElementById('chatMessages').innerHTML = '';
+        function updateProfileUIFromAccount(account){
+            const email = account?.username || account?.idTokenClaims?.preferred_username || '';
+            const display = account?.name || email || 'User';
+            if (userNameEl) userNameEl.textContent = display;
+            if (userRoleEl) userRoleEl.textContent = 'SAX Advisory Group';
+            if (userAvatarEl) userAvatarEl.textContent = (display?.[0] || 'U').toUpperCase();
+            userProfile = { mail: email, displayName: display };
         }
 
-        // Chat functions
-        function addMessage(sender, message) {
+        async function initializeAuth(){
+            if (typeof msal !== 'undefined' && msal.PublicClientApplication){
+                msalInstance = new msal.PublicClientApplication(msalConfig);
+                await msalInstance.initialize();
+                try {
+                    const result = await msalInstance.handleRedirectPromise();
+                    if (result?.account){ currentAccount = result.account; }
+                } catch(e){ console.warn('MSAL redirect handling:', e); }
+                const accounts = msalInstance.getAllAccounts();
+                if (!currentAccount && accounts.length>0){ currentAccount = accounts[0]; }
+                if (currentAccount){
+                    updateProfileUIFromAccount(currentAccount);
+                    showMainApp();
+                } else {
+                    showAuthOverlay();
+                }
+            } else {
+                console.error('MSAL script not loaded');
+                showAuthOverlay();
+            }
+        }
+
+        // ===== Conversation persistence (local + Azure Function) =====
+        function saveSessionHistory(){
+            // Ensure there is a session id for this page load
+            if (!window.userSessionId){
+                const restored = sessionStorage.getItem('megamind_sax_session_id');
+                window.userSessionId = restored || ('session_' + Date.now());
+                sessionStorage.setItem('megamind_sax_session_id', window.userSessionId);
+            }
+            const sid = window.userSessionId;
+            const snapshot = { messages: conversationHistory, lastUpdated: new Date().toISOString() };
+            try { localStorage.setItem(sid, JSON.stringify(snapshot)); } catch {}
+            logToAzureDatabase(sid, conversationHistory);
+        }
+        async function logToAzureDatabase(sessionId, messages){
+            const email = currentAccount?.username || userProfile?.mail;
+            if (!email) return; // require identity for cloud persistence
+            try {
+                const resp = await fetch('https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==',{
+                    method:'POST',
+                    headers:{ 'Content-Type':'application/json' },
+                    body: JSON.stringify({
+                        action:'save',
+                        sessionId,
+                        userEmail: email,
+                        userName: currentAccount?.name || email,
+                        conversation: messages,
+                        timestamp: new Date().toISOString(),
+                        department: null,
+                        location: null,
+                        aiProfile: 'default'
+                    })
+                });
+                if (!resp.ok){ console.warn('Failed to save conversation to database:', resp.status); }
+            } catch (e){ console.error('Failed to log to Azure database:', e); }
+        }
+
+        // ===== Chat UI helpers (unchanged visuals) =====
+        function addMessage(sender, message){
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${sender}`;
-            
             const avatar = document.createElement('div');
             avatar.className = 'message-avatar';
-            
             if (sender === 'user') {
-                avatar.innerHTML = 'DU';
+                const initials = (userProfile?.displayName || (currentAccount?.name || 'U')).slice(0,2).toUpperCase();
+                avatar.textContent = initials;
             } else {
-                // Add robot SVG for bot messages
                 avatar.innerHTML = `<svg viewBox="0 0 200 200" style="width: 24px; height: 24px;">
                     <defs>
                         <linearGradient id="botGradient${Date.now()}" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -616,26 +778,26 @@
                     <circle cx="137" cy="167" r="8" fill="url(#botGradient${Date.now()})"/>
                 </svg>`;
             }
-            
             const bubble = document.createElement('div');
             bubble.className = 'message-bubble';
             bubble.textContent = message;
-            
             messageDiv.appendChild(avatar);
             messageDiv.appendChild(bubble);
-            
-            document.getElementById('chatMessages').appendChild(messageDiv);
-            document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
+            chatMessagesEl.appendChild(messageDiv);
+            chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
         }
 
-        // Enhanced sendMessage function with better error handling
-        async function sendMessage(message) {
-            if (!message.trim()) return;
-            
+        // ===== Send message: now persists to cloud =====
+        async function sendMessage(message){
+            if (!message || !message.trim()) return;
+
+            // UI + local model state
             addMessage('user', message);
-            document.getElementById('messageInput').value = '';
-            
-            // Show typing indicator
+            messageInputEl.value = '';
+            conversationHistory.push({ role:'user', content: message, timestamp: new Date().toISOString() });
+            saveSessionHistory();
+
+            // Typing indicator
             const typingDiv = document.createElement('div');
             typingDiv.className = 'message bot typing';
             typingDiv.innerHTML = `<div class="message-avatar">
@@ -646,204 +808,398 @@
                     <rect x="95" y="108" width="10" height="3" rx="1" fill="#000"/>
                 </svg>
             </div><div class="message-bubble">Thinking...</div>`;
-            document.getElementById('chatMessages').appendChild(typingDiv);
-            document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
-            
+            chatMessagesEl.appendChild(typingDiv);
+            chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+
             try {
-                console.log('Sending message to webhook:', message);
-                
-                // Send to n8n workflow with improved headers and error handling
+                const email = currentAccount?.username || userProfile?.mail || 'demo@saxtechnology.com';
+                const name = currentAccount?.name || userProfile?.displayName || 'Demo User';
+                const payload = {
+                    chatInput: message,
+                    message,
+                    input: message,
+                    prompt: message,
+                    text: message,
+                    query: message,
+                    sessionId: (window.userSessionId || sessionStorage.getItem('megamind_sax_session_id') || ('session_' + Date.now())),
+                    selectedVoice: 'alloy',
+                    timestamp: new Date().toISOString(),
+                    userContext: {
+                        userProfile: {
+                            name,
+                            email,
+                            jobTitle: 'Employee',
+                            department: 'SAX Advisory Group'
+                        },
+                        source: 'megamind-webapp',
+                        version: '1.0'
+                    }
+                };
+
                 const response = await fetch('https://workflows.saxtechnology.com/webhook/megamind-chat', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'User-Agent': 'MegaMind-WebApp/1.0'
-                    },
-                    body: JSON.stringify({
-                        chatInput: message,
-                        message: message,
-                        input: message,
-                        prompt: message,
-                        text: message,
-                        query: message,
-                        sessionId: 'session_' + Date.now(),
-                        selectedVoice: 'alloy',
-                        timestamp: new Date().toISOString(),
-                        userContext: {
-                            userProfile: {
-                                name: 'Demo User',
-                                email: 'demo@saxtechnology.com',
-                                jobTitle: 'Employee',
-                                department: 'SAX Technology'
-                            },
-                            source: 'megamind-webapp',
-                            version: '1.0'
-                        }
-                    })
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'User-Agent': 'MegaMind-WebApp/1.0' },
+                    body: JSON.stringify(payload)
                 });
-                
-                console.log('Response status:', response.status);
-                console.log('Response headers:', [...response.headers.entries()]);
-                
-                // Remove typing indicator
-                document.getElementById('chatMessages').removeChild(typingDiv);
-                
-                if (response.ok) {
-                    const result = await response.json();
-                    console.log('Response data:', result);
-                    
-                    // Handle different response formats
+
+                chatMessagesEl.removeChild(typingDiv);
+
+                if (response.ok){
+                    let result = {};
+                    try { result = await response.json(); } catch {}
                     const botResponse = result.response || result.message || result.text || result.answer || 'I received your message!';
                     addMessage('bot', botResponse);
-                    
-                    // Handle audio if provided
-                    if (result.audioData) {
-                        try {
-                            const audio = new Audio('data:audio/mp3;base64,' + result.audioData);
-                            audio.play().catch(e => console.log('Audio playback failed:', e));
-                        } catch (e) {
-                            console.log('Audio processing failed:', e);
-                        }
+                    conversationHistory.push({ role:'assistant', content: botResponse, timestamp: new Date().toISOString() });
+                    saveSessionHistory();
+
+                    if (result.audioData){
+                        try { new Audio('data:audio/mp3;base64,' + result.audioData).play().catch(()=>{}); } catch {}
                     }
                 } else {
-                    console.error('Response not OK:', response.status, response.statusText);
                     const errorText = await response.text();
-                    console.error('Error response body:', errorText);
-                    
-                    let errorMessage = `I'm having trouble connecting to the server (HTTP ${response.status}: ${response.statusText}).`;
-                    
-                    if (response.status === 404) {
-                        errorMessage += ' The webhook endpoint might not be active yet. Please check the n8n workflow.';
-                    } else if (response.status === 500) {
-                        errorMessage += ' There\'s a server error. The workflow might need debugging.';
-                    } else if (response.status === 0 || response.status >= 400) {
-                        errorMessage += ' Please verify the webhook URL and try again.';
-                    }
-                    
+                    console.error('Webhook error:', response.status, errorText);
+                    let errorMessage = `I'm having trouble connecting to the server (HTTP ${response.status}).`;
+                    if (response.status === 404) errorMessage += ' The webhook endpoint might not be active yet.';
+                    if (response.status === 500) errorMessage += ' There is a server error.';
                     addMessage('bot', errorMessage);
                 }
-            } catch (error) {
+            } catch (error){
                 console.error('Fetch error:', error);
-                document.getElementById('chatMessages').removeChild(typingDiv);
-                
-                let errorMessage = 'I\'m having trouble connecting to the server. ';
-                
-                if (error.name === 'TypeError' && error.message.includes('fetch')) {
-                    errorMessage += 'This might be a network issue or CORS problem. Please check if the webhook URL is accessible: https://workflows.saxtechnology.com/webhook/megamind-chat';
-                } else {
-                    errorMessage += `Error: ${error.message}`;
-                }
-                
-                addMessage('bot', errorMessage);
+                if (chatMessagesEl.contains(typingDiv)) chatMessagesEl.removeChild(typingDiv);
+                let msg = 'I\'m having trouble connecting to the server. ';
+                if (error?.message?.includes('fetch')) msg += 'This might be a network or CORS issue.';
+                addMessage('bot', msg);
             }
         }
 
-        // Voice recording functionality
-        let isRecording = false;
-        let mediaRecorder = null;
-        let audioChunks = [];
+        // ===== History loading and restore =====
+        let historyOpen = false;
+        let loadedHistorySessions = [];
+        let currentHistoryRange = 'month'; // initial window; load more switches to 'all'
 
-        async function startRecording() {
+        function escapeHtml(str){
+            try { return String(str).replace(/[&<>"']/g, s=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[s])); } catch { return str; }
+        }
+
+        function toggleHistoryPanel(){
+            const panel = document.getElementById('historyPanel');
+            const loading = document.getElementById('historyLoading');
+            const list = document.getElementById('historyList');
+            const empty = document.getElementById('historyEmpty');
+            const moreWrap = document.getElementById('historyMoreWrap');
+            historyOpen = !historyOpen;
+            if (historyOpen){
+                panel.classList.add('active');
+                if (loading) loading.style.display = 'block';
+                if (empty) empty.style.display = 'none';
+                if (list) list.innerHTML = '';
+                currentHistoryRange = 'month';
+                loadCloudHistory(currentHistoryRange, false).then(hadCloud => { if (!hadCloud) loadLocalHistory(); });
+                if (moreWrap) moreWrap.style.display = 'block';
+            } else {
+                panel.classList.remove('active');
+            }
+        }
+
+        function addMessageToUI(role, content){
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            if (role === 'user') {
+                const initials = (userProfile?.displayName || (currentAccount?.name || 'U')).slice(0,2).toUpperCase();
+                avatar.textContent = initials;
+            } else {
+                avatar.innerHTML = `<svg viewBox="0 0 200 200" style="width: 24px; height: 24px;">
+                    <circle cx="100" cy="100" r="35" fill="#FFD700"/>
+                    <circle cx="90" cy="95" r="6" fill="#000"/>
+                    <circle cx="110" cy="95" r="6" fill="#000"/>
+                    <rect x="95" y="108" width="10" height="3" rx="1" fill="#000"/>
+                </svg>`;
+            }
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+            bubble.innerHTML = content;
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(bubble);
+            chatMessagesEl.appendChild(messageDiv);
+            chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+        }
+
+        function restoreConversation(messages){
+            try {
+                chatMessagesEl.innerHTML = '';
+                (messages||[]).forEach(msg => {
+                    const role = (msg.role === 'assistant') ? 'bot' : (msg.role === 'user' ? 'user' : 'bot');
+                    addMessageToUI(role, escapeHtml(msg.content || ''));
+                });
+                // Do not auto-save on restore
+                // Close panel after restore
+                const panel = document.getElementById('historyPanel');
+                if (panel) panel.classList.remove('active');
+                historyOpen = false;
+            } catch(e){ console.warn('Failed to restore conversation', e); }
+        }
+
+        window.displayHistoryList = function(sessions){
+            const list = document.getElementById('historyList');
+            const empty = document.getElementById('historyEmpty');
+            const loading = document.getElementById('historyLoading');
+            const moreWrap = document.getElementById('historyMoreWrap');
+            if (loading) loading.style.display = 'none';
+            if (!list) return;
+            if (!sessions || sessions.length === 0){
+                if (empty) empty.style.display = 'block';
+                list.innerHTML = '';
+                if (moreWrap) moreWrap.style.display = 'none';
+                return;
+            }
+            if (empty) empty.style.display = 'none';
+            list.innerHTML = '';
+            sessions.forEach((s, idx) => {
+                const ts = new Date(s.timestamp || s.createdAt || Date.now());
+                const dateStr = ts.toLocaleDateString() + ' ' + ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                let preview = 'Conversation';
+                let conv = [];
+                try {
+                    conv = Array.isArray(s.conversation) ? s.conversation : (typeof s.conversation === 'string' ? (JSON.parse(s.conversation).messages || []) : []);
+                } catch {}
+                const firstUser = conv?.find?.(m => (m.role === 'user' || m.type === 'user') && (m.content || m.message));
+                if (firstUser) {
+                    const txt = (firstUser.content || firstUser.message).replace(/<[^>]*>/g, '').trim();
+                    preview = (txt || 'Conversation').substring(0, 60);
+                }
+                const item = document.createElement('div');
+                item.className = 'history-item';
+                item.innerHTML = `
+                    <div class="history-item-main" style="cursor:pointer;" onclick="window.loadHistorySession(${idx})">
+                        <div class="history-item-title">${escapeHtml(preview)}</div>
+                        <div class="history-item-time">${dateStr}</div>
+                        <div class="history-item-preview">${(conv?.length||0)} messages</div>
+                    </div>
+                    <div class="history-actions">
+                        <button class="history-action" onclick="window.loadHistorySession(${idx})">View</button>
+                        <button class="history-action" onclick="window.continueHistorySession(${idx})">Continue</button>
+                        <button class="history-action danger" onclick="window.deleteHistorySession(${idx})">Delete</button>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+            if (moreWrap) {
+                // Show 'Load more' only if not at 'all'
+                moreWrap.style.display = currentHistoryRange === 'all' ? 'none' : 'block';
+            }
+        }
+
+        window.loadHistorySession = function(index){
+            const session = loadedHistorySessions[index];
+            if (!session) return;
+            let conv = [];
+            try {
+                if (Array.isArray(session.conversation)) conv = session.conversation;
+                else if (typeof session.conversation === 'string') {
+                    const parsed = JSON.parse(session.conversation);
+                    conv = Array.isArray(parsed) ? parsed : (parsed.messages || []);
+                }
+            } catch {}
+            restoreConversation(conv || []);
+        }
+
+        window.continueHistorySession = function(index){
+            const session = loadedHistorySessions[index];
+            if (!session) return;
+            try {
+                let conv = [];
+                if (Array.isArray(session.conversation)) conv = session.conversation;
+                else if (typeof session.conversation === 'string') {
+                    const parsed = JSON.parse(session.conversation);
+                    conv = Array.isArray(parsed) ? parsed : (parsed.messages || []);
+                }
+                // Set active sessionId and conversation history; persist to sessionStorage so saves target it
+                window.userSessionId = session.sessionId || window.userSessionId || `session_${Date.now()}`;
+                sessionStorage.setItem('megamind_sax_session_id', window.userSessionId);
+                conversationHistory = conv;
+                // Save local snapshot immediately
+                saveSessionHistory();
+                // Render into UI
+                restoreConversation(conv);
+                // Inform user
+                addMessage('bot', 'Continuing previous session.');
+            } catch(e){ console.warn('Continue session failed', e); }
+        }
+
+        window.deleteHistorySession = async function(index){
+            const session = loadedHistorySessions[index];
+            if (!session) return;
+            if (!confirm('Delete this session from cloud storage?')) return;
+            try {
+                const resp = await fetch('https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==',{
+                    method:'POST',
+                    headers:{ 'Content-Type':'application/json' },
+                    body: JSON.stringify({ action:'delete', sessionId: session.sessionId })
+                });
+                if (!resp.ok){
+                    const t = await resp.text();
+                    alert('Delete failed: ' + t);
+                    return;
+                }
+                // Remove from local state and refresh list
+                loadedHistorySessions.splice(index,1);
+                window.displayHistoryList(loadedHistorySessions);
+                addMessage('bot', 'Session deleted.');
+            } catch(e){
+                console.error('Delete failed', e);
+                alert('Delete failed: ' + (e?.message||e));
+            }
+        }
+
+        window.loadCloudHistory = async function(rangeArg, append){
+            const loading = document.getElementById('historyLoading');
+            const empty = document.getElementById('historyEmpty');
+            const list = document.getElementById('historyList');
+            if (!append){
+                if (loading) loading.style.display = 'block';
+                if (empty) empty.style.display = 'none';
+                if (list) list.innerHTML = '';
+            }
+            try {
+                const email = currentAccount?.username || userProfile?.mail || null;
+                if (!email){ if (loading) loading.style.display = 'none'; return false; }
+                const range = rangeArg || currentHistoryRange || 'month';
+                const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=get&email=${encodeURIComponent(email)}&range=${encodeURIComponent(range)}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
+                const resp = await fetch(url);
+                if (!resp.ok){ if (loading) loading.style.display = 'none'; if (!append && empty) empty.style.display = 'block'; return false; }
+                const data = await resp.json();
+                const sessions = Array.isArray(data) ? data : (data.sessions || data.conversations || data.data || []);
+                if (!Array.isArray(sessions) || sessions.length === 0){ if (loading) loading.style.display = 'none'; if (!append && empty) empty.style.display = 'block'; return false; }
+                if (append){
+                    // Merge dedup by id
+                    const byId = new Map(loadedHistorySessions.map(s => [s.id || (s.sessionId+':' + s.timestamp), s]));
+                    for (const s of sessions){
+                        const key = s.id || (s.sessionId+':' + s.timestamp);
+                        if (!byId.has(key)) byId.set(key, s);
+                    }
+                    loadedHistorySessions = Array.from(byId.values()).sort((a,b)=> new Date(b.timestamp) - new Date(a.timestamp));
+                    window.displayHistoryList(loadedHistorySessions);
+                } else {
+                    loadedHistorySessions = sessions;
+                    window.displayHistoryList(sessions);
+                }
+                if (loading) loading.style.display = 'none';
+                return true;
+            } catch(e){ console.warn('Cloud history failed', e); if (loading) loading.style.display = 'none'; return false; }
+        }
+
+        window.loadLocalHistory = function(){
+            const loading = document.getElementById('historyLoading');
+            const empty = document.getElementById('historyEmpty');
+            const list = document.getElementById('historyList');
+            if (loading) loading.style.display = 'none';
+            const localSessions = [];
+            try {
+                const maybeKey = currentAccount?.username ? `${currentAccount.username}_session` : null;
+                if (maybeKey){
+                    const raw = localStorage.getItem(maybeKey);
+                    if (raw){
+                        const parsed = JSON.parse(raw);
+                        localSessions.push({ sessionId: maybeKey, timestamp: parsed.lastUpdated || new Date().toISOString(), conversation: parsed.messages || [] });
+                    }
+                }
+                for (let i=0; i<localStorage.length; i++){
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith('megamind_conversation_')){
+                        try {
+                            const data = JSON.parse(localStorage.getItem(key));
+                            if (data?.messages?.length){
+                                localSessions.push({ sessionId: key, timestamp: data.timestamp || new Date().toISOString(), conversation: data.messages });
+                            }
+                        } catch {}
+                    }
+                }
+            } catch {}
+            if (!localSessions.length){ if (empty) empty.style.display = 'block'; if (list) list.innerHTML = ''; return; }
+            loadedHistorySessions = localSessions.sort((a,b)=> new Date(b.timestamp)-new Date(a.timestamp)).slice(0,50);
+            window.displayHistoryList(loadedHistorySessions);
+        }
+
+        // ===== Voice recording (unchanged) =====
+        let isRecording = false; let mediaRecorder = null; let audioChunks = [];
+        async function startRecording(){
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 mediaRecorder = new MediaRecorder(stream);
                 audioChunks = [];
-                
-                mediaRecorder.ondataavailable = (event) => {
-                    audioChunks.push(event.data);
-                };
-                
-                mediaRecorder.onstop = () => {
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                    processVoiceInput(audioBlob);
-                };
-                
-                mediaRecorder.start();
-                isRecording = true;
-                
-                // Update UI
+                mediaRecorder.ondataavailable = (e)=>{ audioChunks.push(e.data); };
+                mediaRecorder.onstop = ()=>{ const audioBlob = new Blob(audioChunks, { type:'audio/wav' }); processVoiceInput(audioBlob); };
+                mediaRecorder.start(); isRecording = true;
                 document.getElementById('voiceBtn').classList.add('recording');
                 document.getElementById('speakerIcon').classList.add('listening');
                 document.getElementById('statusText').textContent = 'Listening...';
                 document.getElementById('statusText').classList.add('listening');
-            } catch (error) {
-                console.error('Error starting recording:', error);
-                alert('Could not access microphone. Please check permissions.');
-            }
+            } catch (e){ console.error('Error starting recording:', e); alert('Could not access microphone.'); }
         }
-
-        function stopRecording() {
-            if (mediaRecorder && isRecording) {
-                mediaRecorder.stop();
-                mediaRecorder.stream.getTracks().forEach(track => track.stop());
-                isRecording = false;
-                
-                // Update UI
+        function stopRecording(){
+            if (mediaRecorder && isRecording){
+                mediaRecorder.stop(); mediaRecorder.stream.getTracks().forEach(t=>t.stop()); isRecording=false;
                 document.getElementById('voiceBtn').classList.remove('recording');
                 document.getElementById('speakerIcon').classList.remove('listening');
                 document.getElementById('statusText').textContent = 'Processing...';
                 document.getElementById('statusText').classList.remove('listening');
             }
         }
-
-        async function processVoiceInput(audioBlob) {
+        async function processVoiceInput(audioBlob){
             try {
                 document.getElementById('statusText').textContent = 'Processing voice...';
-                
-                // Convert audio blob to base64
                 const reader = new FileReader();
-                reader.onload = async function() {
-                    const arrayBuffer = reader.result;
-                    const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-                    
-                    // For now, just show a message that voice input was received
+                reader.onload = function(){
                     addMessage('user', '[Voice message received]');
-                    addMessage('bot', 'I received your voice message! Voice processing will be implemented when the webhook is fully configured.');
-                    
-                    // Reset status
+                    addMessage('bot', 'I received your voice message! Voice processing will be implemented later.');
                     document.getElementById('statusText').textContent = 'Tap to talk';
                 };
                 reader.readAsArrayBuffer(audioBlob);
-            } catch (error) {
-                console.error('Error processing voice input:', error);
-                document.getElementById('statusText').textContent = 'Voice processing error';
-                setTimeout(() => {
-                    document.getElementById('statusText').textContent = 'Tap to talk';
-                }, 2000);
-            }
+            } catch (e){ console.error('Error processing voice input:', e); }
         }
 
-        // Event listeners
-        document.getElementById('signInBtn').addEventListener('click', signIn);
-        document.getElementById('signOutBtn').addEventListener('click', signOut);
-        document.getElementById('sendBtn').addEventListener('click', () => sendMessage(document.getElementById('messageInput').value));
-        document.getElementById('messageInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendMessage(document.getElementById('messageInput').value);
+        // ===== Event listeners =====
+        document.getElementById('sendBtn').addEventListener('click', ()=> sendMessage(messageInputEl.value));
+        messageInputEl.addEventListener('keypress', (e)=>{ if (e.key==='Enter') sendMessage(messageInputEl.value); });
+        document.getElementById('voiceBtn').addEventListener('click', ()=>{ isRecording ? stopRecording() : startRecording(); });
+        document.getElementById('speakerIcon').addEventListener('click', ()=>{ isRecording ? stopRecording() : startRecording(); });
+        document.getElementById('historyBtn').addEventListener('click', toggleHistoryPanel);
+        document.getElementById('historyLoadMoreBtn').addEventListener('click', async ()=>{
+            // escalate range to 'all' for now
+            if (currentHistoryRange !== 'all'){
+                currentHistoryRange = 'all';
+                await loadCloudHistory(currentHistoryRange, true);
+            }
         });
-
-        document.getElementById('voiceBtn').addEventListener('click', () => {
-            if (isRecording) {
-                stopRecording();
-            } else {
-                startRecording();
+        // Close history panel when clicking outside
+        document.addEventListener('click', (e)=>{
+            if (!e.target.closest('.history-wrap')){
+                const panel = document.getElementById('historyPanel');
+                if (panel && panel.classList.contains('active')){ panel.classList.remove('active'); historyOpen = false; }
             }
         });
 
-        document.getElementById('speakerIcon').addEventListener('click', () => {
-            if (isRecording) {
-                stopRecording();
-            } else {
-                startRecording();
-            }
+        // Replace demo sign-in with MSAL
+        document.getElementById('signInBtn').addEventListener('click', async ()=>{
+            try {
+                if (!msalInstance){ msalInstance = new msal.PublicClientApplication(msalConfig); await msalInstance.initialize(); }
+                await msalInstance.loginRedirect({ scopes:["openid","profile","email","User.Read"], prompt: 'select_account' });
+            } catch (e){ console.error('Login error:', e); alert('Login failed: ' + (e?.message||e)); }
+        });
+        document.getElementById('signOutBtn').addEventListener('click', async ()=>{
+            try {
+                const acct = currentAccount || (msalInstance?.getAllAccounts?.()[0]);
+                if (acct && msalInstance){ await msalInstance.logout({ account: acct }); }
+            } catch (e){ console.warn('Logout error:', e); }
+            currentAccount = null; userProfile = null; conversationHistory = []; window.userSessionId = null;
+            chatMessagesEl.innerHTML = '';
+            showAuthOverlay();
         });
 
-        // Test webhook connection on load (optional)
-        window.addEventListener('load', () => {
-            console.log('MegaMind app loaded successfully!');
-            console.log('Robot SVG should be visible in the login screen');
-            console.log('Webhook endpoint: https://workflows.saxtechnology.com/webhook/megamind-chat');
-        });
+        // Initialize on load
+        window.addEventListener('load', initializeAuth);
     </script>
 </body>
 </html>
