@@ -1531,6 +1531,43 @@
             }
         };
 
+        // --- CPA status card: fetch Function App status and display latest index update ---
+        // Allow override via window.TAX_STATUS_URL; default to premium app status endpoint
+        const TAX_STATUS_URL = (window.TAX_STATUS_URL && typeof window.TAX_STATUS_URL === 'string')
+            ? window.TAX_STATUS_URL
+            : 'https://saxtech-tax-ingestor-premium.azurewebsites.net/api/status';
+
+        async function updateCPAStatus() {
+            try {
+                const el = document.getElementById('cpaStatusText');
+                if (!el) return;
+                el.textContent = 'Loading latest update…';
+                const resp = await fetch(TAX_STATUS_URL, { method: 'GET' });
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                const data = await resp.json();
+                const times = [];
+                if (data.last_usc_index_time) times.push(new Date(data.last_usc_index_time));
+                if (data.last_cfr_index_time) times.push(new Date(data.last_cfr_index_time));
+                let text = 'No recent index updates found';
+                if (times.length > 0) {
+                    const latest = new Date(Math.max.apply(null, times));
+                    const ts = latest.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+                    text = `Last tax index update: ${ts}`;
+                }
+                el.textContent = text;
+            } catch (e) {
+                const el = document.getElementById('cpaStatusText');
+                if (el) el.textContent = 'Status unavailable right now';
+                // Silent failure for UI; consider console log for debugging
+                try { console.warn('CPA status fetch failed', e); } catch {}
+            }
+        }
+
+        // Run once on DOM ready; safe to run even before auth since it’s public status
+        document.addEventListener('DOMContentLoaded', () => {
+            updateCPAStatus();
+        });
+
         // DOM elements
         const authOverlay = document.getElementById('authOverlay');
         const signInBtn = document.getElementById('signInBtn');
