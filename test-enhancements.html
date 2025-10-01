@@ -458,7 +458,7 @@
             log(`🔍 Testing document search for: "${query}"`);
             
             try {
-                const response = await fetch('https://saxtechmegamindfunctions.azurewebsites.net/api/DocumentSearch', {
+                const response = await fetch('https://mcp.saxtechnology.com/api/DocumentSearch', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -517,7 +517,7 @@
             log(`👤 Testing employee search for: "${query}"`);
             
             try {
-                const response = await fetch('https://saxtech-employee-lookup.azurewebsites.net/api/EmployeeLookup', {
+                const response = await fetch('https://mcp.saxtechnology.com/api/EmployeeLookup', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
