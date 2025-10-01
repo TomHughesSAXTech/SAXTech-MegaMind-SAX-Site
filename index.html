@@ -2089,27 +2089,72 @@ function loadConversationFromSnapshot(conv){
             if (empty) empty.style.display = 'none';
             if (!list) return;
             list.innerHTML = '';
-            sessions.forEach((s, idx) => {
+            
+            // Process sessions to extract individual conversations
+            const allConversations = [];
+            sessions.forEach(session => {
+                const conv = Array.isArray(session.conversation) ? session.conversation : 
+                            (typeof session.conversation === 'string' ? (JSON.parse(session.conversation).messages || []) : []);
+                
+                // Group messages into conversation pairs (user question + assistant response)
+                const conversationPairs = [];
+                for (let i = 0; i < conv.length; i++) {
+                    if (conv[i].role === 'user') {
+                        const userMsg = conv[i];
+                        const botMsg = conv[i + 1]; // Next message should be assistant response
+                        if (botMsg && botMsg.role === 'assistant') {
+                            conversationPairs.push({
+                                sessionId: session.sessionId,
+                                userMessage: userMsg,
+                                botMessage: botMsg,
+                                timestamp: botMsg.timestamp || userMsg.timestamp,
+                                conversation: [userMsg, botMsg] // Store the pair for loading
+                            });
+                            i++; // Skip the bot message since we've processed it
+                        } else {
+                            // Handle case where there's a user message without a response
+                            conversationPairs.push({
+                                sessionId: session.sessionId,
+                                userMessage: userMsg,
+                                botMessage: null,
+                                timestamp: userMsg.timestamp,
+                                conversation: [userMsg]
+                            });
+                        }
+                    }
+                }
+                allConversations.push(...conversationPairs);
+            });
+            
+            // Sort all conversations by timestamp (newest first)
+            allConversations.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            
+            // Display each conversation pair
+            allConversations.forEach((conv, idx) => {
                 const item = document.createElement('div');
                 item.className = 'history-item';
-                item.onclick = () => window.loadHistorySession(idx);
-                const ts = new Date(s.timestamp || s.createdAt || Date.now());
+                item.onclick = () => window.loadHistoryConversation(idx);
+                const ts = new Date(conv.timestamp || Date.now());
                 const dateStr = ts.toLocaleDateString() + ' ' + ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                // Create a short title/preview
+                
+                // Create a preview from the user message
                 let preview = 'Conversation';
-                const conv = Array.isArray(s.conversation) ? s.conversation : (typeof s.conversation === 'string' ? (JSON.parse(s.conversation).messages || []) : []);
-                const firstUser = conv?.find?.(m => (m.role === 'user' || m.type === 'user') && (m.content || m.message));
-                if (firstUser) {
-                    const txt = (firstUser.content || firstUser.message).replace(/<[^>]*>/g, '').trim();
+                if (conv.userMessage && (conv.userMessage.content || conv.userMessage.message)) {
+                    const txt = (conv.userMessage.content || conv.userMessage.message).replace(/<[^>]*>/g, '').trim();
                     preview = (txt || 'Conversation').substring(0, 60);
+                    if (txt.length > 60) preview += '...';
                 }
+                
                 item.innerHTML = `
                     <div class="history-item-title">${escapeHtml(preview)}</div>
                     <div class="history-item-time">${dateStr}</div>
-                    <div class="history-item-preview">${(conv?.length||0)} messages</div>
+                    <div class="history-item-preview">${conv.conversation.length} messages</div>
                 `;
                 list.appendChild(item);
             });
+            
+            // Store the processed conversations globally for loading
+            window.processedConversations = allConversations;
         }
 
         window.loadHistorySession = function(index) {
@@ -2124,6 +2169,15 @@ function loadConversationFromSnapshot(conv){
                 }
             } catch {}
             restoreConversation(conv || []);
+        }
+        
+        // New function to load individual conversation pairs
+        window.loadHistoryConversation = function(index) {
+            const conversation = window.processedConversations?.[index];
+            if (!conversation) return;
+            
+            // Load just this conversation pair (user + bot message)
+            restoreConversation(conversation.conversation || []);
         }
         
         // Close history panel when clicking outside
