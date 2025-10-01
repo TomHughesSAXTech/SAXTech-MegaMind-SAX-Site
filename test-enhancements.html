@@ -266,6 +266,22 @@
                 <label for="testFile" class="file-input-label">Select File for Testing</label>
             </div>
             
+            <!-- Document Search Testing -->
+            <div style="margin-top: 16px; margin-bottom: 16px;">
+                <input type="text" id="searchQuery" placeholder="Enter search query..." 
+                       value="employee handbook"
+                       style="width: 300px; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; margin-right: 8px;">
+                <button class="test-button" onclick="testDocumentSearch()">🔍 Test Document Search</button>
+            </div>
+            
+            <!-- Employee Search Testing -->
+            <div style="margin-bottom: 16px;">
+                <input type="text" id="employeeQuery" placeholder="Enter employee name..." 
+                       value="tom hughes"
+                       style="width: 300px; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; margin-right: 8px;">
+                <button class="test-button" onclick="testEmployeeSearch()">👤 Test Employee Search</button>
+            </div>
+            
             <div style="margin-top: 16px;">
                 <button class="test-button" onclick="testSHA256()">Test SHA256 Hash</button>
                 <button class="test-button" onclick="testChunking()">Test Document Chunking</button>
@@ -429,6 +445,111 @@
             if (deptName) {
                 enhancements.addDepartment(deptName);
                 log(`✅ Department "${deptName}" added successfully`);
+            }
+        }
+        
+        async function testDocumentSearch() {
+            const query = document.getElementById('searchQuery').value;
+            if (!query.trim()) {
+                log('⚠️ Please enter a search query');
+                return;
+            }
+            
+            log(`🔍 Testing document search for: "${query}"`);
+            
+            try {
+                const response = await fetch('https://saxtechmegamindfunctions.azurewebsites.net/api/DocumentSearch', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        query: query,
+                        search: 'hybrid',
+                        department: '',
+                        documentType: '',
+                        filter: ''
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.validAnswer) {
+                    log('✅ AI-Generated Answer Found:', {
+                        query: query,
+                        hasValidAnswer: result.validAnswer,
+                        htmlAnswer: result.htmlAnswer ? 'Generated (HTML)' : 'Not generated',
+                        documentLinksCount: result.documentLinks ? result.documentLinks.length : 0,
+                        fallbackDocuments: result.value ? result.value.length : 0
+                    });
+                    
+                    // Show the HTML answer in a separate div if available
+                    if (result.htmlAnswer) {
+                        const answerDiv = document.createElement('div');
+                        answerDiv.style.cssText = 'margin: 10px 0; padding: 15px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;';
+                        answerDiv.innerHTML = '<strong>AI Answer:</strong><br>' + result.htmlAnswer;
+                        document.getElementById('testOutput').prepend(answerDiv);
+                    }
+                } else {
+                    log('📄 Fallback Document List Mode:', {
+                        query: query,
+                        hasValidAnswer: false,
+                        documentsFound: result.value ? result.value.length : 0,
+                        documents: result.value ? result.value.slice(0, 3).map(d => ({
+                            title: d.title,
+                            department: d.department,
+                            score: d['@search.score']
+                        })) : []
+                    });
+                }
+            } catch (error) {
+                log(`❌ Document search error: ${error.message}`);
+            }
+        }
+        
+        async function testEmployeeSearch() {
+            const query = document.getElementById('employeeQuery').value;
+            if (!query.trim()) {
+                log('⚠️ Please enter an employee name');
+                return;
+            }
+            
+            log(`👤 Testing employee search for: "${query}"`);
+            
+            try {
+                const response = await fetch('https://saxtech-employee-lookup.azurewebsites.net/api/EmployeeLookup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        query: query
+                    })
+                });
+                
+                const result = await response.json();
+                
+                log('✅ Employee search complete:', {
+                    query: query,
+                    employeesFound: result.length,
+                    employees: result.slice(0, 3).map(emp => ({
+                        name: emp.displayName,
+                        email: emp.email,
+                        department: emp.department,
+                        company: emp.companyName,
+                        fuzzyScore: emp.fuzzyScore
+                    }))
+                });
+                
+                // Show employee photos if available
+                if (result.length > 0 && result[0].photoBase64) {
+                    const photoDiv = document.createElement('div');
+                    photoDiv.style.cssText = 'margin: 10px 0; padding: 15px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;';
+                    photoDiv.innerHTML = `<strong>Top Result Photo:</strong><br><img src="data:image/jpeg;base64,${result[0].photoBase64}" style="max-width: 100px; border-radius: 50%;"/>`;
+                    document.getElementById('testOutput').prepend(photoDiv);
+                }
+            } catch (error) {
+                log(`❌ Employee search error: ${error.message}`);
             }
         }
         
