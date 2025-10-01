@@ -1551,13 +1551,20 @@
                 let text = 'No recent tax code updates found';
                 if (times.length > 0) {
                     const latest = new Date(Math.max.apply(null, times));
-                    // Convert to NY time (America/New_York timezone)
-                    const ts = latest.toLocaleString('en-US', { 
-                        timeZone: 'America/New_York',
-                        dateStyle: 'medium', 
-                        timeStyle: 'short' 
+                    // Show UTC date but NY time for clarity
+                    const utcDate = latest.toLocaleDateString('en-US', { 
+                        timeZone: 'UTC',
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
                     });
-                    text = `Last Tax Code Update: ${ts} ET`;
+                    const nyTime = latest.toLocaleTimeString('en-US', { 
+                        timeZone: 'America/New_York',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                    });
+                    text = `Last Tax Code Update: ${utcDate} at ${nyTime} ET`;
                 }
                 el.textContent = text;
             } catch (e) {
