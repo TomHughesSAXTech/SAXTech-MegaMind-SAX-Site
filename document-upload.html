@@ -2844,12 +2844,13 @@
                     if (Array.isArray(list) && list.length) return list;
                 }
             } catch {}
-            // Fallback: keep sop-documents plus three placeholders until admin config sets real ones
+            // Fallback: keep sop-documents plus audit-tax-documents and other placeholders until admin config sets real ones
             return [
                 { name: 'sop-documents', label: 'sop-documents' },
                 { name: 'ld-documents', label: 'ld-documents' },
                 { name: 'auditorpublic', label: 'auditorpublic' },
-                { name: 'ustaxpublic', label: 'ustaxpublic' }
+                { name: 'ustaxpublic', label: 'ustaxpublic' },
+                { name: 'audit-tax-documents', label: 'audit-tax-documents' }
             ];
         }
 
