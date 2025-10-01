@@ -1242,7 +1242,7 @@
                         <div class="big-personality-role">Tax & Accounting Expert</div>
                         <div class="big-personality-description">Specialized in tax planning, accounting principles, and financial compliance. Expert in federal, state, and local tax regulations.</div>
                         <div id="cpaStatusCard" class="cpa-status-card">
-                            <div class="cpa-status-title">Tax Index Status</div>
+                            <div class="cpa-status-title">Tax Code Status</div>
                             <div id="cpaStatusText" class="cpa-status-text">Loading latest update…</div>
                         </div>
                     </div>
@@ -1548,11 +1548,16 @@
                 const times = [];
                 if (data.last_usc_index_time) times.push(new Date(data.last_usc_index_time));
                 if (data.last_cfr_index_time) times.push(new Date(data.last_cfr_index_time));
-                let text = 'No recent index updates found';
+                let text = 'No recent tax code updates found';
                 if (times.length > 0) {
                     const latest = new Date(Math.max.apply(null, times));
-                    const ts = latest.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-                    text = `Last tax index update: ${ts}`;
+                    // Convert to NY time (America/New_York timezone)
+                    const ts = latest.toLocaleString('en-US', { 
+                        timeZone: 'America/New_York',
+                        dateStyle: 'medium', 
+                        timeStyle: 'short' 
+                    });
+                    text = `Last Tax Code Update: ${ts} ET`;
                 }
                 el.textContent = text;
             } catch (e) {
