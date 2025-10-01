@@ -825,6 +825,8 @@
                         </label>
                         <select class="form-select" id="sopType" required>
                             <option value="">Select Type</option>
+                            <option value="Manual">Manual</option>
+                            <option value="General">General</option>
                             <option value="Process Documentation">Process Documentation</option>
                             <option value="Policy Guidelines">Policy Guidelines</option>
                             <option value="Technical Procedures">Technical Procedures</option>
@@ -842,8 +844,8 @@
                         </label>
                         <select class="form-select" id="updateType" required>
                             <option value="">Select Action</option>
-                            <option value="new">New Document</option>
-                            <option value="update">Update Existing</option>
+                            <option value="New">New Document</option>
+                            <option value="Update">Update Existing</option>
                         </select>
                     </div>
 
@@ -1010,7 +1012,7 @@
                 </div>
                 <div class="upload-step" id="step-chunk" style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #e2e8f0; opacity: 0.5; transition: all 0.3s;">
                     <div class="step-icon" style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: #94a3b8; font-size: 16px;">📑</div>
-                    <div class="step-text" style="flex: 1; font-size: 14px; color: #1e293b;">Processing document chunks...</div>
+                    <div class="step-text" style="flex: 1; font-size: 14px; color: #1e293b;">Creating document chunks with overlap...</div>
                     <div class="step-status" style="font-size: 12px; color: #94a3b8;"></div>
                 </div>
                 <div class="upload-step" id="step-upload" style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #e2e8f0; opacity: 0.5; transition: all 0.3s;">
@@ -1049,13 +1051,14 @@
             functionKey: 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw==', // Function key for authentication
             endpoints: {
                 listDocuments: '/documents/list',
-                uploadDocument: '/documents/upload-json',  // Original working endpoint
+                uploadDocument: '/documents/upload-json-enhanced',  // Enhanced endpoint with chunking
                 deleteDocument: '/documents/delete',  // Fixed route with slash
                 downloadDocument: '/documents/download',
                 previewDocument: '/documents/view',
                 search: '/documents/search',  // Correct route with slash
+                findByFile: '/documents/find-by-file',  // New find by filename endpoint
                 generateSAS: '/GenerateSASToken',
-                process: '/documents/upload-json',  // Original working endpoint
+                process: '/documents/upload-json-enhanced',  // Enhanced endpoint with chunking
                 indexMaintenance: '/index/maintenance'  // Correct route with slash
             },
             blobStorage: {
@@ -3122,56 +3125,43 @@ try {
                 // Try to delete all blob chunks from storage
                 if (department && fileName) {
                     try {
-                        console.log('Attempting to delete all blob chunks via Azure Function');
+                        console.log('Attempting to delete document using find-by-file API');
                         const deleteBlobUrl = `${API_CONFIG.baseUrl}/DeleteBlob?code=${API_CONFIG.functionKey}`;
                         
-                        // First, query to find ALL chunks for this document using pattern matching
-                        const searchUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`;
-                        const searchResponse = await fetch(searchUrl, {
+                        // Use the new find-by-file API for better document identification
+                        const findByFileUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.findByFile}`;
+                        const findResponse = await fetch(findByFileUrl, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
                                 'x-functions-key': API_CONFIG.functionKey
                             },
                             body: JSON.stringify({
-                                query: `"${baseFileName}" OR "${baseDocId}"`,
-                                top: 1000,  // Get more results to ensure we find all chunks
-                                select: 'id,fileName,title'
+                                fileName: baseFileName || fileName,
+                                department: department
                             })
                         });
                         
                         let chunksToDelete = [];
-                        if (searchResponse.ok) {
-                            const searchData = await searchResponse.json();
-                            const docs = searchData.value || searchData.results || [];
+                        if (findResponse.ok) {
+                            const findData = await findResponse.json();
+                            const docs = findData.results || [];
                             
-                            // Find ALL related chunks by looking for documents that contain the base name/ID
-                            // This includes documents with _chunk_, -chunk-, Part x/x, etc.
-                            const relatedChunks = docs.filter(d => {
-                                const docFileName = d.fileName || '';
-                                const docId = d.id || '';
-                                const docTitle = d.title || '';
-                                
-                                // Check if this document is related to our base document
-                                return (
-                                    docFileName.includes(baseFileName) ||
-                                    docId.includes(baseDocId) ||
-                                    docTitle.includes(title.replace(/ - Part \d+\/\d+/gi, '').trim())
-                                );
-                            });
+                            console.log(`Found ${docs.length} documents matching filename for deletion`);
                             
-                            console.log(`Found ${relatedChunks.length} related chunks for document`);
-                            
-                            // Collect all unique chunk IDs and filenames
-                            relatedChunks.forEach(chunk => {
-                                if (chunk.id) chunkIdsToDelete.push(chunk.id);
-                                if (chunk.fileName) {
+                            // Collect all document IDs and filenames for deletion
+                            docs.forEach(doc => {
+                                if (doc.id) chunkIdsToDelete.push(doc.id);
+                                if (doc.fileName) {
                                     chunksToDelete.push({
-                                        id: chunk.id,
-                                        fileName: chunk.fileName
+                                        id: doc.id,
+                                        fileName: doc.fileName
                                     });
                                 }
                             });
+                        } else {
+                            console.warn('Find-by-file API failed, falling back to document ID');
+                            chunkIdsToDelete.push(docId);
                         }
                         
                         // Delete all found chunks from blob storage
@@ -3503,8 +3493,8 @@ try {
                 formDataKeys: Array.from(formData.keys())
             });
 
-            // Upload to Azure Function (with multipart support for large files)
-            uploadDocumentMultipart(formData)
+            // Upload directly to Azure Function with enhanced chunking support
+            uploadDocumentToAzure(formData)
                 .then(response => {
                     updateUploadProgress('complete', 'Upload Complete!', 'Your document has been successfully processed');
                     completeUpload();
@@ -3527,6 +3517,113 @@ try {
                     // Always call the generic error handler for additional cleanup
                     handleUploadError(error);
                 });
+        }
+
+        // New Azure Function upload with enhanced chunking
+        async function uploadDocumentToAzure(formData) {
+            try {
+                const file = formData.get('file');
+                
+                // Validate file exists
+                if (!file || file.size === 0) {
+                    throw new Error('No file selected or file is empty');
+                }
+                
+                console.log('File details:', {
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                    sizeMB: (file.size / (1024 * 1024)).toFixed(2)
+                });
+                
+                // Convert file to base64
+                const fileContent = await fileToBase64(file);
+                
+                // Validate base64 content
+                if (!fileContent || fileContent.length === 0) {
+                    throw new Error('Failed to convert file to base64');
+                }
+                
+                console.log('Base64 content generated, length:', fileContent.length);
+                
+                // Create the JSON payload for the enhanced Azure Function
+                const azurePayload = {
+                    fileName: file.name,
+                    fileContent: fileContent,
+                    mimeType: file.type || 'application/octet-stream',
+                    department: formData.get('department') || 'IT',
+                    sopType: formData.get('sopType') || 'Manual',
+                    documentType: formData.get('sopType') || 'Manual',
+                    updateType: formData.get('updateType') || 'New',
+                    title: formData.get('title') || file.name.split('.')[0],
+                    description: formData.get('description') || '',
+                    keywords: formData.get('keywords') || '',
+                    version: formData.get('version') || '1.0',
+                    existingDocId: formData.get('existingDocId') || ''
+                };
+                
+                console.log('Uploading to enhanced Azure Function...');
+                
+                // Update progress to uploading
+                if (window.updateUploadProgress) {
+                    window.updateUploadProgress('upload', 'Uploading and processing with chunking...');
+                }
+                
+                // Upload to enhanced Azure Function endpoint
+                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.uploadDocument}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-functions-key': API_CONFIG.functionKey
+                    },
+                    body: JSON.stringify(azurePayload)
+                });
+                
+                // Handle response
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Azure Function error response:', errorText);
+                    
+                    let errorMessage = `Upload failed: HTTP ${response.status}`;
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        errorMessage = errorJson.error?.message || errorJson.message || errorMessage;
+                    } catch (e) {
+                        errorMessage = `Upload failed: HTTP ${response.status} - ${errorText}`;
+                    }
+                    
+                    if (window.showUploadError) {
+                        window.showUploadError(errorMessage);
+                    }
+                    
+                    throw new Error('Upload failed - see modal for details');
+                }
+                
+                const result = await response.json();
+                console.log('Document uploaded with chunking:', result);
+                
+                // Check for errors in the result
+                if (result.success === false) {
+                    const errorMessage = result.message || 'Upload failed';
+                    console.error('Upload result error:', errorMessage);
+                    
+                    if (window.showUploadError) {
+                        window.showUploadError(errorMessage);
+                    }
+                    
+                    throw new Error('Upload failed - see modal for details');
+                }
+                
+                // Update progress for completion
+                if (window.updateUploadProgress) {
+                    window.updateUploadProgress('embeddings', 'Document processed and indexed...');
+                }
+                
+                return result;
+            } catch (error) {
+                console.error('Azure Function upload failed:', error);
+                throw error;
+            }
         }
 
         async function uploadDocument(formData) {
