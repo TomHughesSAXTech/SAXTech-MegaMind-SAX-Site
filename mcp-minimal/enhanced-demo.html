@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAXTech MCP Server - Enhanced Demo with HTML Formatting</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: #f8fafc; 
+            margin: 0; 
+            padding: 20px; 
+        }
+        .container { 
+            max-width: 1400px; 
+            margin: 0 auto; 
+        }
+        .header { 
+            text-align: center; 
+            margin-bottom: 40px; 
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 40px 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .demo-section {
+            background: white;
+            margin: 30px 0;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+        .endpoint-title {
+            font-size: 1.5rem;
+            color: #2d3748;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .test-query {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-family: 'Monaco', 'Menlo', monospace;
+            border-left: 4px solid #667eea;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .test-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        .test-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        .demo-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 20px;
+        }
+        @media (max-width: 768px) {
+            .demo-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .format-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 300px;
+        }
+        .format-label {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+        }
+        .badge {
+            background: #667eea;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-left: 10px;
+        }
+        .html-results {
+            background: white;
+            border-radius: 8px;
+            padding: 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .json-display {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            font-size: 0.9rem;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .loading {
+            text-align: center;
+            color: #718096;
+            font-style: italic;
+            padding: 40px;
+        }
+        .error {
+            color: #e53e3e;
+            background: #fed7d7;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .success {
+            color: #38a169;
+            background: #c6f6d5;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 SAXTech MCP Server</h1>
+            <p>Enhanced Demo with Beautiful HTML Formatting</p>
+            <p style="font-size: 0.9rem; opacity: 0.9;">Advanced semantic search with answer validation and beautiful HTML employee cards</p>
+        </div>
+
+        <!-- Semantic Search Demo -->
+        <div class="demo-section">
+            <div class="endpoint-title">🔍 Semantic Document Search</div>
+            <div class="button-group">
+                <button class="test-btn" onclick="testSemanticSearch('company holidays')">Company Holidays</button>
+                <button class="test-btn" onclick="testSemanticSearch('401k retirement plan')">401k Policy</button>
+                <button class="test-btn" onclick="testSemanticSearch('crypto tax guidance')">Crypto Tax Contact</button>
+                <button class="test-btn" onclick="testSemanticSearch('smoking policy')">Smoking Policy</button>
+            </div>
+            
+            <div class="demo-grid" id="semantic-results">
+                <div class="format-section">
+                    <div class="format-label">
+                        HTML Format <span class="badge">Beautiful UI</span>
+                    </div>
+                    <div class="html-results" id="semantic-html">
+                        <div class="loading">Click a query above to see HTML-formatted results</div>
+                    </div>
+                </div>
+                <div class="format-section">
+                    <div class="format-label">
+                        JSON Format <span class="badge">API Response</span>
+                    </div>
+                    <div class="json-display" id="semantic-json">Click a query above to see JSON response</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Employee Search Demo -->
+        <div class="demo-section">
+            <div class="endpoint-title">👥 Employee Search</div>
+            <div class="button-group">
+                <button class="test-btn" onclick="testEmployeeSearch('Tom Hughes')">Tom Hughes</button>
+                <button class="test-btn" onclick="testEmployeeSearch('Sarah', 'name')">Search Sarah</button>
+                <button class="test-btn" onclick="testEmployeeSearch('IT', 'department')">IT Department</button>
+                <button class="test-btn" onclick="testEmployeeSearch('Manager', 'title')">Find Managers</button>
+            </div>
+            
+            <div class="demo-grid" id="employee-results">
+                <div class="format-section">
+                    <div class="format-label">
+                        HTML Employee Cards <span class="badge">Rich UI</span>
+                    </div>
+                    <div class="html-results" id="employee-html">
+                        <div class="loading">Click a query above to see beautiful employee cards</div>
+                    </div>
+                </div>
+                <div class="format-section">
+                    <div class="format-label">
+                        JSON Employee Data <span class="badge">API Response</span>
+                    </div>
+                    <div class="json-display" id="employee-json">Click a query above to see JSON employee data</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SEMANTIC_URL = 'https://saxtech-mcp-server.azurewebsites.net/api/semantic_search';
+        const EMPLOYEE_URL = 'https://saxtech-mcp-server.azurewebsites.net/api/employee_search';
+
+        async function testSemanticSearch(query) {
+            // Show loading states
+            document.getElementById('semantic-html').innerHTML = '<div class="loading">Loading HTML format...</div>';
+            document.getElementById('semantic-json').textContent = 'Loading JSON format...';
+            
+            try {
+                // Fetch both formats simultaneously
+                const [htmlResponse, jsonResponse] = await Promise.all([
+                    fetch(SEMANTIC_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ query, format: 'html' })
+                    }),
+                    fetch(SEMANTIC_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ query, format: 'json' })
+                    })
+                ]);
+
+                // Handle HTML response
+                if (htmlResponse.ok) {
+                    const htmlText = await htmlResponse.text();
+                    document.getElementById('semantic-html').innerHTML = htmlText;
+                } else {
+                    document.getElementById('semantic-html').innerHTML = 
+                        '<div class="error">Error loading HTML format</div>';
+                }
+
+                // Handle JSON response
+                if (jsonResponse.ok) {
+                    const jsonData = await jsonResponse.json();
+                    document.getElementById('semantic-json').textContent = 
+                        JSON.stringify(jsonData, null, 2);
+                } else {
+                    document.getElementById('semantic-json').textContent = 
+                        'Error loading JSON format';
+                }
+
+            } catch (error) {
+                document.getElementById('semantic-html').innerHTML = 
+                    `<div class="error">Network error: ${error.message}</div>`;
+                document.getElementById('semantic-json').textContent = 
+                    `Network error: ${error.message}`;
+            }
+        }
+
+        async function testEmployeeSearch(query, searchType = 'general') {
+            // Show loading states
+            document.getElementById('employee-html').innerHTML = '<div class="loading">Loading HTML employee cards...</div>';
+            document.getElementById('employee-json').textContent = 'Loading JSON employee data...';
+            
+            try {
+                // Fetch both formats simultaneously
+                const [htmlResponse, jsonResponse] = await Promise.all([
+                    fetch(EMPLOYEE_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ query, searchType, format: 'html' })
+                    }),
+                    fetch(EMPLOYEE_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ query, searchType, format: 'json' })
+                    })
+                ]);
+
+                // Handle HTML response
+                if (htmlResponse.ok) {
+                    const htmlText = await htmlResponse.text();
+                    document.getElementById('employee-html').innerHTML = htmlText;
+                } else {
+                    document.getElementById('employee-html').innerHTML = 
+                        '<div class="error">Error loading HTML format</div>';
+                }
+
+                // Handle JSON response
+                if (jsonResponse.ok) {
+                    const jsonData = await jsonResponse.json();
+                    document.getElementById('employee-json').textContent = 
+                        JSON.stringify(jsonData, null, 2);
+                } else {
+                    document.getElementById('employee-json').textContent = 
+                        'Error loading JSON format';
+                }
+
+            } catch (error) {
+                document.getElementById('employee-html').innerHTML = 
+                    `<div class="error">Network error: ${error.message}</div>`;
+                document.getElementById('employee-json').textContent = 
+                    `Network error: ${error.message}`;
+            }
+        }
+
+        // Test with company holidays on page load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                testSemanticSearch('company holidays');
+            }, 500);
+        });
+    </script>
+</body>
+</html>

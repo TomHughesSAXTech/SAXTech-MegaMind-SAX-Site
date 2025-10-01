@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAX MCP Server - Beautiful Results Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            font-size: 2.5rem;
+        }
+        
+        .search-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .search-title {
+            font-size: 1.8rem;
+            color: #4a5568;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .search-meta {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            font-size: 0.9rem;
+            color: #718096;
+        }
+        
+        .result-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .result-card:hover {
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
+        }
+        
+        .result-header {
+            display: flex;
+            justify-content: between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+        
+        .result-rank {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-right: 15px;
+        }
+        
+        .result-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 8px;
+            flex: 1;
+        }
+        
+        .result-score {
+            background: #e2e8f0;
+            color: #4a5568;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .result-content {
+            color: #4a5568;
+            line-height: 1.7;
+            margin-bottom: 15px;
+        }
+        
+        .result-content mark {
+            background: #fed7e2;
+            padding: 2px 4px;
+            border-radius: 3px;
+            color: #97266d;
+            font-weight: 500;
+        }
+        
+        .result-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 15px;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .source-info {
+            color: #718096;
+            font-size: 0.9rem;
+        }
+        
+        .preview-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+        
+        .preview-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .employee-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .employee-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(240, 147, 251, 0.3);
+        }
+        
+        .employee-name {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .employee-title {
+            font-size: 1rem;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+        
+        .employee-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        
+        .test-buttons {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            justify-content: center;
+        }
+        
+        .test-btn {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .test-btn:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        #loading {
+            text-align: center;
+            color: white;
+            font-size: 1.2rem;
+            margin: 20px 0;
+        }
+        
+        .spinner {
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 SAX MCP Server - Beautiful AI Results</h1>
+        
+        <div class="test-buttons">
+            <button class="test-btn" onclick="testSemanticSearch()">Test Document Search</button>
+            <button class="test-btn" onclick="testEmployeeSearch()">Test Employee Search</button>
+        </div>
+        
+        <div id="loading" style="display: none;">
+            <div class="spinner"></div>
+            <div>Searching...</div>
+        </div>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://saxtech-mcp-server.azurewebsites.net/api';
+        
+        async function testSemanticSearch() {
+            showLoading();
+            try {
+                const response = await fetch(`${API_BASE}/semantic_search`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: 'smoking policy' })
+                });
+                
+                const data = await response.json();
+                displaySemanticResults(data);
+            } catch (error) {
+                document.getElementById('results').innerHTML = `
+                    <div class="search-section">
+                        <h2 style="color: #e53e3e;">Error: ${error.message}</h2>
+                    </div>
+                `;
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        async function testEmployeeSearch() {
+            showLoading();
+            try {
+                const response = await fetch(`${API_BASE}/employee_search`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: 'Tom' })
+                });
+                
+                const data = await response.json();
+                displayEmployeeResults(data);
+            } catch (error) {
+                document.getElementById('results').innerHTML = `
+                    <div class="search-section">
+                        <h2 style="color: #e53e3e;">Error: ${error.message}</h2>
+                    </div>
+                `;
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').innerHTML = '';
+        }
+        
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+        
+        function displaySemanticResults(data) {
+            if (!data.success) {
+                document.getElementById('results').innerHTML = `
+                    <div class="search-section">
+                        <h2 style="color: #e53e3e;">Search Failed: ${data.message}</h2>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = `
+                <div class="search-section">
+                    <h2 class="search-title">📄 Document Search Results</h2>
+                    <div class="search-meta">
+                        <strong>Query:</strong> "${data.query}" | 
+                        <strong>Results:</strong> ${data.totalResults} | 
+                        <strong>Index:</strong> ${data.index} | 
+                        <strong>Type:</strong> ${data.searchMetadata.queryType}
+                    </div>
+            `;
+            
+            data.results.forEach((result) => {
+                const preview = result.contentPreview || result.content.substring(0, 200) + '...';
+                html += `
+                    <div class="result-card">
+                        <div class="result-header">
+                            <div class="result-rank">${result.rank}</div>
+                            <div class="result-title">${result.title}</div>
+                            <div class="result-score">Score: ${result.score.toFixed(2)}</div>
+                        </div>
+                        <div class="result-content">${preview}</div>
+                        <div class="result-footer">
+                            <div class="source-info">
+                                📁 ${result.sourceDomain} • ${result.contentLength} chars
+                            </div>
+                            <button class="preview-btn" onclick="viewSource('${result.sourceUrl}')">
+                                View Source
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            document.getElementById('results').innerHTML = html;
+        }
+        
+        function displayEmployeeResults(data) {
+            if (!data.success) {
+                document.getElementById('results').innerHTML = `
+                    <div class="search-section">
+                        <h2 style="color: #e53e3e;">Employee Search Failed: ${data.message}</h2>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = `
+                <div class="search-section">
+                    <h2 class="search-title">👥 Employee Search Results</h2>
+                    <div class="search-meta">
+                        <strong>Query:</strong> "${data.query}" | 
+                        <strong>Results:</strong> ${data.count} unique employees | 
+                        <strong>Tenants:</strong> ${data.searchMetadata.tenantsSearched} | 
+                        <strong>Cross-tenant sync:</strong> ${data.searchMetadata.crossTenantSync ? 'Yes' : 'No'}
+                    </div>
+            `;
+            
+            data.results.forEach((employee) => {
+                html += `
+                    <div class="employee-card">
+                        <div class="employee-name">${employee.name}</div>
+                        <div class="employee-title">${employee.title} • ${employee.department}</div>
+                        <div class="employee-details">
+                            <div>📧 ${employee.email}</div>
+                            <div>🏢 ${employee.primaryDomain}</div>
+                            <div>📱 ${employee.mobile || employee.phone}</div>
+                            <div>📍 ${employee.location}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            document.getElementById('results').innerHTML = html;
+        }
+        
+        function viewSource(url) {
+            if (url) {
+                window.open(url, '_blank');
+            } else {
+                alert('No source URL available');
+            }
+        }
+        
+        // Auto-test on page load
+        window.onload = function() {
+            testSemanticSearch();
+        };
+    </script>
+</body>
+</html>

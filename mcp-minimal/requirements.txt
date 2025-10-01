@@ -1,0 +1,4 @@
+# Azure Functions requirements
+azure-functions
+requests
+msal

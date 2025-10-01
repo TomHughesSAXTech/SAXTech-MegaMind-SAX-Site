@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAXTech MCP Server - Interactive Testing</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: #f8fafc; 
+            margin: 0; 
+            padding: 20px; 
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+        }
+        .header { 
+            text-align: center; 
+            margin-bottom: 40px; 
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 40px 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .search-section {
+            background: white;
+            margin: 30px 0;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+        .search-title {
+            font-size: 1.5rem;
+            color: #2d3748;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .search-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            transition: border-color 0.2s;
+        }
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .search-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+            margin-right: 10px;
+        }
+        .search-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        .format-toggle {
+            background: #4a5568;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        .format-toggle.active {
+            background: #667eea;
+        }
+        .results-container {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            min-height: 200px;
+        }
+        .loading {
+            text-align: center;
+            color: #718096;
+            font-style: italic;
+            padding: 40px;
+        }
+        .error {
+            color: #e53e3e;
+            background: #fed7d7;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .json-display {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            font-size: 0.9rem;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .example-queries {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 15px 0;
+        }
+        .example-btn {
+            background: #e2e8f0;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .example-btn:hover {
+            background: #cbd5e0;
+        }
+        .employee-search-options {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+        .search-type-btn {
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            padding: 10px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .search-type-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 SAXTech MCP Server</h1>
+            <p>Interactive Testing Interface</p>
+            <p style="font-size: 0.9rem; opacity: 0.9;">Test semantic search and employee lookup with custom queries</p>
+        </div>
+
+        <!-- Semantic Search -->
+        <div class="search-section">
+            <div class="search-title">🔍 Semantic Document Search</div>
+            <input type="text" id="semantic-query" class="search-input" placeholder="Ask about company policies, procedures, holidays, etc..." value="What are the company holidays?">
+            
+            <div class="example-queries">
+                <button class="example-btn" onclick="setSemanticQuery('what are the company holidays?')">Company Holidays</button>
+                <button class="example-btn" onclick="setSemanticQuery('i have a question about crypto currency taxes, who can I contact')">Crypto Tax Contact</button>
+                <button class="example-btn" onclick="setSemanticQuery('what is the 401k policy at sax')">401k Policy</button>
+                <button class="example-btn" onclick="setSemanticQuery('what is the point of GFR and how do I use it?')">GFR Usage</button>
+                <button class="example-btn" onclick="setSemanticQuery('what would I use hubsync for')">HubSync</button>
+                <button class="example-btn" onclick="setSemanticQuery('how do I close won a deal in hubspot')">HubSpot Deal</button>
+                <button class="example-btn" onclick="setSemanticQuery('what is the smoking policy')">Smoking Policy</button>
+                <button class="example-btn" onclick="setSemanticQuery('what are the careers at sax?')">Careers</button>
+                <button class="example-btn" onclick="setSemanticQuery('what are the different practice areas at sax and who runs each')">Practice Areas</button>
+            </div>
+            
+            <div style="display: flex; align-items: center; margin-top: 15px;">
+                <button class="search-btn" onclick="performSemanticSearch()">Search Documents</button>
+                <button class="format-toggle" id="semantic-format" onclick="toggleSemanticFormat()">HTML Format</button>
+            </div>
+            
+            <div class="results-container" id="semantic-results">
+                <div class="loading">Enter a query and click "Search Documents" to test semantic search</div>
+            </div>
+        </div>
+
+        <!-- Employee Search -->
+        <div class="search-section">
+            <div class="search-title">👥 Employee Search</div>
+            <input type="text" id="employee-query" class="search-input" placeholder="Search for employees by name, department, title..." value="Tom Hughes">
+            
+            <div class="employee-search-options">
+                <button class="search-type-btn active" data-type="general" onclick="setSearchType('general')">General Search</button>
+                <button class="search-type-btn" data-type="name" onclick="setSearchType('name')">By Name</button>
+                <button class="search-type-btn" data-type="department" onclick="setSearchType('department')">By Department</button>
+                <button class="search-type-btn" data-type="title" onclick="setSearchType('title')">By Title</button>
+                <button class="search-type-btn" data-type="manager" onclick="setSearchType('manager')">By Manager</button>
+                <button class="search-type-btn" data-type="reports" onclick="setSearchType('reports')">Direct Reports</button>
+            </div>
+            
+            <div style="display: flex; align-items: center; margin-top: 15px;">
+                <button class="search-btn" onclick="performEmployeeSearch()">Search Employees</button>
+                <button class="format-toggle" id="employee-format" onclick="toggleEmployeeFormat()">HTML Format</button>
+            </div>
+            
+            <div class="results-container" id="employee-results">
+                <div class="loading">Enter a query and click "Search Employees" to test employee lookup</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SEMANTIC_URL = 'https://saxtech-mcp-server.azurewebsites.net/api/semantic_search';
+        const EMPLOYEE_URL = 'https://saxtech-mcp-server.azurewebsites.net/api/employee_search';
+        
+        let currentSemanticFormat = 'html';
+        let currentEmployeeFormat = 'html';
+        let currentSearchType = 'general';
+
+        function setSemanticQuery(query) {
+            document.getElementById('semantic-query').value = query;
+        }
+
+        function setSearchType(type) {
+            currentSearchType = type;
+            document.querySelectorAll('.search-type-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-type="${type}"]`).classList.add('active');
+        }
+
+        function toggleSemanticFormat() {
+            currentSemanticFormat = currentSemanticFormat === 'html' ? 'json' : 'html';
+            document.getElementById('semantic-format').textContent = currentSemanticFormat.toUpperCase() + ' Format';
+        }
+
+        function toggleEmployeeFormat() {
+            currentEmployeeFormat = currentEmployeeFormat === 'html' ? 'json' : 'html';
+            document.getElementById('employee-format').textContent = currentEmployeeFormat.toUpperCase() + ' Format';
+        }
+
+        async function performSemanticSearch() {
+            const query = document.getElementById('semantic-query').value.trim();
+            if (!query) {
+                alert('Please enter a search query');
+                return;
+            }
+
+            const resultsDiv = document.getElementById('semantic-results');
+            resultsDiv.innerHTML = '<div class="loading">Searching documents...</div>';
+
+            try {
+                const response = await fetch(SEMANTIC_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        query: query, 
+                        format: currentSemanticFormat 
+                    })
+                });
+
+                if (response.ok) {
+                    if (currentSemanticFormat === 'html') {
+                        const htmlText = await response.text();
+                        resultsDiv.innerHTML = htmlText;
+                    } else {
+                        const jsonData = await response.json();
+                        resultsDiv.innerHTML = `<div class="json-display">${JSON.stringify(jsonData, null, 2)}</div>`;
+                    }
+                } else {
+                    resultsDiv.innerHTML = `<div class="error">Error: ${response.status} ${response.statusText}</div>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Network error: ${error.message}</div>`;
+            }
+        }
+
+        async function performEmployeeSearch() {
+            const query = document.getElementById('employee-query').value.trim();
+            if (!query) {
+                alert('Please enter a search query');
+                return;
+            }
+
+            const resultsDiv = document.getElementById('employee-results');
+            resultsDiv.innerHTML = '<div class="loading">Searching employees...</div>';
+
+            try {
+                const response = await fetch(EMPLOYEE_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        query: query, 
+                        searchType: currentSearchType,
+                        format: currentEmployeeFormat 
+                    })
+                });
+
+                if (response.ok) {
+                    if (currentEmployeeFormat === 'html') {
+                        const htmlText = await response.text();
+                        resultsDiv.innerHTML = htmlText;
+                    } else {
+                        const jsonData = await response.json();
+                        resultsDiv.innerHTML = `<div class="json-display">${JSON.stringify(jsonData, null, 2)}</div>`;
+                    }
+                } else {
+                    resultsDiv.innerHTML = `<div class="error">Error: ${response.status} ${response.statusText}</div>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Network error: ${error.message}</div>`;
+            }
+        }
+
+        // Auto-run semantic search on page load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                performSemanticSearch();
+            }, 500);
+        });
+
+        // Enter key support
+        document.getElementById('semantic-query').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                performSemanticSearch();
+            }
+        });
+
+        document.getElementById('employee-query').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                performEmployeeSearch();
+            }
+        });
+    </script>
+</body>
+</html>
