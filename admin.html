@@ -1315,6 +1315,85 @@
                 </div>
             </div>
             
+            <!-- Token Usage Analytics -->
+            <div class="admin-card full-width" style="margin-bottom: var(--space-2xl);">
+                <h2><i class="fas fa-coins"></i> Azure OpenAI Token Usage</h2>
+                <p style="color: var(--gray-600); margin-bottom: var(--space-xl);">Real-time token consumption and cost analysis for your AI models</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">GPT-4.1-mini Tokens</div>
+                            <div class="stat-icon"><i class="fas fa-brain"></i></div>
+                        </div>
+                        <div class="stat-value" id="gptTokens">-</div>
+                        <div class="stat-change" id="gptTokenTrend">
+                            <i class="fas fa-chart-line"></i>
+                            <span>Loading...</span>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Embedding Tokens</div>
+                            <div class="stat-icon"><i class="fas fa-vector-square"></i></div>
+                        </div>
+                        <div class="stat-value" id="embeddingTokens">-</div>
+                        <div class="stat-change" id="embeddingTokenTrend">
+                            <i class="fas fa-search"></i>
+                            <span>Loading...</span>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Monthly Cost Est.</div>
+                            <div class="stat-icon"><i class="fas fa-dollar-sign"></i></div>
+                        </div>
+                        <div class="stat-value" id="monthlyCost">-</div>
+                        <div class="stat-change" id="costTrend">
+                            <i class="fas fa-calculator"></i>
+                            <span>Calculating...</span>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Rate Limit Usage</div>
+                            <div class="stat-icon"><i class="fas fa-tachometer-alt"></i></div>
+                        </div>
+                        <div class="stat-value" id="rateLimitUsage">-</div>
+                        <div class="stat-change" id="rateLimitTrend">
+                            <i class="fas fa-gauge"></i>
+                            <span>Monitoring...</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Token Usage Details -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xl); margin-top: var(--space-xl);">
+                    <div class="admin-card" style="margin: 0;">
+                        <h3 style="margin-bottom: var(--space-md); color: var(--gray-800); font-size: 16px;">
+                            <i class="fas fa-brain" style="color: var(--primary-500); margin-right: var(--space-xs);"></i>
+                            GPT-4.1-mini Usage
+                        </h3>
+                        <div id="gptUsageDetails">
+                            <div class="loading"><div class="spinner"></div>Loading GPT usage...</div>
+                        </div>
+                    </div>
+                    
+                    <div class="admin-card" style="margin: 0;">
+                        <h3 style="margin-bottom: var(--space-md); color: var(--gray-800); font-size: 16px;">
+                            <i class="fas fa-vector-square" style="color: var(--success-500); margin-right: var(--space-xs);"></i>
+                            text-embedding-3-large Usage
+                        </h3>
+                        <div id="embeddingUsageDetails">
+                            <div class="loading"><div class="spinner"></div>Loading embedding usage...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <!-- Quick Actions -->
             <div class="admin-grid">
                 <div class="admin-card">
@@ -3666,6 +3745,9 @@ response = await fetch(`/api/documents-search/${currentIndex}`, {
                 // Generate AI satisfaction analysis
                 generateSatisfactionAnalysis(sessions);
                 
+                // Load token usage analytics
+                loadTokenUsageAnalytics(sessions);
+                
             } catch (error) {
                 console.error('Failed to load overview data:', error);
             }
@@ -3902,6 +3984,246 @@ Provide 3-4 actionable insights in JSON format:
                 error: 'exclamation-triangle'
             };
             return icons[type] || 'lightbulb';
+        }
+        
+        // Token usage analytics functions
+        async function loadTokenUsageAnalytics(sessions) {
+            try {
+                // Extract token data from conversation sessions
+                const tokenAnalytics = analyzeTokenUsage(sessions);
+                
+                // Update token usage display
+                updateTokenUsageDisplay(tokenAnalytics);
+                
+                console.log('Token usage analytics loaded:', tokenAnalytics);
+                
+            } catch (error) {
+                console.error('Failed to load token usage analytics:', error);
+                showTokenUsageFallback();
+            }
+        }
+        
+        function analyzeTokenUsage(sessions) {
+            let gptTokens = { input: 0, output: 0, total: 0 };
+            let embeddingTokens = { total: 0 };
+            let totalCost = 0;
+            let requestCount = { gpt: 0, embedding: 0 };
+            
+            if (sessions && sessions.length > 0) {
+                sessions.forEach(session => {
+                    if (session.metadata) {
+                        const metadata = session.metadata;
+                        
+                        // Extract GPT token usage (various possible field names)
+                        if (metadata.gpt_input_tokens) {
+                            gptTokens.input += parseInt(metadata.gpt_input_tokens) || 0;
+                            requestCount.gpt++;
+                        }
+                        if (metadata.gpt_output_tokens) {
+                            gptTokens.output += parseInt(metadata.gpt_output_tokens) || 0;
+                        }
+                        if (metadata.total_tokens) {
+                            gptTokens.total += parseInt(metadata.total_tokens) || 0;
+                        }
+                        if (metadata.prompt_tokens) {
+                            gptTokens.input += parseInt(metadata.prompt_tokens) || 0;
+                        }
+                        if (metadata.completion_tokens) {
+                            gptTokens.output += parseInt(metadata.completion_tokens) || 0;
+                        }
+                        
+                        // Extract embedding token usage
+                        if (metadata.embedding_tokens) {
+                            embeddingTokens.total += parseInt(metadata.embedding_tokens) || 0;
+                            requestCount.embedding++;
+                        }
+                        if (metadata.search_tokens) {
+                            embeddingTokens.total += parseInt(metadata.search_tokens) || 0;
+                        }
+                        
+                        // Calculate estimated costs
+                        if (metadata.estimated_cost) {
+                            totalCost += parseFloat(metadata.estimated_cost) || 0;
+                        }
+                        
+                        // Alternative: calculate from message count if token data not available
+                        if (!metadata.total_tokens && session.conversation) {
+                            const messageCount = session.conversation.length;
+                            const estimatedTokensPerMessage = 150; // rough estimate
+                            gptTokens.total += messageCount * estimatedTokensPerMessage;
+                        }
+                    }
+                });
+            }
+            
+            // Ensure totals are calculated if individual components exist
+            if (gptTokens.total === 0 && (gptTokens.input > 0 || gptTokens.output > 0)) {
+                gptTokens.total = gptTokens.input + gptTokens.output;
+            }
+            
+            // Estimate costs if not provided (Azure OpenAI pricing)
+            if (totalCost === 0) {
+                // GPT-4.1-mini: ~$0.000015 per 1K input tokens, ~$0.0003 per 1K output tokens
+                const gptInputCost = (gptTokens.input / 1000) * 0.000015;
+                const gptOutputCost = (gptTokens.output / 1000) * 0.0003;
+                // text-embedding-3-large: ~$0.00013 per 1K tokens
+                const embeddingCost = (embeddingTokens.total / 1000) * 0.00013;
+                totalCost = gptInputCost + gptOutputCost + embeddingCost;
+            }
+            
+            return {
+                gpt: gptTokens,
+                embedding: embeddingTokens,
+                totalCost,
+                estimatedMonthlyCost: totalCost * 30, // Rough monthly estimate
+                rateLimitUtilization: calculateRateLimitUsage(gptTokens, embeddingTokens),
+                requestCount,
+                sessionCount: sessions.length
+            };
+        }
+        
+        function calculateRateLimitUsage(gptTokens, embeddingTokens) {
+            // Rate limits from your Azure OpenAI config
+            const gptRateLimit = 1000000; // 1M tokens per minute for GPT-4.1-mini
+            const embeddingRateLimit = 1000000; // 1M tokens per minute for text-embedding-3-large
+            
+            // Estimate current per-minute usage (very rough approximation)
+            const dailyGptUsage = gptTokens.total;
+            const dailyEmbeddingUsage = embeddingTokens.total;
+            
+            // Convert to per-minute approximation (assuming 16 hours active per day)
+            const minutesPerDay = 16 * 60;
+            const avgGptPerMinute = dailyGptUsage / minutesPerDay;
+            const avgEmbeddingPerMinute = dailyEmbeddingUsage / minutesPerDay;
+            
+            const gptUtilization = (avgGptPerMinute / gptRateLimit) * 100;
+            const embeddingUtilization = (avgEmbeddingPerMinute / embeddingRateLimit) * 100;
+            
+            return Math.max(gptUtilization, embeddingUtilization);
+        }
+        
+        function updateTokenUsageDisplay(analytics) {
+            // Update main stats
+            document.getElementById('gptTokens').textContent = formatNumber(analytics.gpt.total);
+            document.getElementById('embeddingTokens').textContent = formatNumber(analytics.embedding.total);
+            document.getElementById('monthlyCost').textContent = '$' + analytics.estimatedMonthlyCost.toFixed(2);
+            document.getElementById('rateLimitUsage').textContent = analytics.rateLimitUtilization.toFixed(1) + '%';
+            
+            // Update trends with more detailed info
+            document.getElementById('gptTokenTrend').innerHTML = `
+                <i class="fas fa-chart-line"></i>
+                <span>In: ${formatNumber(analytics.gpt.input)} | Out: ${formatNumber(analytics.gpt.output)}</span>
+            `;
+            
+            document.getElementById('embeddingTokenTrend').innerHTML = `
+                <i class="fas fa-search"></i>
+                <span>text-embedding-3-large</span>
+            `;
+            
+            document.getElementById('costTrend').innerHTML = `
+                <i class="fas fa-calculator"></i>
+                <span>Daily avg: $${(analytics.totalCost).toFixed(3)}</span>
+            `;
+            
+            const rateLimitStatus = analytics.rateLimitUtilization < 50 ? 'Healthy' : 
+                                   analytics.rateLimitUtilization < 80 ? 'Moderate' : 'High';
+            const rateLimitColor = analytics.rateLimitUtilization < 50 ? 'var(--success-600)' : 
+                                  analytics.rateLimitUtilization < 80 ? 'var(--warning-600)' : 'var(--error-600)';
+            
+            document.getElementById('rateLimitTrend').innerHTML = `
+                <i class="fas fa-gauge"></i>
+                <span style="color: ${rateLimitColor};">${rateLimitStatus}</span>
+            `;
+            
+            // Update detailed usage panels
+            updateGptUsageDetails(analytics.gpt, analytics.requestCount.gpt, analytics.sessionCount);
+            updateEmbeddingUsageDetails(analytics.embedding, analytics.requestCount.embedding);
+        }
+        
+        function updateGptUsageDetails(gptAnalytics, requestCount, sessionCount) {
+            const container = document.getElementById('gptUsageDetails');
+            const avgTokensPerSession = sessionCount > 0 ? Math.round(gptAnalytics.total / sessionCount) : 0;
+            const outputRatio = gptAnalytics.input > 0 ? ((gptAnalytics.output / gptAnalytics.input) * 100).toFixed(1) : 0;
+            
+            container.innerHTML = `
+                <div style="display: flex; flex-direction: column; gap: var(--space-md);">
+                    <div style="display: flex; justify-content: space-between; padding: var(--space-sm) 0; border-bottom: 1px solid var(--gray-200);">
+                        <span style="color: var(--gray-600);">Input Tokens:</span>
+                        <span style="font-weight: 600;">${formatNumber(gptAnalytics.input)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: var(--space-sm) 0; border-bottom: 1px solid var(--gray-200);">
+                        <span style="color: var(--gray-600);">Output Tokens:</span>
+                        <span style="font-weight: 600;">${formatNumber(gptAnalytics.output)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: var(--space-sm) 0; border-bottom: 1px solid var(--gray-200);">
+                        <span style="color: var(--gray-600);">Total Tokens:</span>
+                        <span style="font-weight: 600; color: var(--primary-600);">${formatNumber(gptAnalytics.total)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: var(--space-sm) 0; border-bottom: 1px solid var(--gray-200);">
+                        <span style="color: var(--gray-600);">Avg per Session:</span>
+                        <span style="font-weight: 600;">${formatNumber(avgTokensPerSession)}</span>
+                    </div>
+                    <div style="padding: var(--space-sm) 0;">
+                        <div style="color: var(--gray-600); font-size: 14px; margin-bottom: var(--space-xs);">Output Ratio: ${outputRatio}%</div>
+                        <div style="color: var(--primary-600); font-size: 14px; margin-bottom: var(--space-xs);">Requests: ${requestCount}</div>
+                        <div style="color: var(--success-600); font-size: 14px;">Model: gpt-4.1-mini</div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function updateEmbeddingUsageDetails(embeddingAnalytics, requestCount) {
+            const container = document.getElementById('embeddingUsageDetails');
+            const estimatedDocuments = Math.ceil(embeddingAnalytics.total / 8192) || 0; // Assuming ~8K tokens per doc
+            const avgTokensPerDoc = estimatedDocuments > 0 ? Math.round(embeddingAnalytics.total / estimatedDocuments) : 0;
+            
+            container.innerHTML = `
+                <div style="display: flex; flex-direction: column; gap: var(--space-md);">
+                    <div style="display: flex; justify-content: space-between; padding: var(--space-sm) 0; border-bottom: 1px solid var(--gray-200);">
+                        <span style="color: var(--gray-600);">Total Tokens:</span>
+                        <span style="font-weight: 600; color: var(--success-600);">${formatNumber(embeddingAnalytics.total)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: var(--space-sm) 0; border-bottom: 1px solid var(--gray-200);">
+                        <span style="color: var(--gray-600);">Est. Documents:</span>
+                        <span style="font-weight: 600;">${estimatedDocuments}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: var(--space-sm) 0; border-bottom: 1px solid var(--gray-200);">
+                        <span style="color: var(--gray-600);">Avg per Document:</span>
+                        <span style="font-weight: 600;">${formatNumber(avgTokensPerDoc)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: var(--space-sm) 0; border-bottom: 1px solid var(--gray-200);">
+                        <span style="color: var(--gray-600);">Requests:</span>
+                        <span style="font-weight: 600;">${requestCount}</span>
+                    </div>
+                    <div style="padding: var(--space-sm) 0;">
+                        <div style="color: var(--gray-600); font-size: 14px; margin-bottom: var(--space-xs);">Dimensions: 3072</div>
+                        <div style="color: var(--success-600); font-size: 14px;">Model: text-embedding-3-large</div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function showTokenUsageFallback() {
+            document.getElementById('gptTokens').textContent = '0';
+            document.getElementById('embeddingTokens').textContent = '0';
+            document.getElementById('monthlyCost').textContent = '$0.00';
+            document.getElementById('rateLimitUsage').textContent = '0%';
+            
+            ['gptTokenTrend', 'embeddingTokenTrend', 'costTrend', 'rateLimitTrend'].forEach(id => {
+                document.getElementById(id).innerHTML = '<i class="fas fa-exclamation-circle"></i><span>No data</span>';
+            });
+            
+            document.getElementById('gptUsageDetails').innerHTML = '<div style="color: var(--gray-500); text-align: center; padding: var(--space-lg);">No usage data available</div>';
+            document.getElementById('embeddingUsageDetails').innerHTML = '<div style="color: var(--gray-500); text-align: center; padding: var(--space-lg);">No usage data available</div>';
+        }
+        
+        function formatNumber(num) {
+            if (num >= 1000000) {
+                return (num / 1000000).toFixed(1) + 'M';
+            } else if (num >= 1000) {
+                return (num / 1000).toFixed(1) + 'K';
+            }
+            return num.toString();
         }
         
         // Generate department analysis
