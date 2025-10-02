@@ -4011,13 +4011,41 @@ Provide 3-4 actionable insights in JSON format:
             
             if (sessions && sessions.length > 0) {
                 sessions.forEach(session => {
+                    if (session.conversation && session.conversation.length > 0) {
+                        // Estimate tokens from actual conversation content
+                        const tokenEstimate = estimateTokensFromConversation(session.conversation);
+                        
+                        gptTokens.input += tokenEstimate.input;
+                        gptTokens.output += tokenEstimate.output;
+                        gptTokens.total += tokenEstimate.total;
+                        
+                        // Count AI responses as GPT requests
+                        const aiResponses = session.conversation.filter(msg => msg.role === 'assistant').length;
+                        requestCount.gpt += aiResponses;
+                        
+                        // Estimate embedding usage based on search-like responses
+                        // Look for responses that seem to involve document search
+                        const searchResponses = session.conversation.filter(msg => 
+                            msg.role === 'assistant' && 
+                            (msg.content.includes('document') || 
+                             msg.content.includes('PDF') ||
+                             msg.content.includes('handbook') ||
+                             msg.content.includes('saxtechmegamind.blob.core.windows.net'))
+                        ).length;
+                        
+                        if (searchResponses > 0) {
+                            // Estimate ~2000 tokens per document search
+                            embeddingTokens.total += searchResponses * 2000;
+                            requestCount.embedding += searchResponses;
+                        }
+                    }
+                    
+                    // Check for any existing metadata token fields (fallback)
                     if (session.metadata) {
                         const metadata = session.metadata;
                         
-                        // Extract GPT token usage (various possible field names)
                         if (metadata.gpt_input_tokens) {
                             gptTokens.input += parseInt(metadata.gpt_input_tokens) || 0;
-                            requestCount.gpt++;
                         }
                         if (metadata.gpt_output_tokens) {
                             gptTokens.output += parseInt(metadata.gpt_output_tokens) || 0;
@@ -4025,32 +4053,11 @@ Provide 3-4 actionable insights in JSON format:
                         if (metadata.total_tokens) {
                             gptTokens.total += parseInt(metadata.total_tokens) || 0;
                         }
-                        if (metadata.prompt_tokens) {
-                            gptTokens.input += parseInt(metadata.prompt_tokens) || 0;
-                        }
-                        if (metadata.completion_tokens) {
-                            gptTokens.output += parseInt(metadata.completion_tokens) || 0;
-                        }
-                        
-                        // Extract embedding token usage
                         if (metadata.embedding_tokens) {
                             embeddingTokens.total += parseInt(metadata.embedding_tokens) || 0;
-                            requestCount.embedding++;
                         }
-                        if (metadata.search_tokens) {
-                            embeddingTokens.total += parseInt(metadata.search_tokens) || 0;
-                        }
-                        
-                        // Calculate estimated costs
                         if (metadata.estimated_cost) {
                             totalCost += parseFloat(metadata.estimated_cost) || 0;
-                        }
-                        
-                        // Alternative: calculate from message count if token data not available
-                        if (!metadata.total_tokens && session.conversation) {
-                            const messageCount = session.conversation.length;
-                            const estimatedTokensPerMessage = 150; // rough estimate
-                            gptTokens.total += messageCount * estimatedTokensPerMessage;
                         }
                     }
                 });
@@ -4080,6 +4087,43 @@ Provide 3-4 actionable insights in JSON format:
                 requestCount,
                 sessionCount: sessions.length
             };
+        }
+        
+        // Estimate tokens from conversation content
+        function estimateTokensFromConversation(conversation) {
+            let input = 0;
+            let output = 0;
+            
+            conversation.forEach(message => {
+                const tokenCount = estimateTokensFromText(message.content);
+                
+                if (message.role === 'user') {
+                    input += tokenCount;
+                } else if (message.role === 'assistant') {
+                    output += tokenCount;
+                }
+            });
+            
+            return {
+                input: input,
+                output: output,
+                total: input + output
+            };
+        }
+        
+        // Rough token estimation from text (approximation: ~4 chars per token)
+        function estimateTokensFromText(text) {
+            if (!text) return 0;
+            
+            // Remove HTML tags for more accurate counting
+            const cleanText = text.replace(/<[^>]*>/g, '');
+            
+            // Rough estimate: ~4 characters per token
+            const charCount = cleanText.length;
+            const tokenEstimate = Math.ceil(charCount / 4);
+            
+            // Add some overhead for system messages and formatting
+            return tokenEstimate + 10;
         }
         
         function calculateRateLimitUsage(gptTokens, embeddingTokens) {
@@ -4112,17 +4156,17 @@ Provide 3-4 actionable insights in JSON format:
             // Update trends with more detailed info
             document.getElementById('gptTokenTrend').innerHTML = `
                 <i class="fas fa-chart-line"></i>
-                <span>In: ${formatNumber(analytics.gpt.input)} | Out: ${formatNumber(analytics.gpt.output)}</span>
+                <span>In: ${formatNumber(analytics.gpt.input)} | Out: ${formatNumber(analytics.gpt.output)} (est.)</span>
             `;
             
             document.getElementById('embeddingTokenTrend').innerHTML = `
                 <i class="fas fa-search"></i>
-                <span>text-embedding-3-large</span>
+                <span>text-embedding-3-large (est.)</span>
             `;
             
             document.getElementById('costTrend').innerHTML = `
                 <i class="fas fa-calculator"></i>
-                <span>Daily avg: $${(analytics.totalCost).toFixed(3)}</span>
+                <span>Estimated: $${(analytics.totalCost).toFixed(3)}/day</span>
             `;
             
             const rateLimitStatus = analytics.rateLimitUtilization < 50 ? 'Healthy' : 
@@ -4165,8 +4209,9 @@ Provide 3-4 actionable insights in JSON format:
                     </div>
                     <div style="padding: var(--space-sm) 0;">
                         <div style="color: var(--gray-600); font-size: 14px; margin-bottom: var(--space-xs);">Output Ratio: ${outputRatio}%</div>
-                        <div style="color: var(--primary-600); font-size: 14px; margin-bottom: var(--space-xs);">Requests: ${requestCount}</div>
-                        <div style="color: var(--success-600); font-size: 14px;">Model: gpt-4.1-mini</div>
+                        <div style="color: var(--primary-600); font-size: 14px; margin-bottom: var(--space-xs);">AI Responses: ${requestCount}</div>
+                        <div style="color: var(--success-600); font-size: 14px; margin-bottom: var(--space-xs);">Model: gpt-4.1-mini</div>
+                        <div style="color: var(--warning-600); font-size: 12px; font-style: italic;">📊 Estimated from conversation content</div>
                     </div>
                 </div>
             `;
@@ -4197,7 +4242,8 @@ Provide 3-4 actionable insights in JSON format:
                     </div>
                     <div style="padding: var(--space-sm) 0;">
                         <div style="color: var(--gray-600); font-size: 14px; margin-bottom: var(--space-xs);">Dimensions: 3072</div>
-                        <div style="color: var(--success-600); font-size: 14px;">Model: text-embedding-3-large</div>
+                        <div style="color: var(--success-600); font-size: 14px; margin-bottom: var(--space-xs);">Model: text-embedding-3-large</div>
+                        <div style="color: var(--warning-600); font-size: 12px; font-style: italic;">🔍 Estimated from search responses</div>
                     </div>
                 </div>
             `;
