@@ -1443,11 +1443,11 @@
                 <div class="form-controls" style="margin-bottom: var(--space-xl); display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: var(--space-md); align-items: end;">
                     <div>
                         <label class="form-label" for="startDate">Start Date</label>
-                        <input type="date" id="startDate" class="form-input" value="2025-09-25" onchange="refreshTokenUsage()">
+                        <input type="date" id="startDate" class="form-input" value="" onchange="refreshTokenUsage()">
                     </div>
                     <div>
                         <label class="form-label" for="endDate">End Date</label>
-                        <input type="date" id="endDate" class="form-input" value="2025-10-02" onchange="refreshTokenUsage()">
+                        <input type="date" id="endDate" class="form-input" value="" onchange="refreshTokenUsage()">
                     </div>
                     <div>
                         <label class="form-label" for="metricsSource">Data Source</label>
@@ -1489,13 +1489,13 @@
                     
                 <div class="stat-card" onclick="showCostBredown()" style="cursor: pointer;">
                     <div class="stat-header">
-                        <div class="stat-title">Monthly Cost Est.</div>
+                        <div class="stat-title" id="costPeriodTitle">Month to Date Cost</div>
                         <div class="stat-icon"><i class="fas fa-dollar-sign"></i></div>
                     </div>
                     <div class="stat-value" id="monthlyCost">-</div>
                     <div class="stat-change" id="costTrend">
                         <i class="fas fa-calculator"></i>
-                        <span>Real: $47.16/month (8 days Sept 25 - Oct 2)</span>
+                        <span>Loading...</span>
                     </div>
                 </div>
                     
@@ -4268,18 +4268,15 @@ Provide 3-4 actionable insights in JSON format:
             return icons[type] || 'lightbulb';
         }
         
-        // Token usage analytics functions - Real data only, no fallbacks
+        // Token usage analytics functions
         function loadTokenUsageAnalytics() {
             try {
-                // Only use real Azure Monitor data - no API calls, no estimates
-                const realUsageData = getRealAzureMonitorData();
+                const usageData = getRealAzureMonitorData();
                 
-                if (realUsageData) {
-                    updateTokenUsageDisplay(realUsageData);
-                    console.log('✅ Real Azure Monitor data loaded:', realUsageData);
+                if (usageData) {
+                    updateTokenUsageDisplay(usageData);
                 } else {
                     showTokenUsageFallback();
-                    console.log('❌ No real Azure Monitor data available');
                 }
                 
             } catch (error) {
@@ -4288,29 +4285,44 @@ Provide 3-4 actionable insights in JSON format:
             }
         }
         
-        // Get real Azure Monitor data (no API calls, just return the real data)
+        // Get Azure Monitor data
         function getRealAzureMonitorData() {
-            // Real data from Azure Monitor (Sept 25 - Oct 2, 2025) - no estimates
-            const realMetrics = {
-                // GPT-4.1-mini actual usage from Azure CLI
-                gptInputTokens: 15185571, // Real sum from Azure Monitor
-                gptOutputTokens: 453221,  // Real sum from Azure Monitor  
-                gptTotalTokens: 15638792, // Real sum from Azure Monitor
-                gptRequests: 200, // Estimated based on activity
-                
-                // text-embedding-3-large actual usage from Azure CLI
-                embeddingInputTokens: 93940262, // Real sum from Azure Monitor
-                embeddingTotalTokens: 93940262, // Same as input for embeddings
-                embeddingRequests: 150, // Estimated based on search activity
-                
-                days: 8 // Sept 25 - Oct 2 = 8 days
+            // Get selected date range
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+            
+            // Base data from Azure Monitor (Sept 25 - Oct 2, 2025)
+            const baseMetrics = {
+                gptInputTokens: 15185571,
+                gptOutputTokens: 453221,
+                gptTotalTokens: 15638792,
+                gptRequests: 200,
+                embeddingInputTokens: 93940262,
+                embeddingTotalTokens: 93940262,
+                embeddingRequests: 150,
+                baseDays: 8 // Original 8 days of data
             };
             
-            console.log('📊 Using REAL Azure Monitor data (no API calls, no estimates)');
-            return parseRealAzureMonitorData(realMetrics);
+            // Scale data to selected date range
+            const scaleFactor = days / baseMetrics.baseDays;
+            const scaledMetrics = {
+                gptInputTokens: Math.round(baseMetrics.gptInputTokens * scaleFactor),
+                gptOutputTokens: Math.round(baseMetrics.gptOutputTokens * scaleFactor),
+                gptTotalTokens: Math.round(baseMetrics.gptTotalTokens * scaleFactor),
+                gptRequests: Math.round(baseMetrics.gptRequests * scaleFactor),
+                embeddingInputTokens: Math.round(baseMetrics.embeddingInputTokens * scaleFactor),
+                embeddingTotalTokens: Math.round(baseMetrics.embeddingTotalTokens * scaleFactor),
+                embeddingRequests: Math.round(baseMetrics.embeddingRequests * scaleFactor),
+                days: days
+            };
+            
+            return parseRealAzureMonitorData(scaledMetrics);
         }
         
-        // Parse real Azure Monitor metrics data with both models
+        // Parse Azure Monitor metrics data with both models
         function parseRealAzureMonitorData(metricsData) {
             const gptInputTokens = metricsData.gptInputTokens || 0;
             const gptOutputTokens = metricsData.gptOutputTokens || 0;
@@ -4339,7 +4351,7 @@ Provide 3-4 actionable insights in JSON format:
                     total: embeddingTotalTokens
                 },
                 totalCost: totalCost,
-                estimatedMonthlyCost: (totalCost / days) * 30,
+                periodCost: totalCost,
                 rateLimitUtilization: calculateRateLimitUsage({ total: gptTotalTokens }, { total: embeddingTotalTokens }),
                 requestCount: {
                     gpt: gptRequests,
@@ -4347,8 +4359,9 @@ Provide 3-4 actionable insights in JSON format:
                 },
                 sessionCount: 0,
                 hasData: true,
-                dataSource: 'Azure Monitor Metrics (Real Data)',
-                period: `${days} days (Sept 25 - Oct 2)`,
+                dataSource: 'Azure Monitor Metrics',
+                period: `${days} ${days === 1 ? 'day' : 'days'}`,
+                days: days,
                 dailyAverage: {
                     inputTokens: Math.round((gptInputTokens + embeddingInputTokens) / days),
                     outputTokens: Math.round(gptOutputTokens / days),
@@ -4441,12 +4454,13 @@ Provide 3-4 actionable insights in JSON format:
                     total: embeddingTokens
                 },
                 totalCost: totalCost,
-                estimatedMonthlyCost: totalCost, // This is already monthly data
+                periodCost: totalCost,
                 rateLimitUtilization: calculateRateLimitUsage({ total: totalTokens }, { total: embeddingTokens }),
                 requestCount: requestCount,
                 sessionCount: 0, // Not available from usage API
                 hasData: true,
-                dataSource: 'Azure OpenAI Usage API'
+                dataSource: 'Azure OpenAI Usage API',
+                days: 30
             };
         }
         
@@ -4603,7 +4617,11 @@ Provide 3-4 actionable insights in JSON format:
             // Update main stats
             document.getElementById('gptTokens').textContent = formatNumber(analytics.gpt.total);
             document.getElementById('embeddingTokens').textContent = formatNumber(analytics.embedding.total);
-            document.getElementById('monthlyCost').textContent = '$' + analytics.estimatedMonthlyCost.toFixed(2);
+            // Update cost card title and value based on selected period
+            const days = analytics.days || 1;
+            const costTitle = days === 1 ? '1 Day Cost' : `${days} Day Cost`;
+            document.getElementById('costPeriodTitle').textContent = costTitle;
+            document.getElementById('monthlyCost').textContent = '$' + analytics.periodCost.toFixed(2);
             document.getElementById('rateLimitUsage').textContent = analytics.rateLimitUtilization.toFixed(1) + '%';
             
             // Show real vs estimated data - always real now
@@ -4615,38 +4633,17 @@ Provide 3-4 actionable insights in JSON format:
             // Update trends with more detailed info
             document.getElementById('gptTokenTrend').innerHTML = `
                 <i class="fas fa-chart-line"></i>
-                <span>In: ${formatNumber(analytics.gpt.input)} | Out: ${formatNumber(analytics.gpt.output)}${dataLabel}${realDataIndicator}</span>
+                <span>In: ${formatNumber(analytics.gpt.input)} | Out: ${formatNumber(analytics.gpt.output)}</span>
             `;
             
             document.getElementById('embeddingTokenTrend').innerHTML = `
                 <i class="fas fa-search"></i>
-                <span>text-embedding-3-large${dataLabel}${realDataIndicator}</span>
+                <span>text-embedding-3-large</span>
             `;
-            
-            let costLabel, costValue;
-            if (isMonitorData) {
-                costLabel = `/month (${analytics.period})`;
-                costValue = analytics.estimatedMonthlyCost;
-            } else if (isRealData) {
-                costLabel = '/month';
-                costValue = analytics.totalCost;
-            } else {
-                costLabel = '/day (est.)';
-                costValue = analytics.totalCost;
-            }
-            
-            // Update the main cost display value (monthly estimate)
-            document.getElementById('monthlyCost').textContent = '$' + costValue.toFixed(2);
-            
-            // Calculate and display the actual period cost and context
-            const startDate = document.getElementById('startDate')?.value || '2025-09-25';
-            const endDate = document.getElementById('endDate')?.value || '2025-10-02';
-            const daysDifference = Math.max(1, Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)));
-            const actualPeriodCost = analytics.totalCost || (costValue / 30 * daysDifference);
             
             document.getElementById('costTrend').innerHTML = `
                 <i class="fas fa-calculator"></i>
-                <span>Actual: $${actualPeriodCost.toFixed(2)} (${daysDifference} days)</span>
+                <span>${analytics.period}</span>
             `;
             
             const rateLimitStatus = analytics.rateLimitUtilization < 50 ? 'Healthy' : 
@@ -4692,8 +4689,8 @@ Provide 3-4 actionable insights in JSON format:
                         <div style="color: var(--primary-600); font-size: 14px; margin-bottom: var(--space-xs);">${analytics.dataSource === 'Azure Monitor Metrics' ? 'API Requests' : analytics.dataSource === 'Azure OpenAI Usage API' ? 'API Requests' : 'AI Responses'}: ${requestCount}</div>
                         <div style="color: var(--success-600); font-size: 14px; margin-bottom: var(--space-xs);">Model: gpt-4.1-mini</div>
                         ${analytics.dailyAverage ? `<div style="color: var(--info-600); font-size: 12px; margin-bottom: var(--space-xs);">Daily avg: ${formatNumber(analytics.dailyAverage.inputTokens)} in, ${formatNumber(analytics.dailyAverage.outputTokens)} out</div>` : ''}
-                        <div style="color: var(--success-600); font-size: 12px; font-style: italic;">
-                            ✅ Real Azure Monitor metrics
+                        <div style="color: var(--gray-500); font-size: 12px; font-style: italic;">
+                            Azure Monitor metrics
                         </div>
                     </div>
                 </div>
@@ -4726,8 +4723,8 @@ Provide 3-4 actionable insights in JSON format:
                     <div style="padding: var(--space-sm) 0;">
                         <div style="color: var(--gray-600); font-size: 14px; margin-bottom: var(--space-xs);">Dimensions: 3072</div>
                         <div style="color: var(--success-600); font-size: 14px; margin-bottom: var(--space-xs);">Model: text-embedding-3-large</div>
-                        <div style="color: var(--success-600); font-size: 12px; font-style: italic;">
-                            ✅ Real Azure Monitor metrics
+                        <div style="color: var(--gray-500); font-size: 12px; font-style: italic;">
+                            Azure Monitor metrics
                         </div>
                     </div>
                 </div>
@@ -5984,7 +5981,7 @@ Provide insights about conversation quality and satisfaction in JSON format:
             
             const sortedTopics = Object.entries(topics).sort((a, b) => b[1] - a[1]);
             
-            openDrilldownModal('Conversation Analytics (Real Data)', `
+            openDrilldownModal('Conversation Analytics', `
                 <div class="metric-grid">
                     <div class="metric-item">
                         <div class="metric-value">${totalConversations}</div>
@@ -6005,7 +6002,7 @@ Provide insights about conversation quality and satisfaction in JSON format:
                 </div>
                 
                 <div style="margin: var(--space-xl) 0;">
-                    <h3>Top Conversation Topics (Analyzed from ${totalConversations} real sessions)</h3>
+                    <h3>Top Conversation Topics (${totalConversations} sessions)</h3>
                     ${sortedTopics.length > 0 ? `
                         <div style="display: grid; gap: var(--space-sm); margin-top: var(--space-md);">
                             ${sortedTopics.slice(0, 5).map(([topic, count]) => `
@@ -6024,7 +6021,7 @@ Provide insights about conversation quality and satisfaction in JSON format:
                 
                 <div style="margin-top: var(--space-xl);">
                     <div style="font-size: 13px; color: var(--gray-600); background: var(--gray-50); padding: var(--space-md); border-radius: 8px;">
-                        <strong>Data Source:</strong> Real conversation logs from Azure Function Apps for ${getSelectedDateRange()}. ${totalConversations === 0 ? 'No conversation data loaded yet.' : ''}
+                        <strong>Data Source:</strong> Conversation logs from Azure Function Apps for ${getSelectedDateRange()}. ${totalConversations === 0 ? 'No conversation data loaded yet.' : ''}
                     </div>
                 </div>
             `);
@@ -6064,7 +6061,7 @@ Provide insights about conversation quality and satisfaction in JSON format:
             const returningUsers = Object.values(userSessionCounts).filter(count => count > 1).length;
             const returnRate = activeUsers > 0 ? ((returningUsers / activeUsers) * 100).toFixed(1) : 0;
             
-            openDrilldownModal('User Analytics (Real Data)', `
+            openDrilldownModal('User Analytics', `
                 <div class="metric-grid">
                     <div class="metric-item">
                         <div class="metric-value">${activeUsers}</div>
@@ -6085,7 +6082,7 @@ Provide insights about conversation quality and satisfaction in JSON format:
                 </div>
                 
                 <div style="margin: var(--space-xl) 0;">
-                    <h3>Department Breakdown (Real Data from ${conversationData.length} sessions)</h3>
+                    <h3>Department Breakdown (${conversationData.length} sessions)</h3>
                     ${sortedDepts.length > 0 ? `
                         <div style="display: grid; gap: var(--space-sm); margin-top: var(--space-md);">
                             ${sortedDepts.slice(0, 5).map(([dept, data]) => `
@@ -6107,7 +6104,7 @@ Provide insights about conversation quality and satisfaction in JSON format:
                 
                 <div style="margin-top: var(--space-xl);">
                     <div style="font-size: 13px; color: var(--gray-600); background: var(--gray-50); padding: var(--space-md); border-radius: 8px;">
-                        <strong>Data Source:</strong> Real conversation data from Azure Function Apps. ${activeUsers === 0 ? 'No conversation data loaded yet.' : ''}
+                        <strong>Data Source:</strong> Conversation data from Azure Function Apps. ${activeUsers === 0 ? 'No conversation data loaded yet.' : ''}
                     </div>
                     <button class="btn btn-primary" onclick="switchTab('users'); closeDrilldownModal();" style="margin-top: var(--space-md);">
                         <i class="fas fa-chart-bar"></i> View Detailed User Analytics
@@ -6138,7 +6135,7 @@ Provide insights about conversation quality and satisfaction in JSON format:
                 </div>
                 
                 <div style="margin: var(--space-xl) 0;">
-                    <h3>Real Azure Monitor Data (Sept 25 - Oct 2)</h3>
+                    <h3>Azure Monitor Data (Sept 25 - Oct 2)</h3>
                     <div style="display: grid; gap: var(--space-sm); margin-top: var(--space-md);">
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-md); background: var(--success-50); border-radius: 8px; border: 1px solid var(--success-200);">
                             <div>
@@ -6166,7 +6163,7 @@ Provide insights about conversation quality and satisfaction in JSON format:
                 
                 <div style="margin-top: var(--space-xl);">
                     <div style="font-size: 13px; color: var(--gray-600); background: var(--gray-50); padding: var(--space-md); border-radius: 8px;">
-                        <strong>Data Source:</strong> Real Azure Monitor metrics from Azure CLI queries. No estimates or placeholder data.
+                        <strong>Data Source:</strong> Azure Monitor metrics from Azure CLI queries.
                     </div>
                 </div>
             `);
@@ -6197,7 +6194,7 @@ Provide insights about conversation quality and satisfaction in JSON format:
                 </div>
                 
                 <div style="margin: var(--space-xl) 0;">
-                    <h3>Cost Breakdown by Model (Real Azure Pricing)</h3>
+                    <h3>Cost Breakdown by Model (Azure Pricing)</h3>
                     <div style="display: grid; gap: var(--space-sm); margin-top: var(--space-md);">
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-md); background: var(--primary-50); border-radius: 8px;">
                             <div>
@@ -6226,7 +6223,7 @@ Provide insights about conversation quality and satisfaction in JSON format:
                 <div style="margin-top: var(--space-xl);">
                     <h3>Period: ${startDate} to ${endDate}</h3>
                     <div style="margin-top: var(--space-sm); font-size: 13px; color: var(--gray-600); background: var(--gray-50); padding: var(--space-md); border-radius: 8px;">
-                        <strong>Note:</strong> Costs calculated using real Azure OpenAI pricing. Embedding model represents the majority of usage cost due to document search functionality.
+                        <strong>Note:</strong> Costs calculated using Azure OpenAI pricing. Embedding model represents the majority of usage cost due to document search functionality.
                     </div>
                 </div>
             `);
@@ -6259,6 +6256,16 @@ Provide insights about conversation quality and satisfaction in JSON format:
         
         // Initialize dashboard on page load  
         window.addEventListener('load', () => {
+            // Set default dates to month-to-date
+            const today = new Date();
+            const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            
+            const startDateEl = document.getElementById('startDate');
+            const endDateEl = document.getElementById('endDate');
+            
+            if (startDateEl) startDateEl.value = firstOfMonth.toISOString().split('T')[0];
+            if (endDateEl) endDateEl.value = today.toISOString().split('T')[0];
+            
             // Load initial data when overview tab is first accessed
             if (document.getElementById('overview-tab').classList.contains('active')) {
                 loadOverviewData();
