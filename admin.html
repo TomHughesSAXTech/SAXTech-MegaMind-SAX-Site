@@ -4646,9 +4646,18 @@ Provide 3-4 actionable insights in JSON format:
                 costValue = analytics.totalCost;
             }
             
+            // Update the main cost display value (monthly estimate)
+            document.getElementById('monthlyCost').textContent = '$' + costValue.toFixed(2);
+            
+            // Calculate and display the actual period cost and context
+            const startDate = document.getElementById('startDate')?.value || '2025-09-25';
+            const endDate = document.getElementById('endDate')?.value || '2025-10-02';
+            const daysDifference = Math.max(1, Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)));
+            const actualPeriodCost = analytics.totalCost || (costValue / 30 * daysDifference);
+            
             document.getElementById('costTrend').innerHTML = `
                 <i class="fas fa-calculator"></i>
-                <span>${isMonitorData || isRealData ? 'Real' : 'Estimated'}: $${costValue.toFixed(3)}${costLabel}</span>
+                <span>Actual: $${actualPeriodCost.toFixed(2)} (${daysDifference} days)</span>
             `;
             
             const rateLimitStatus = analytics.rateLimitUtilization < 50 ? 'Healthy' : 
