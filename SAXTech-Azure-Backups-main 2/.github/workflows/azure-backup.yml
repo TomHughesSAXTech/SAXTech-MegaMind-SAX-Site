@@ -1,0 +1,336 @@
+name: Azure Backup to Blob Storage
+
+on:
+  schedule:
+    # Run every hour for comprehensive backup coverage
+    - cron: '0 * * * *'
+  workflow_dispatch:
+    inputs:
+      backup_type:
+        description: 'Type of backup to run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - function-apps
+          - function-apps-source
+          - static-web-apps
+          - n8n-workflows
+          - azure-search
+
+env:
+  TIMESTAMP: ${{ github.run_id }}-${{ github.run_number }}
+
+jobs:
+  backup-assessment:
+    name: Run Backup Assessment
+    runs-on: ubuntu-latest
+    outputs:
+      assessment_report: ${{ steps.assessment.outputs.report }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Azure CLI
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Run assessment
+        id: assessment
+        run: |
+          ./azure-backup-assessment.sh > assessment_report_${{ env.TIMESTAMP }}.md
+          echo "report=assessment_report_${{ env.TIMESTAMP }}.md" >> $GITHUB_OUTPUT
+
+      - name: Upload assessment report
+        uses: actions/upload-artifact@v4
+        with:
+          name: assessment-report
+          path: assessment_report_${{ env.TIMESTAMP }}.md
+
+  backup-function-apps:
+    name: Backup Function Apps
+    runs-on: ubuntu-latest
+    needs: backup-assessment
+    if: github.event_name == 'schedule' || github.event.inputs.backup_type == 'all' || github.event.inputs.backup_type == 'function-apps'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Azure CLI
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Run Function Apps backup
+        run: |
+          ./backup-function-apps.sh
+          echo "✅ Function Apps backup completed - will be uploaded to Azure Storage"
+      
+      - name: Upload Function Apps backup artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: function-apps-backup
+          path: azure-backups/function-apps/
+          retention-days: 1
+
+  backup-function-apps-source:
+    name: Backup Function Apps Source Code
+    runs-on: ubuntu-latest
+    needs: backup-assessment
+    if: github.event_name == 'schedule' || github.event.inputs.backup_type == 'all' || github.event.inputs.backup_type == 'function-apps-source'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Azure CLI
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Run Function Apps source code backup
+        run: |
+          ./backup-function-app-source.sh
+          echo "✅ Function Apps source code backup completed - will be uploaded to Azure Storage"
+      
+      - name: Upload Function Apps source backup artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: function-apps-source-backup
+          path: azure-backups/function-app-source/
+          retention-days: 1
+
+  backup-static-web-apps:
+    name: Backup Static Web Apps
+    runs-on: ubuntu-latest
+    needs: backup-assessment
+    if: github.event_name == 'schedule' || github.event.inputs.backup_type == 'all' || github.event.inputs.backup_type == 'static-web-apps'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Azure CLI
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Run Static Web Apps backup
+        run: |
+          ./backup-static-web-apps.sh
+          echo "✅ Static Web Apps backup completed - will be uploaded to Azure Storage"
+      
+      - name: Upload Static Web Apps backup artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-web-apps-backup
+          path: azure-backups/static-web-apps/
+          retention-days: 1
+
+  backup-n8n-workflows:
+    name: Backup n8n Workflows
+    runs-on: ubuntu-latest
+    needs: backup-assessment
+    if: github.event_name == 'schedule' || github.event.inputs.backup_type == 'all' || github.event.inputs.backup_type == 'n8n-workflows'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Backup n8n workflows
+        env:
+          N8N_API_KEY: ${{ secrets.N8N_API_KEY }}
+        run: |
+          # Create backup directory with hourly timestamp
+          TIMESTAMP=$(date +%Y%m%d_%H0000)
+          mkdir -p azure-backups/n8n-workflows/$TIMESTAMP
+          
+          # Fetch all workflows
+          curl -X GET "https://workflows.saxtechnology.com/api/v1/workflows" \
+            -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+            -o azure-backups/n8n-workflows/$TIMESTAMP/workflows.json
+          
+          # Parse and save individual workflows
+          jq -c '.data[]' azure-backups/n8n-workflows/$TIMESTAMP/workflows.json | while read -r workflow; do
+            WF_ID=$(echo $workflow | jq -r '.id')
+            # Sanitize workflow name: replace spaces and invalid characters
+            WF_NAME=$(echo $workflow | jq -r '.name' | sed 's/[":*?<>|\\]/-/g' | tr ' ' '_')
+            
+            # Get full workflow details
+            curl -X GET "https://workflows.saxtechnology.com/api/v1/workflows/${WF_ID}" \
+              -H "X-N8N-API-KEY: ${N8N_API_KEY}" \
+              -o "azure-backups/n8n-workflows/$TIMESTAMP/${WF_NAME}_${WF_ID}.json"
+          done
+          echo "✅ n8n Workflows backup completed - will be uploaded to Azure Storage"
+      
+      - name: Upload n8n backup artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: n8n-workflows-backup
+          path: azure-backups/n8n-workflows/
+          retention-days: 1
+
+  backup-azure-search:
+    name: Backup Azure Search Indices
+    runs-on: ubuntu-latest
+    needs: backup-assessment
+    if: github.event_name == 'schedule' || github.event.inputs.backup_type == 'all' || github.event.inputs.backup_type == 'azure-search'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Run Azure Search indices backup
+        env:
+          # Add search service API keys as GitHub secrets
+          SAXMEGAMIND_SEARCH_KEY: ${{ secrets.SAXMEGAMIND_SEARCH_KEY }}
+          FCS_SEARCH_KEY: ${{ secrets.FCS_SEARCH_KEY }}
+          SAXTECHMEGAMINDSEARCH3_KEY: ${{ secrets.SAXTECHMEGAMINDSEARCH3_KEY }}
+        run: |
+          # Update API keys in the script with environment variables
+          sed -i 's/"sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO"/"'"${SAXMEGAMIND_SEARCH_KEY}"'"/g' backup-azure-search-indices-fixed.sh
+          sed -i 's/"YOUR_FCS_API_KEY"/"'"${FCS_SEARCH_KEY}"'"/g' backup-azure-search-indices-fixed.sh
+          sed -i 's/"YOUR_MEGAMIND_IT_API_KEY"/"'"${SAXTECHMEGAMINDSEARCH3_KEY}"'"/g' backup-azure-search-indices-fixed.sh
+          
+          ./backup-azure-search-indices-fixed.sh
+          echo "✅ Azure Search indices backup completed - will be uploaded to Azure Storage"
+      
+      - name: Upload Azure Search backup artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: azure-search-backup
+          path: azure-backups/azure-search/
+          retention-days: 1
+
+  upload-to-azure-storage:
+    name: Upload to Azure Storage
+    runs-on: ubuntu-latest
+    needs: [backup-function-apps, backup-function-apps-source, backup-static-web-apps, backup-n8n-workflows, backup-azure-search]
+    if: always()
+    steps:
+      - name: Download Function Apps artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: function-apps-backup
+          path: azure-backups/
+        continue-on-error: true
+
+      - name: Download Static Web Apps artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: static-web-apps-backup
+          path: azure-backups/
+        continue-on-error: true
+
+      - name: Download Function Apps Source artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: function-apps-source-backup
+          path: azure-backups/
+        continue-on-error: true
+
+      - name: Download Azure Search artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: azure-search-backup
+          path: azure-backups/
+        continue-on-error: true
+
+      - name: Download n8n artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: n8n-workflows-backup
+          path: azure-backups/
+        continue-on-error: true
+
+      - name: Setup Azure CLI
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Create storage account if not exists
+        run: |
+          az storage account create \
+            --name saxtechbackups \
+            --resource-group SAXTech-AI \
+            --location eastus2 \
+            --sku Standard_GRS \
+            --kind StorageV2 \
+            2>/dev/null || echo "Storage account already exists"
+
+      - name: Create container if not exists
+        run: |
+          az storage container create \
+            --name azure-backups \
+            --account-name saxtechbackups \
+            2>/dev/null || echo "Container already exists"
+
+      - name: Upload backups to Azure Storage
+        run: |
+          # Compress backups with hourly timestamp
+          TIMESTAMP=$(date +%Y%m%d_%H0000)
+          tar -czf azure-backup-${TIMESTAMP}.tar.gz azure-backups/
+          
+          # Upload to Azure Storage with hourly naming
+          az storage blob upload \
+            --account-name saxtechbackups \
+            --container-name azure-backups \
+            --name "automated/azure-backup-${TIMESTAMP}.tar.gz" \
+            --file azure-backup-${TIMESTAMP}.tar.gz \
+            --overwrite
+
+  cleanup-old-backups:
+    name: Cleanup Old Azure Storage Backups (7-day retention)
+    runs-on: ubuntu-latest
+    needs: [upload-to-azure-storage]
+    if: always()
+    steps:
+
+      - name: Setup Azure CLI
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # GitHub cleanup no longer needed since we're not storing backups in GitHub
+
+      - name: Clean up old Azure Storage backups
+        run: |
+          echo "Cleaning up Azure Storage backups older than 7 days..."
+          
+          # Get date 7 days ago
+          CUTOFF_DATE=$(date -d "7 days ago" +%Y-%m-%d)
+          
+          # List all blobs and delete those older than 7 days
+          az storage blob list \
+            --account-name saxtechbackups \
+            --container-name azure-backups \
+            --prefix "automated/" \
+            --query "[?properties.lastModified < '${CUTOFF_DATE}'].name" \
+            -o tsv | while read -r blob; do
+              echo "Deleting old backup: $blob"
+              az storage blob delete \
+                --account-name saxtechbackups \
+                --container-name azure-backups \
+                --name "$blob"
+            done
+          
+          echo "Azure Storage cleanup complete"
+
+  summary-notification:
+    name: Send Summary Notification
+    runs-on: ubuntu-latest
+    needs: [cleanup-old-backups]
+    if: always()
+    steps:
+      - name: Send notification
+        run: |
+          echo "Backup Summary:"
+          echo "==============="
+          echo "Date: $(date)"
+          echo "Function Apps: ${{ needs.backup-function-apps.result }}"
+          echo "Function Apps Source: ${{ needs.backup-function-apps-source.result }}"
+          echo "Static Web Apps: ${{ needs.backup-static-web-apps.result }}"
+          echo "n8n Workflows: ${{ needs.backup-n8n-workflows.result }}"
+          echo "Azure Search: ${{ needs.backup-azure-search.result }}"
+          echo "Azure Storage Upload: ${{ needs.upload-to-azure-storage.result }}"

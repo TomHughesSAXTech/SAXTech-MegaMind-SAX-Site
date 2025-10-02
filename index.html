@@ -2486,23 +2486,48 @@ function loadConversationFromSnapshot(conv){
             const email = currentAccount?.username || userProfile?.mail;
             if (!email) return;
             
+            // Only save if we have both user and assistant messages to avoid incomplete conversations
+            if (messages.length < 2) return;
+            
             try {
+                // Enhanced payload with better metadata for analysis
+                const payload = {
+                    action: 'save',
+                    sessionId: sessionId,
+                    userEmail: email,
+                    userName: userProfile?.displayName || currentAccount?.name || email,
+                    conversation: messages,
+                    timestamp: new Date().toISOString(),
+                    
+                    // Enhanced metadata for AI analysis
+                    metadata: {
+                        department: userProfile?.department || null,
+                        location: userProfile?.officeLocation || userProfile?.city || null,
+                        jobTitle: userProfile?.jobTitle || null,
+                        aiProfile: currentAIProfile || 'sage',
+                        conversationLength: messages.length,
+                        sessionDuration: Date.now() - (window.sessionStartTime || Date.now()),
+                        userAgent: navigator.userAgent,
+                        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                        
+                        // Add conversation metrics for analysis
+                        conversationMetrics: {
+                            messageCount: messages.length,
+                            userMessageCount: messages.filter(m => m.role === 'user').length,
+                            assistantMessageCount: messages.filter(m => m.role === 'assistant').length,
+                            avgMessageLength: messages.reduce((sum, m) => sum + (m.content?.length || 0), 0) / messages.length,
+                            firstMessageTime: messages[0]?.timestamp,
+                            lastMessageTime: messages[messages.length - 1]?.timestamp
+                        }
+                    }
+                };
+                
                 const response = await fetch('https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        action: 'save',
-                        sessionId: sessionId,
-                        userEmail: email,
-                        userName: currentAccount?.name || email,
-                        conversation: messages,
-                        timestamp: new Date().toISOString(),
-                        department: userProfile?.department || null,
-                        location: userProfile?.location || null,
-                        aiProfile: currentAIProfile || 'default'
-                    })
+                    body: JSON.stringify(payload)
                 });
                 
                 if (!response.ok) {
@@ -2602,8 +2627,7 @@ function loadConversationFromSnapshot(conv){
                 content: message,
                 timestamp: new Date().toISOString()
             });
-            // Immediately persist to cloud (don’t wait for bot response)
-            saveSessionHistory();
+            // Note: Will save after bot response to avoid double-logging
             
             // Define webhook URL outside try block so it's accessible in catch block
             const webhookUrl = `https://workflows.saxtechnology.com/webhook/${currentWebhook}`;
