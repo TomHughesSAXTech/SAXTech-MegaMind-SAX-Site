@@ -2541,7 +2541,7 @@
 // 1) Document count via SWA API, fallback to Function App
                 let totalDocs = 0;
                 try {
-const searchResponse = await fetch(`/api/documents-search/sop-documents`, {
+const searchResponse = await fetch(`/api/documents-search`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ search: '*', top: 0, indexName: currentIndex })
@@ -2561,7 +2561,7 @@ const searchResponse = await fetch(`/api/documents-search/sop-documents`, {
                                 'Content-Type': 'application/json',
                                 'x-functions-key': INDEX_CONFIG.functionKey
                             },
-                            body: JSON.stringify({ search: '*', query: '*', top: 0, indexName: currentIndex })
+                            body: JSON.stringify({ search: '*', top: 0, indexName: currentIndex })
                         });
                         if (fbStats.ok) {
                             const statsData = await fbStats.json();
@@ -2580,7 +2580,7 @@ const searchResponse = await fetch(`/api/documents-search/sop-documents`, {
 // 2) Recent doc date via SWA API, fallback to Function App
                 let documents = [];
                 try {
-const searchResponse = await fetch(`/api/documents-search/sop-documents`, {
+const searchResponse = await fetch(`/api/documents-search`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -2665,7 +2665,7 @@ const dates = [doc.uploadDate, doc.createdDate, doc.modifiedDate, doc.lastModifi
                 if (auditEl) auditEl.textContent = 'Loading...';
                 
                 // Fetch latest tax code indexer status
-                const response = await fetch('https://saxtech-tax-ingestor.azurewebsites.net/api/status', {
+                const response = await fetch('https://saxtech-tax-ingestor-premium.azurewebsites.net/api/status', {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json'
@@ -2764,11 +2764,10 @@ const dates = [doc.uploadDate, doc.createdDate, doc.modifiedDate, doc.lastModifi
                     page++;
 let response;
                     try {
-response = await fetch(`/api/documents-search/sop-documents`, {
+response = await fetch(`/api/documents-search`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                                query: query,
                                 search: query,
                                 filter: filter,
                                 top: pageSize,
@@ -2786,7 +2785,6 @@ response = await fetch(`/api/documents-search/sop-documents`, {
                                 'x-functions-key': INDEX_CONFIG.functionKey
                             },
                             body: JSON.stringify({
-                                query: query,
                                 search: query,
                                 filter: filter,
                                 top: pageSize,
