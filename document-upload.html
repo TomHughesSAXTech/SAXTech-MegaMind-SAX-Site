@@ -1702,9 +1702,12 @@
                             'x-functions-key': API_CONFIG.functionKey
                         },
                         body: JSON.stringify({
-                            query: '*',  // Changed from 'search' to 'query'
+                            query: '*',  // Simple wildcard search
                             top: 1000,
-                            enableVector: false  // Disable vector search
+                            enableVector: false,      // Disable vector search
+                            enableAI: false,         // Disable AI HTML generation
+                            skipAnswer: true,        // Skip AI answer generation
+                            documentsOnly: true      // Return documents only
                         })
                     });
                     
@@ -1718,10 +1721,15 @@
                     }
 
                     const parseStartTime = performance.now();
-                    searchResults = await response.json();
+                    const fullResponse = await response.json();
                     const parseEndTime = performance.now();
                     console.log(`📋 JSON parsing completed in ${(parseEndTime - parseStartTime).toFixed(2)}ms`);
-                    console.log(`📊 Received ${searchResults.value?.length || 0} documents from Azure Search`);
+                    
+                    // Extract just the documents from the AI-enhanced response
+                    searchResults = {
+                        value: fullResponse.value || []
+                    };
+                    console.log(`📊 Received ${searchResults.value.length} documents from Azure Search (ignoring AI processing)`);
                 }
                 
                 // Transform search results into department > folder structure
