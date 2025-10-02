@@ -4046,7 +4046,11 @@ Provide 3-4 actionable insights in JSON format:
                 const endpoints = [
                     `${endpoint}/openai/usage?api-version=2024-08-01-preview&start_time=${startDateStr}&end_time=${endDateStr}`,
                     `${endpoint}/openai/usages?api-version=2024-08-01-preview&start_time=${startDateStr}&end_time=${endDateStr}`,
-                    `${endpoint}/openai/usage?api-version=2024-02-15-preview&start_time=${startDateStr}&end_time=${endDateStr}`
+                    `${endpoint}/openai/usage?api-version=2024-02-15-preview&start_time=${startDateStr}&end_time=${endDateStr}`,
+                    `${endpoint}/openai/usage?api-version=2024-06-01&start_time=${startDateStr}&end_time=${endDateStr}`,
+                    `${endpoint}/openai/usage?api-version=2024-10-01-preview&start_time=${startDateStr}&end_time=${endDateStr}`,
+                    `${endpoint}/cognitive/usage?api-version=2024-08-01&start_time=${startDateStr}&end_time=${endDateStr}`,
+                    `${endpoint}/billing/usage?api-version=2024-08-01&start_time=${startDateStr}&end_time=${endDateStr}`
                 ];
                 
                 for (const url of endpoints) {

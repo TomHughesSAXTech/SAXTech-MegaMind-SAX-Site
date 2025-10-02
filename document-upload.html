@@ -1628,6 +1628,9 @@
         }
 
         async function fetchAllDocuments() {
+            const startTime = performance.now();
+            console.log('🔍 Starting document fetch...');
+            
             try {
                 // Query all documents using Azure Function
                 const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
@@ -1659,7 +1662,26 @@
                 
                 // Deduplicate documents that are split into chunks
                 const uniqueDocumentsMap = new Map();
+                const duplicateCountMap = new Map();
                 
+                // First pass: Count occurrences for duplicate detection (O(n))
+                allDocuments.forEach(doc => {
+                    let uniqueKey = '';
+                    if (doc.fileName) {
+                        uniqueKey = doc.fileName;
+                    } else if (doc.title) {
+                        uniqueKey = doc.title;
+                    } else if (doc.id) {
+                        const baseId = doc.id.replace(/_chunk\d+$/i, '').replace(/-chunk-\d+$/i, '').replace(/\.chunk\d+$/i, '');
+                        uniqueKey = baseId;
+                    }
+                    
+                    if (uniqueKey) {
+                        duplicateCountMap.set(uniqueKey, (duplicateCountMap.get(uniqueKey) || 0) + 1);
+                    }
+                });
+                
+                // Second pass: Store unique documents with chunked flag (O(n))
                 allDocuments.forEach(doc => {
                     // Use fileName as the unique key, or fall back to title
                     let uniqueKey = '';
@@ -1675,13 +1697,10 @@
                     }
                     
                     if (uniqueKey && !uniqueDocumentsMap.has(uniqueKey)) {
-                        // Store the first occurrence
+                        // Store the first occurrence with pre-calculated chunked flag
                         uniqueDocumentsMap.set(uniqueKey, {
                             ...doc,
-                            isChunked: allDocuments.filter(d => 
-                                (d.fileName === doc.fileName && doc.fileName) || 
-                                (d.title === doc.title && doc.title)
-                            ).length > 1
+                            isChunked: (duplicateCountMap.get(uniqueKey) || 0) > 1
                         });
                     } else if (uniqueKey && uniqueDocumentsMap.has(uniqueKey)) {
                         // Merge metadata from duplicate chunks
@@ -1705,7 +1724,8 @@
                 // Convert map back to array
                 const documents = Array.from(uniqueDocumentsMap.values());
                 
-                console.log(`Deduplicated ${allDocuments.length} chunks to ${documents.length} unique documents`);
+                const dedupeTime = performance.now();
+                console.log(`⚡ Deduplicated ${allDocuments.length} chunks to ${documents.length} unique documents in ${(dedupeTime - startTime).toFixed(2)}ms`);
                 
                 if (documents && documents.length > 0) {
                     // Group documents by department, then by documentType
@@ -1752,6 +1772,9 @@
                         lastUpdated = formatDateToEST(mostRecentStr);
                     }
                 }
+                
+                const endTime = performance.now();
+                console.log(`🏁 Document processing completed in ${(endTime - startTime).toFixed(2)}ms (${totalDocuments} documents)`);
                 
                 return {
                     departments: departments,
