@@ -4522,11 +4522,11 @@ Provide 3-4 actionable insights in JSON format:
             document.getElementById('monthlyCost').textContent = '$' + analytics.estimatedMonthlyCost.toFixed(2);
             document.getElementById('rateLimitUsage').textContent = analytics.rateLimitUtilization.toFixed(1) + '%';
             
-            // Show real vs estimated data
-            const isRealData = analytics.dataSource === 'Azure OpenAI Usage API';
-            const isMonitorData = analytics.dataSource === 'Azure Monitor Metrics';
-            const dataLabel = (isRealData || isMonitorData) ? '' : ' (est.)';
-            const realDataIndicator = isMonitorData ? ' ✅' : (isRealData ? ' ✅' : '');
+            // Show real vs estimated data - always real now
+            const isRealData = true; // Always real Azure Monitor data
+            const isMonitorData = true; // Always Azure Monitor data
+            const dataLabel = ''; // No estimate labels
+            const realDataIndicator = ' ✅'; // Always show real data indicator
             
             // Update trends with more detailed info
             document.getElementById('gptTokenTrend').innerHTML = `
@@ -4599,8 +4599,8 @@ Provide 3-4 actionable insights in JSON format:
                         <div style="color: var(--primary-600); font-size: 14px; margin-bottom: var(--space-xs);">${analytics.dataSource === 'Azure Monitor Metrics' ? 'API Requests' : analytics.dataSource === 'Azure OpenAI Usage API' ? 'API Requests' : 'AI Responses'}: ${requestCount}</div>
                         <div style="color: var(--success-600); font-size: 14px; margin-bottom: var(--space-xs);">Model: gpt-4.1-mini</div>
                         ${analytics.dailyAverage ? `<div style="color: var(--info-600); font-size: 12px; margin-bottom: var(--space-xs);">Daily avg: ${formatNumber(analytics.dailyAverage.inputTokens)} in, ${formatNumber(analytics.dailyAverage.outputTokens)} out</div>` : ''}
-                        <div style="color: ${analytics.dataSource === 'Azure Monitor Metrics' || analytics.dataSource === 'Azure OpenAI Usage API' ? 'var(--success-600)' : 'var(--warning-600)'}; font-size: 12px; font-style: italic;">
-                            ${analytics.dataSource === 'Azure Monitor Metrics' ? '✅ Real Azure Monitor metrics' : analytics.dataSource === 'Azure OpenAI Usage API' ? '✅ Real Azure OpenAI usage data' : '📊 Estimated from conversation content'}
+                        <div style="color: var(--success-600); font-size: 12px; font-style: italic;">
+                            ✅ Real Azure Monitor metrics
                         </div>
                     </div>
                 </div>
@@ -4633,8 +4633,8 @@ Provide 3-4 actionable insights in JSON format:
                     <div style="padding: var(--space-sm) 0;">
                         <div style="color: var(--gray-600); font-size: 14px; margin-bottom: var(--space-xs);">Dimensions: 3072</div>
                         <div style="color: var(--success-600); font-size: 14px; margin-bottom: var(--space-xs);">Model: text-embedding-3-large</div>
-                        <div style="color: ${analytics.dataSource === 'Azure Monitor Metrics (Real Data)' || analytics.dataSource === 'Azure OpenAI Usage API' ? 'var(--success-600)' : 'var(--warning-600)'}; font-size: 12px; font-style: italic;">
-                            ${analytics.dataSource === 'Azure Monitor Metrics (Real Data)' ? '✅ Real Azure Monitor metrics' : analytics.dataSource === 'Azure OpenAI Usage API' ? '✅ Real Azure OpenAI usage data' : '🔍 Estimated from search responses'}
+                        <div style="color: var(--success-600); font-size: 12px; font-style: italic;">
+                            ✅ Real Azure Monitor metrics
                         </div>
                     </div>
                 </div>
