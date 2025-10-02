@@ -1631,6 +1631,33 @@
             const startTime = performance.now();
             console.log('🔍 Starting document fetch...');
             
+            // Check cache first (5-minute cache)
+            const cacheKey = 'documents_cache';
+            const cacheTimestampKey = 'documents_cache_timestamp';
+            const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+            
+            try {
+                const cachedData = localStorage.getItem(cacheKey);
+                const cachedTimestamp = localStorage.getItem(cacheTimestampKey);
+                
+                if (cachedData && cachedTimestamp) {
+                    const now = Date.now();
+                    const cacheAge = now - parseInt(cachedTimestamp);
+                    
+                    if (cacheAge < CACHE_DURATION) {
+                        console.log(`💾 Using cached data (${(cacheAge / 1000).toFixed(1)}s old)`);
+                        const cachedResults = JSON.parse(cachedData);
+                        const endTime = performance.now();
+                        console.log(`🏁 Cached document processing completed in ${(endTime - startTime).toFixed(2)}ms (${cachedResults.stats.totalDocuments} documents)`);
+                        return cachedResults;
+                    } else {
+                        console.log(`🚮 Cache expired (${(cacheAge / 1000).toFixed(1)}s old), fetching fresh data`);
+                    }
+                }
+            } catch (e) {
+                console.warn('Cache read error:', e);
+            }
+            
             try {
                 let searchResults;
                 
@@ -1659,11 +1686,16 @@
                 } catch (directError) {
                     console.warn('⚠️ Direct Azure Search failed, falling back to Azure Function:', directError.message);
                     
-                    // Fallback to Azure Function
+                    // Fallback to Azure Function with timeout
                     const fetchStartTime = performance.now();
                     console.log('🌐 Making API call to Azure Function...');
                     
-                    const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
+                    // Create a timeout promise
+                    const timeoutPromise = new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('Azure Function timeout after 30 seconds')), 30000)
+                    );
+                    
+                    const fetchPromise = fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -1675,6 +1707,8 @@
                             enableVector: false  // Disable vector search
                         })
                     });
+                    
+                    const response = await Promise.race([fetchPromise, timeoutPromise]);
 
                     const fetchEndTime = performance.now();
                     console.log(`🚀 API call completed in ${(fetchEndTime - fetchStartTime).toFixed(2)}ms`);
@@ -1814,13 +1848,24 @@
                 const endTime = performance.now();
                 console.log(`🏁 Document processing completed in ${(endTime - startTime).toFixed(2)}ms (${totalDocuments} documents)`);
                 
-                return {
+                const result = {
                     departments: departments,
                     stats: {
                         totalDocuments: totalDocuments,
                         lastUpdated: lastUpdated
                     }
                 };
+                
+                // Save to cache for next time
+                try {
+                    localStorage.setItem(cacheKey, JSON.stringify(result));
+                    localStorage.setItem(cacheTimestampKey, Date.now().toString());
+                    console.log('💾 Cached document data for future loads');
+                } catch (e) {
+                    console.warn('Cache save error:', e);
+                }
+                
+                return result;
             } catch (error) {
                 console.error('Azure Search query failed:', error);
                 // Return empty structure if search fails
@@ -2995,66 +3040,135 @@ const countResp = await fetch(`/api/documents-search/${idx.name}`, {
                     const vecEl = document.getElementById(`vectorized-${idx.name}`);
                     if (vecEl) vecEl.textContent = Math.floor(totalDocs * 0.8).toLocaleString();
 
-// 3) Find last update based on any available date metadata for this index
-try {
-    const latestResp = await fetch(`/api/documents-search/${idx.name}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ search: '*', top: 20 })
-    });
-    if (latestResp.ok) {
-        const latest = await latestResp.json();
-        const docs = latest.value || latest.results || [];
-        let mostRecent = null;
-        docs.forEach(d => {
-            [d.uploadDate, d.createdDate, d.modifiedDate, d.lastModified, d.metadata_storage_last_modified]
-                .filter(Boolean)
-                .forEach(ds => {
-                    const dt = new Date(ds);
-                    if (!mostRecent || dt > mostRecent) mostRecent = dt;
-                });
-        });
-        const target = document.getElementById(`lastUpdate-${idx.name}`);
-        if (target) {
-            if (mostRecent) {
-                const opts = { timeZone: 'America/New_York', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true };
-                target.textContent = new Intl.DateTimeFormat('en-US', opts).format(mostRecent);
-            } else {
-                target.textContent = '--';
+// 3) Find last update - use indexer status for tax/audit indexes, regular search for others
+if (idx.name === 'ustaxpublic' || idx.name === 'audit-tax-documents') {
+    // For tax indexes that use automated indexers, get latest indexer run times
+    try {
+        const indexerStatusResp = await fetch('https://saxtech-tax-status.azurewebsites.net/api/get_latest_update');
+        if (indexerStatusResp.ok) {
+            const statusData = await indexerStatusResp.json();
+            const target = document.getElementById(`lastUpdate-${idx.name}`);
+            if (target) {
+                if (idx.name === 'ustaxpublic') {
+                    // Use the latest of USC or CFR for ustaxpublic
+                    let latestDate = null;
+                    if (statusData.usc_latest) {
+                        const uscDate = new Date(statusData.usc_latest + 'Z');
+                        latestDate = uscDate;
+                    }
+                    if (statusData.cfr_latest) {
+                        const cfrDate = new Date(statusData.cfr_latest + 'Z');
+                        if (!latestDate || cfrDate > latestDate) {
+                            latestDate = cfrDate;
+                        }
+                    }
+                    if (latestDate) {
+                        const opts = { timeZone: 'America/New_York', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true };
+                        target.textContent = new Intl.DateTimeFormat('en-US', opts).format(latestDate);
+                    } else {
+                        target.textContent = '--';
+                    }
+                } else if (idx.name === 'audit-tax-documents') {
+                    // For audit documents, try to get latest document from the index directly
+                    try {
+                        const auditResp = await fetch(`/api/documents-search/audit-tax-documents`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                search: '*',
+                                top: 1,
+                                orderby: 'metadata_storage_last_modified desc'
+                            })
+                        });
+                        if (auditResp.ok) {
+                            const auditData = await auditResp.json();
+                            const docs = auditData.value || auditData.results || [];
+                            if (docs.length > 0 && docs[0].metadata_storage_last_modified) {
+                                const auditDate = new Date(docs[0].metadata_storage_last_modified);
+                                const opts = { timeZone: 'America/New_York', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true };
+                                target.textContent = new Intl.DateTimeFormat('en-US', opts).format(auditDate);
+                            } else {
+                                target.textContent = 'No docs';
+                            }
+                        } else {
+                            target.textContent = 'Error';
+                        }
+                    } catch (auditError) {
+                        console.warn('Audit documents query failed:', auditError);
+                        target.textContent = 'Error';
+                    }
+                }
             }
+        } else {
+            throw new Error('Indexer status not available');
         }
-    } else {
-        throw new Error(`SWA latest ${latestResp.status}`);
+    } catch (e) {
+        // Fallback to regular document search for indexer-based indexes
+        console.warn('Indexer status failed for', idx.name, 'falling back to document search');
+        // Fall through to regular search method below
     }
-} catch (e) {
-    // Fallback to Function App without orderby/select
-    const fbLatest = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'x-functions-key': API_CONFIG.functionKey
-        },
-        body: JSON.stringify({ search: '*', top: 20, indexName: idx.name })
-    });
-    if (fbLatest.ok) {
-        const latest = await fbLatest.json();
-        const docs = latest.value || latest.results || [];
-        let mostRecent = null;
-        docs.forEach(d => {
-            [d.uploadDate, d.createdDate, d.modifiedDate, d.lastModified, d.metadata_storage_last_modified]
-                .filter(Boolean)
-                .forEach(ds => {
-                    const dt = new Date(ds);
-                    if (!mostRecent || dt > mostRecent) mostRecent = dt;
-                });
+} else {
+    // Regular document search for non-indexer indexes
+    try {
+        const latestResp = await fetch(`/api/documents-search/${idx.name}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ search: '*', top: 20 })
         });
-        const target = document.getElementById(`lastUpdate-${idx.name}`);
-        if (target) {
-            if (mostRecent) {
-                const opts = { timeZone: 'America/New_York', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true };
-                target.textContent = new Intl.DateTimeFormat('en-US', opts).format(mostRecent);
-            } else {
-                target.textContent = '--';
+        if (latestResp.ok) {
+            const latest = await latestResp.json();
+            const docs = latest.value || latest.results || [];
+            let mostRecent = null;
+            docs.forEach(d => {
+                [d.uploadDate, d.createdDate, d.modifiedDate, d.lastModified, d.metadata_storage_last_modified]
+                    .filter(Boolean)
+                    .forEach(ds => {
+                        const dt = new Date(ds);
+                        if (!mostRecent || dt > mostRecent) mostRecent = dt;
+                    });
+            });
+            const target = document.getElementById(`lastUpdate-${idx.name}`);
+            if (target) {
+                if (mostRecent) {
+                    const opts = { timeZone: 'America/New_York', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true };
+                    target.textContent = new Intl.DateTimeFormat('en-US', opts).format(mostRecent);
+                } else {
+                    target.textContent = '--';
+                }
+            }
+        } else {
+            throw new Error(`SWA latest ${latestResp.status}`);
+        }
+    } catch (e) {
+        // Fallback to Function App without orderby/select
+        const fbLatest = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-functions-key': API_CONFIG.functionKey
+            },
+            body: JSON.stringify({ search: '*', top: 20, indexName: idx.name })
+        });
+        if (fbLatest.ok) {
+            const latest = await fbLatest.json();
+            const docs = latest.value || latest.results || [];
+            let mostRecent = null;
+            docs.forEach(d => {
+                [d.uploadDate, d.createdDate, d.modifiedDate, d.lastModified, d.metadata_storage_last_modified]
+                    .filter(Boolean)
+                    .forEach(ds => {
+                        const dt = new Date(ds);
+                        if (!mostRecent || dt > mostRecent) mostRecent = dt;
+                    });
+            });
+            const target = document.getElementById(`lastUpdate-${idx.name}`);
+            if (target) {
+                if (mostRecent) {
+                    const opts = { timeZone: 'America/New_York', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true };
+                    target.textContent = new Intl.DateTimeFormat('en-US', opts).format(mostRecent);
+                } else {
+                    target.textContent = '--';
+                }
             }
         }
     }
