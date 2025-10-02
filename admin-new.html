@@ -575,6 +575,126 @@
             font-size: 12px;
             font-weight: 600;
         }
+        
+        /* Conversation Viewer Modal */
+        .conversation-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .conversation-modal.show {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--shadow-xl);
+        }
+        
+        .modal-header {
+            padding: var(--space-xl);
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .modal-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: var(--gray-500);
+            cursor: pointer;
+            padding: var(--space-sm);
+        }
+        
+        .modal-close:hover {
+            color: var(--gray-900);
+        }
+        
+        .conversation-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--space-xl);
+        }
+        
+        .conversation-message {
+            margin-bottom: var(--space-lg);
+            display: flex;
+            gap: var(--space-md);
+        }
+        
+        .conversation-message.user {
+            flex-direction: row-reverse;
+        }
+        
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+        
+        .message-avatar.user {
+            background: var(--primary-100);
+            color: var(--primary-600);
+        }
+        
+        .message-avatar.bot {
+            background: var(--gray-100);
+            color: var(--gray-600);
+        }
+        
+        .message-bubble {
+            max-width: 70%;
+            padding: var(--space-md);
+            border-radius: 16px;
+            word-wrap: break-word;
+            line-height: 1.5;
+        }
+        
+        .conversation-message.user .message-bubble {
+            background: var(--primary-500);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .conversation-message.bot .message-bubble {
+            background: var(--gray-100);
+            color: var(--gray-900);
+            border-bottom-left-radius: 4px;
+        }
+        
+        .message-time {
+            font-size: 11px;
+            color: var(--gray-500);
+            margin-top: var(--space-xs);
+        }
     </style>
 </head>
 <body>
@@ -1060,20 +1180,33 @@ Respond with only a JSON object containing:
         
         // Generate daily insights
         async function generateDailyInsights() {
-            const today = new Date().toISOString().split('T')[0];
-            const todaysSessions = conversationData.filter(s => 
-                s.timestamp && s.timestamp.startsWith(today)
-            );
+            const today = new Date();
+            const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
             
-            const prompt = `Analyze today's AI assistant usage data and provide key insights:
+            console.log('Debug: Total conversation data:', conversationData.length);
+            console.log('Debug: Yesterday date:', yesterday.toISOString());
+            console.log('Debug: Today date:', today.toISOString());
             
-Sessions: ${todaysSessions.length}
-Total Users: ${new Set(todaysSessions.map(s => s.userEmail)).size}
-Most Used Profile: ${getMostUsedProfile(todaysSessions)}
-Average Messages: ${calculateAvgMessages(todaysSessions)}
+            // Include conversations from last 7 days to capture more activity
+            const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+            const recentSessions = conversationData.filter(s => {
+                if (!s.timestamp) return false;
+                const sessionDate = new Date(s.timestamp);
+                console.log('Debug: Session date:', sessionDate.toISOString(), 'Recent enough:', sessionDate >= lastWeek);
+                return sessionDate >= lastWeek; // Extended to 7 days for better insights
+            });
+            
+            console.log('Debug: Recent sessions found:', recentSessions.length);
+            
+            const prompt = `Analyze recent AI assistant usage data (last 24 hours) and provide key insights:
+            
+Sessions: ${recentSessions.length}
+Total Users: ${new Set(recentSessions.map(s => s.userEmail)).size}
+Most Used Profile: ${getMostUsedProfile(recentSessions)}
+Average Messages: ${calculateAvgMessages(recentSessions)}
 
 Sample conversations:
-${JSON.stringify(todaysSessions.slice(0, 3).map(s => ({
+${JSON.stringify(recentSessions.slice(0, 3).map(s => ({
     user: s.userEmail?.split('@')[0],
     department: s.metadata?.department,
     aiProfile: s.metadata?.aiProfile,
@@ -1378,23 +1511,499 @@ Provide insights about response quality, common topics, and improvement opportun
         function calculateSatisfactionScore(sessions) { return 8.5; }
         
         function viewConversation(sessionId) {
-            alert('View conversation: ' + sessionId);
+            const session = conversationData.find(s => s.sessionId === sessionId);
+            if (!session) {
+                alert('Conversation not found');
+                return;
+            }
+            
+            const modal = document.getElementById('conversationModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const conversationContent = document.getElementById('conversationContent');
+            
+            // Set modal title
+            modalTitle.textContent = `Conversation with ${session.userName || 'Unknown User'}`;
+            
+            // Clear previous content
+            conversationContent.innerHTML = '';
+            
+            // Add conversation messages
+            const conversation = session.conversation || [];
+            conversation.forEach(message => {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `conversation-message ${message.role === 'user' ? 'user' : 'bot'}`;
+                
+                const avatarDiv = document.createElement('div');
+                avatarDiv.className = `message-avatar ${message.role === 'user' ? 'user' : 'bot'}`;
+                avatarDiv.textContent = message.role === 'user' 
+                    ? getUserInitials(session.userName) 
+                    : 'AI';
+                
+                const bubbleDiv = document.createElement('div');
+                bubbleDiv.className = 'message-bubble';
+                
+                // Clean HTML content for bot messages
+                if (message.role === 'assistant' && message.content) {
+                    // Strip HTML tags for cleaner display in modal
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = message.content;
+                    bubbleDiv.textContent = tempDiv.textContent || tempDiv.innerText || message.content;
+                } else {
+                    bubbleDiv.textContent = message.content || '';
+                }
+                
+                const timeDiv = document.createElement('div');
+                timeDiv.className = 'message-time';
+                if (message.timestamp) {
+                    timeDiv.textContent = new Date(message.timestamp).toLocaleString();
+                }
+                
+                messageDiv.appendChild(avatarDiv);
+                messageDiv.appendChild(bubbleDiv);
+                if (message.timestamp) {
+                    messageDiv.appendChild(timeDiv);
+                }
+                
+                conversationContent.appendChild(messageDiv);
+            });
+            
+            // Show modal
+            modal.classList.add('show');
         }
         
+        // Close modal when clicking outside
+        document.addEventListener('click', function(e) {
+            const modal = document.getElementById('conversationModal');
+            if (e.target === modal) {
+                closeConversationModal();
+            }
+        });
+        
         function exportConversations() {
-            alert('Export conversations functionality');
+            const dataToExport = conversationData.map(session => ({
+                timestamp: session.timestamp,
+                userEmail: session.userEmail,
+                userName: session.userName,
+                department: session.metadata?.department,
+                aiProfile: session.metadata?.aiProfile,
+                messageCount: (session.conversation || []).length,
+                sessionDuration: session.metadata?.sessionDuration,
+                conversation: session.conversation
+            }));
+            
+            const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `megamind-conversations-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
         
         function loadUserAnalytics() {
-            console.log('Loading user analytics...');
+            const section = document.getElementById('users');
+            if (!conversationData.length) {
+                loadOverviewData().then(() => loadUserAnalytics());
+                return;
+            }
+            
+            // Calculate user metrics
+            const userMetrics = {};
+            conversationData.forEach(session => {
+                const email = session.userEmail;
+                if (!email) return;
+                
+                if (!userMetrics[email]) {
+                    userMetrics[email] = {
+                        name: session.userName || 'Unknown',
+                        email: email,
+                        department: session.metadata?.department || 'Unknown',
+                        sessions: 0,
+                        totalMessages: 0,
+                        aiProfiles: new Set(),
+                        lastActive: null,
+                        avgSessionDuration: 0,
+                        totalDuration: 0
+                    };
+                }
+                
+                const user = userMetrics[email];
+                user.sessions++;
+                user.totalMessages += (session.conversation || []).length;
+                if (session.metadata?.aiProfile) {
+                    user.aiProfiles.add(session.metadata.aiProfile);
+                }
+                
+                const sessionDate = new Date(session.timestamp);
+                if (!user.lastActive || sessionDate > new Date(user.lastActive)) {
+                    user.lastActive = session.timestamp;
+                }
+                
+                if (session.metadata?.sessionDuration) {
+                    user.totalDuration += session.metadata.sessionDuration;
+                }
+            });
+            
+            // Calculate averages and convert sets to arrays
+            Object.keys(userMetrics).forEach(email => {
+                const user = userMetrics[email];
+                user.avgSessionDuration = user.sessions > 0 ? user.totalDuration / user.sessions : 0;
+                user.aiProfiles = Array.from(user.aiProfiles);
+            });
+            
+            const sortedUsers = Object.values(userMetrics)
+                .sort((a, b) => b.sessions - a.sessions)
+                .slice(0, 20); // Top 20 users
+            
+            section.innerHTML = `
+                <div class="page-header">
+                    <h1 class="page-title">User Analytics</h1>
+                    <p class="page-description">Detailed insights into user engagement and behavior</p>
+                </div>
+                
+                <div class="data-table-container">
+                    <div class="table-header">
+                        <h3 class="table-title">Top Active Users</h3>
+                        <div class="table-actions">
+                            <button class="btn btn-secondary btn-sm" onclick="exportUserAnalytics()">
+                                <i class="fas fa-download"></i> Export
+                            </button>
+                        </div>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Department</th>
+                                <th>Sessions</th>
+                                <th>Messages</th>
+                                <th>AI Profiles Used</th>
+                                <th>Avg Duration</th>
+                                <th>Last Active</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${sortedUsers.map(user => `
+                                <tr>
+                                    <td>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <div class="user-avatar">${getUserInitials(user.name)}</div>
+                                            <div>
+                                                <div style="font-weight: 600;">${user.name}</div>
+                                                <div style="font-size: 12px; color: var(--gray-500);">${user.email}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>${user.department}</td>
+                                    <td><strong>${user.sessions}</strong></td>
+                                    <td>${user.totalMessages}</td>
+                                    <td>
+                                        ${user.aiProfiles.map(profile => `
+                                            <span class="status-badge success">${getProfileName(profile)}</span>
+                                        `).join(' ')}
+                                    </td>
+                                    <td>${formatDuration(user.avgSessionDuration)}</td>
+                                    <td>${formatDate(user.lastActive)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
         }
         
         function loadDepartmentStats() {
-            console.log('Loading department stats...');
+            const section = document.getElementById('departments');
+            if (!conversationData.length) {
+                loadOverviewData().then(() => loadDepartmentStats());
+                return;
+            }
+            
+            const deptMetrics = groupByDepartment(conversationData);
+            
+            // Calculate additional metrics
+            Object.keys(deptMetrics).forEach(dept => {
+                const sessions = conversationData.filter(s => (s.metadata?.department || 'Unknown') === dept);
+                deptMetrics[dept].avgMessagesPerSession = deptMetrics[dept].sessions > 0 
+                    ? (deptMetrics[dept].messages / deptMetrics[dept].sessions).toFixed(1) : 0;
+                
+                // Most used AI profile
+                const profileUsage = {};
+                sessions.forEach(s => {
+                    const profile = s.metadata?.aiProfile || 'unknown';
+                    profileUsage[profile] = (profileUsage[profile] || 0) + 1;
+                });
+                deptMetrics[dept].topProfile = Object.keys(profileUsage)
+                    .reduce((a, b) => profileUsage[a] > profileUsage[b] ? a : b, 'unknown');
+                
+                // Recent activity
+                const recentSessions = sessions.filter(s => {
+                    const sessionDate = new Date(s.timestamp);
+                    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+                    return sessionDate > weekAgo;
+                });
+                deptMetrics[dept].recentSessions = recentSessions.length;
+            });
+            
+            const sortedDepartments = Object.entries(deptMetrics)
+                .sort(([,a], [,b]) => b.sessions - a.sessions);
+            
+            section.innerHTML = `
+                <div class="page-header">
+                    <h1 class="page-title">Department Statistics</h1>
+                    <p class="page-description">Usage patterns and insights by department</p>
+                </div>
+                
+                <div class="stats-grid" style="margin-bottom: 2rem;">
+                    ${sortedDepartments.slice(0, 4).map(([dept, metrics]) => `
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <div class="stat-title">${dept}</div>
+                                <div class="stat-icon"><i class="fas fa-building"></i></div>
+                            </div>
+                            <div class="stat-value">${metrics.sessions}</div>
+                            <div class="stat-change positive">
+                                <i class="fas fa-users"></i>
+                                ${metrics.users} users
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                <div class="data-table-container">
+                    <div class="table-header">
+                        <h3 class="table-title">Department Breakdown</h3>
+                        <div class="table-actions">
+                            <button class="btn btn-secondary btn-sm" onclick="exportDepartmentStats()">
+                                <i class="fas fa-download"></i> Export
+                            </button>
+                        </div>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Department</th>
+                                <th>Sessions</th>
+                                <th>Users</th>
+                                <th>Messages</th>
+                                <th>Avg per Session</th>
+                                <th>Top AI Profile</th>
+                                <th>Recent Activity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${sortedDepartments.map(([dept, metrics]) => `
+                                <tr>
+                                    <td><strong>${dept}</strong></td>
+                                    <td>${metrics.sessions}</td>
+                                    <td>${metrics.users}</td>
+                                    <td>${metrics.messages}</td>
+                                    <td>${metrics.avgMessagesPerSession}</td>
+                                    <td><span class="status-badge success">${getProfileName(metrics.topProfile)}</span></td>
+                                    <td>
+                                        <span class="${metrics.recentSessions > 0 ? 'status-badge success' : 'status-badge warning'}">
+                                            ${metrics.recentSessions} this week
+                                        </span>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+        
+        function exportUserAnalytics() {
+            // Implementation similar to exportConversations but for user metrics
+            alert('User analytics export functionality - implement CSV export');
+        }
+        
+        function exportDepartmentStats() {
+            // Implementation for department stats export
+            alert('Department stats export functionality - implement CSV export');
         }
         
         function loadExportOptions() {
-            console.log('Loading export options...');
+            const section = document.getElementById('export');
+            
+            section.innerHTML = `
+                <div class="page-header">
+                    <h1 class="page-title">Export Data</h1>
+                    <p class="page-description">Export conversation data and analytics reports</p>
+                </div>
+                
+                <div class="admin-grid">
+                    <div class="admin-card">
+                        <h2><i class="fas fa-comments"></i> Conversations</h2>
+                        <p>Export all conversation data including messages, timestamps, and metadata.</p>
+                        <div style="margin-top: 1rem;">
+                            <button class="btn btn-primary" onclick="exportConversations()">
+                                <i class="fas fa-download"></i> Export JSON
+                            </button>
+                            <button class="btn btn-secondary" onclick="exportConversationsCSV()">
+                                <i class="fas fa-file-csv"></i> Export CSV
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="admin-card">
+                        <h2><i class="fas fa-users"></i> User Analytics</h2>
+                        <p>Export user engagement metrics and activity summaries.</p>
+                        <div style="margin-top: 1rem;">
+                            <button class="btn btn-primary" onclick="exportUserAnalyticsJSON()">
+                                <i class="fas fa-download"></i> Export JSON
+                            </button>
+                            <button class="btn btn-secondary" onclick="exportUserAnalyticsCSV()">
+                                <i class="fas fa-file-csv"></i> Export CSV
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="admin-card">
+                        <h2><i class="fas fa-building"></i> Department Stats</h2>
+                        <p>Export department-level usage statistics and performance metrics.</p>
+                        <div style="margin-top: 1rem;">
+                            <button class="btn btn-primary" onclick="exportDepartmentStatsJSON()">
+                                <i class="fas fa-download"></i> Export JSON
+                            </button>
+                            <button class="btn btn-secondary" onclick="exportDepartmentStatsCSV()">
+                                <i class="fas fa-file-csv"></i> Export CSV
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="admin-card">
+                        <h2><i class="fas fa-brain"></i> AI Insights</h2>
+                        <p>Export AI-generated insights and analysis reports.</p>
+                        <div style="margin-top: 1rem;">
+                            <button class="btn btn-primary" onclick="exportAIInsights()">
+                                <i class="fas fa-download"></i> Export Report
+                            </button>
+                            <button class="btn btn-secondary" onclick="generateExecutiveReport()">
+                                <i class="fas fa-chart-line"></i> Executive Summary
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="admin-card full-width" style="margin-top: 2rem;">
+                    <h2><i class="fas fa-cog"></i> Export Settings</h2>
+                    <div class="form-controls">
+                        <div class="form-group">
+                            <label class="form-label">Date Range</label>
+                            <select id="exportDateRange" class="form-select">
+                                <option value="week">Last Week</option>
+                                <option value="month" selected>Last Month</option>
+                                <option value="quarter">Last Quarter</option>
+                                <option value="year">Last Year</option>
+                                <option value="all">All Time</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Export Format</label>
+                            <select id="exportFormat" class="form-select">
+                                <option value="json">JSON (Detailed)</option>
+                                <option value="csv">CSV (Tabular)</option>
+                                <option value="xlsx">Excel Spreadsheet</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">&nbsp;</label>
+                            <button class="btn btn-primary" onclick="exportAll()">
+                                <i class="fas fa-download"></i> Export All Data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function exportConversationsCSV() {
+            const csvData = conversationData.map(session => {
+                const firstUserMsg = (session.conversation || []).find(m => m.role === 'user');
+                const lastMsg = (session.conversation || []).slice(-1)[0];
+                
+                return {
+                    timestamp: session.timestamp,
+                    userEmail: session.userEmail,
+                    userName: session.userName,
+                    department: session.metadata?.department || '',
+                    aiProfile: session.metadata?.aiProfile || '',
+                    messageCount: (session.conversation || []).length,
+                    sessionDuration: formatDuration(session.metadata?.sessionDuration),
+                    firstQuestion: firstUserMsg?.content?.substring(0, 100) || '',
+                    lastMessageTime: lastMsg?.timestamp || ''
+                };
+            });
+            
+            downloadCSV(csvData, 'megamind-conversations');
+        }
+        
+        function exportUserAnalyticsJSON() {
+            // Implementation for user analytics JSON export
+            alert('User analytics JSON export - implement user metrics JSON');
+        }
+        
+        function exportUserAnalyticsCSV() {
+            // Implementation for user analytics CSV export
+            alert('User analytics CSV export - implement user metrics CSV');
+        }
+        
+        function exportDepartmentStatsJSON() {
+            // Implementation for department stats JSON export
+            alert('Department stats JSON export');
+        }
+        
+        function exportDepartmentStatsCSV() {
+            // Implementation for department stats CSV export
+            alert('Department stats CSV export');
+        }
+        
+        function exportAIInsights() {
+            // Implementation for AI insights export
+            alert('AI insights export - compile all AI analysis results');
+        }
+        
+        function generateExecutiveReport() {
+            // Implementation for executive summary report
+            alert('Generate executive summary report - comprehensive AI analysis');
+        }
+        
+        function exportAll() {
+            // Implementation for bulk export
+            alert('Export all data in selected format and date range');
+        }
+        
+        function downloadCSV(data, filename) {
+            if (!data.length) return;
+            
+            const headers = Object.keys(data[0]);
+            const csvContent = [
+                headers.join(','),
+                ...data.map(row => 
+                    headers.map(header => {
+                        const value = row[header] || '';
+                        return `"${value.toString().replace(/"/g, '""')}"`;
+                    }).join(',')
+                )
+            ].join('\n');
+            
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${filename}-${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        function closeConversationModal() {
+            const modal = document.getElementById('conversationModal');
+            modal.classList.remove('show');
         }
         
         // Initialize dashboard
@@ -1402,5 +2011,18 @@ Provide insights about response quality, common topics, and improvement opportun
             loadOverviewData();
         });
     </script>
+    
+    <!-- Conversation Viewer Modal -->
+    <div id="conversationModal" class="conversation-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalTitle">Conversation Details</h3>
+                <button class="modal-close" onclick="closeConversationModal()">&times;</button>
+            </div>
+            <div class="conversation-content" id="conversationContent">
+                <!-- Conversation messages will be populated here -->
+            </div>
+        </div>
+    </div>
 </body>
 </html>

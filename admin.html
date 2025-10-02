@@ -1174,8 +1174,9 @@
                 initIndexSelector();
                 refreshStats();
             } else if (tab === 'sessions') {
-                // Load session statistics when switching to sessions tab
-                loadSessionStats();
+                // Redirect to new admin dashboard
+                window.location.href = 'admin-new.html';
+                return;
             }
         }
 
