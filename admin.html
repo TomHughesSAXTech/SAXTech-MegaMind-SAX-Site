@@ -3929,7 +3929,7 @@ Provide insights about department usage patterns, productivity impact, and recom
         function groupByDepartment(sessions) {
             const departments = {};
             sessions.forEach(s => {
-                const dept = s.metadata?.department || 'Unknown';
+                const dept = extractDepartment(s);
                 if (!departments[dept]) {
                     departments[dept] = { sessions: 0, users: new Set(), messages: 0 };
                 }
@@ -3944,6 +3944,143 @@ Provide insights about department usage patterns, productivity impact, and recom
             });
             
             return departments;
+        }
+        
+        function calculateEnhancedDepartmentMetrics(sessions) {
+            const departments = {};
+            const currentDate = new Date();
+            const sevenDaysAgo = new Date(currentDate.getTime() - 7 * 24 * 60 * 60 * 1000);
+            const thirtyDaysAgo = new Date(currentDate.getTime() - 30 * 24 * 60 * 60 * 1000);
+            
+            sessions.forEach(session => {
+                const dept = extractDepartment(session);
+                const sessionDate = new Date(session.timestamp);
+                const conversation = session.conversation || [];
+                const aiProfile = extractAiProfile(session);
+                
+                if (!departments[dept]) {
+                    departments[dept] = {
+                        sessions: 0,
+                        uniqueUsers: new Set(),
+                        totalMessages: 0,
+                        userMessages: 0,
+                        aiMessages: 0,
+                        profileUsage: {},
+                        recentActivity: 0,
+                        monthlyActivity: 0,
+                        avgMessagesPerSession: 0,
+                        sessionDurations: [],
+                        avgSessionDuration: 0,
+                        engagementScore: 0,
+                        topProfile: null,
+                        topProfiles: [],
+                        diversityScore: 0,
+                        weekGrowth: 0
+                    };
+                }
+                
+                const dept_data = departments[dept];
+                dept_data.sessions++;
+                dept_data.uniqueUsers.add(session.userEmail);
+                dept_data.totalMessages += conversation.length;
+                
+                // Count message types
+                conversation.forEach(msg => {
+                    if (msg.role === 'user') dept_data.userMessages++;
+                    else if (msg.role === 'assistant') dept_data.aiMessages++;
+                });
+                
+                // Track AI profiles
+                if (aiProfile && aiProfile !== 'default') {
+                    dept_data.profileUsage[aiProfile] = (dept_data.profileUsage[aiProfile] || 0) + 1;
+                }
+                
+                // Track session duration
+                const duration = session.metadata?.sessionDuration || 0;
+                if (duration > 0) {
+                    dept_data.sessionDurations.push(duration);
+                }
+                
+                // Recent activity tracking
+                if (sessionDate >= sevenDaysAgo) {
+                    dept_data.recentActivity++;
+                }
+                
+                if (sessionDate >= thirtyDaysAgo) {
+                    dept_data.monthlyActivity++;
+                }
+            });
+            
+            // Calculate derived metrics for each department
+            Object.keys(departments).forEach(dept => {
+                const data = departments[dept];
+                
+                // Convert sets to counts
+                data.uniqueUsers = data.uniqueUsers.size;
+                
+                // Average messages per session
+                data.avgMessagesPerSession = data.sessions > 0 ? data.totalMessages / data.sessions : 0;
+                
+                // Average session duration
+                if (data.sessionDurations.length > 0) {
+                    data.avgSessionDuration = data.sessionDurations.reduce((a, b) => a + b, 0) / data.sessionDurations.length;
+                }
+                
+                // Top AI profiles
+                const profileEntries = Object.entries(data.profileUsage).sort(([,a], [,b]) => b - a);
+                data.topProfile = profileEntries.length > 0 ? profileEntries[0][0] : 'default';
+                data.topProfiles = profileEntries.slice(0, 3).map(([profile]) => profile);
+                data.diversityScore = Object.keys(data.profileUsage).length;
+                
+                // Engagement score (0-100)
+                const sessionScore = Math.min(data.sessions * 3, 25);
+                const userScore = Math.min(data.uniqueUsers * 5, 20);
+                const messageScore = Math.min(data.avgMessagesPerSession * 2, 20);
+                const recentScore = Math.min(data.recentActivity * 5, 20);
+                const diversityScore = Math.min(data.diversityScore * 3, 15);
+                
+                data.engagementScore = Math.round(sessionScore + userScore + messageScore + recentScore + diversityScore);
+                
+                // Week over week growth (simplified)
+                data.weekGrowth = data.recentActivity > 0 ? 1 : 0;
+            });
+            
+            return departments;
+        }
+        
+        function calculateProfileDiversity(deptMetrics) {
+            const totalDepts = Object.keys(deptMetrics).length;
+            if (totalDepts === 0) return 0;
+            
+            const totalProfiles = Object.values(deptMetrics).reduce((sum, d) => sum + d.diversityScore, 0);
+            return totalProfiles / totalDepts;
+        }
+        
+        function getDepartmentIcon(dept) {
+            const icons = {
+                'IT': 'laptop-code',
+                'Technology': 'laptop-code',
+                'Engineering': 'cogs',
+                'Finance': 'chart-line',
+                'Accounting': 'calculator',
+                'Tax': 'receipt',
+                'HR': 'users',
+                'Human Resources': 'users',
+                'Marketing': 'bullhorn',
+                'Sales': 'handshake',
+                'Operations': 'industry',
+                'Legal': 'gavel',
+                'Executive': 'crown',
+                'Management': 'user-tie',
+                'Admin': 'shield-alt',
+                'Customer Service': 'headset',
+                'Support': 'life-ring',
+                'Research': 'microscope',
+                'Design': 'palette',
+                'Creative': 'paint-brush',
+                'Unknown': 'question-circle'
+            };
+            return icons[dept] || 'building';
         }
         
         // Generate user behavior analysis
@@ -4031,6 +4168,55 @@ Provide insights about conversation quality and satisfaction in JSON format:
             const container = document.getElementById('sessionsList');
             if (!container) return;
             
+            // Debug: Log session structure
+            console.log('Debug: Sample session structure:', sessions[0]);
+            
+            // Enhance session data by extracting department and AI profile from different possible locations
+            const enhancedSessions = sessions.map(session => {
+                // Extract department from various possible locations
+                let department = 'N/A';
+                if (session.metadata?.department) {
+                    department = session.metadata.department;
+                } else if (session.metadata?.userProfile) {
+                    department = session.metadata.userProfile;
+                } else if (session.metadata?.profile) {
+                    department = session.metadata.profile;
+                } else if (session.userProfile) {
+                    department = session.userProfile;
+                } else if (session.department) {
+                    department = session.department;
+                }
+                
+                // Extract AI profile from various possible locations
+                let aiProfile = 'default';
+                if (session.metadata?.aiProfile) {
+                    aiProfile = session.metadata.aiProfile;
+                } else if (session.metadata?.profile) {
+                    aiProfile = session.metadata.profile;
+                } else if (session.aiProfile) {
+                    aiProfile = session.aiProfile;
+                } else if (session.profile) {
+                    aiProfile = session.profile;
+                }
+                
+                // Calculate session duration if not provided
+                let duration = session.metadata?.sessionDuration || 0;
+                if (!duration && session.conversation && session.conversation.length > 0) {
+                    const firstMsg = session.conversation[0];
+                    const lastMsg = session.conversation[session.conversation.length - 1];
+                    if (firstMsg.timestamp && lastMsg.timestamp) {
+                        duration = new Date(lastMsg.timestamp) - new Date(firstMsg.timestamp);
+                    }
+                }
+                
+                return {
+                    ...session,
+                    enhancedDepartment: department,
+                    enhancedAiProfile: aiProfile,
+                    enhancedDuration: duration
+                };
+            });
+            
             const tableHTML = `
                 <div class="data-table-container">
                     <div class="table-header">
@@ -4054,7 +4240,7 @@ Provide insights about conversation quality and satisfaction in JSON format:
                             </tr>
                         </thead>
                         <tbody>
-                            ${sessions.slice(0, 50).map(session => `
+                            ${enhancedSessions.slice(0, 50).map(session => `
                                 <tr>
                                     <td>
                                         <div style="display: flex; align-items: center; gap: 8px;">
@@ -4065,10 +4251,14 @@ Provide insights about conversation quality and satisfaction in JSON format:
                                             </div>
                                         </div>
                                     </td>
-                                    <td>${session.metadata?.department || 'N/A'}</td>
-                                    <td><span class="status-badge success">${getProfileName(session.metadata?.aiProfile)}</span></td>
-                                    <td>${(session.conversation || []).length}</td>
-                                    <td>${formatDuration(session.metadata?.sessionDuration)}</td>
+                                    <td>
+                                        <span class="status-badge ${session.enhancedDepartment !== 'N/A' ? 'success' : 'warning'}">
+                                            ${session.enhancedDepartment}
+                                        </span>
+                                    </td>
+                                    <td><span class="status-badge success">${getProfileName(session.enhancedAiProfile)}</span></td>
+                                    <td><strong>${(session.conversation || []).length}</strong></td>
+                                    <td>${formatDuration(session.enhancedDuration)}</td>
                                     <td>${formatDate(session.timestamp)}</td>
                                     <td>
                                         <button class="btn btn-sm btn-secondary" onclick="viewConversation('${session.sessionId}')">
@@ -4090,6 +4280,25 @@ Provide insights about conversation quality and satisfaction in JSON format:
         function getUserInitials(name) {
             if (!name) return 'U';
             return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+        }
+        
+        function extractDepartment(session) {
+            // Extract department from various possible locations
+            if (session.metadata?.department) return session.metadata.department;
+            if (session.metadata?.userProfile) return session.metadata.userProfile;
+            if (session.metadata?.profile) return session.metadata.profile;
+            if (session.userProfile) return session.userProfile;
+            if (session.department) return session.department;
+            return 'Unknown';
+        }
+        
+        function extractAiProfile(session) {
+            // Extract AI profile from various possible locations
+            if (session.metadata?.aiProfile) return session.metadata.aiProfile;
+            if (session.metadata?.profile) return session.metadata.profile;
+            if (session.aiProfile) return session.aiProfile;
+            if (session.profile) return session.profile;
+            return 'default';
         }
         
         function getProfileName(profile) {
@@ -4217,90 +4426,303 @@ Provide insights about conversation quality and satisfaction in JSON format:
                 return;
             }
             
-            // Calculate user metrics (implementation from admin-new.html)
+            // Calculate enhanced user metrics
             const userMetrics = {};
+            const currentDate = new Date();
+            const thirtyDaysAgo = new Date(currentDate.getTime() - 30 * 24 * 60 * 60 * 1000);
+            const sevenDaysAgo = new Date(currentDate.getTime() - 7 * 24 * 60 * 60 * 1000);
+            
             conversationData.forEach(session => {
                 const email = session.userEmail;
                 if (!email) return;
+                
+                const sessionDate = new Date(session.timestamp);
+                const conversation = session.conversation || [];
                 
                 if (!userMetrics[email]) {
                     userMetrics[email] = {
                         name: session.userName || 'Unknown',
                         email: email,
-                        department: session.metadata?.department || 'Unknown',
+                        department: extractDepartment(session),
                         sessions: 0,
                         totalMessages: 0,
+                        userMessages: 0,
+                        aiMessages: 0,
                         aiProfiles: new Set(),
-                        lastActive: null
+                        lastActive: null,
+                        firstSession: session.timestamp,
+                        weeklyActiveDays: new Set(),
+                        sessionDurations: [],
+                        avgSessionLength: 0,
+                        maxSessionLength: 0,
+                        recentSessions: 0,
+                        totalTokens: 0,
+                        avgConfidence: 0,
+                        confidenceScores: [],
+                        favoriteProfile: null,
+                        profileUsage: {},
+                        timeOfDayPattern: {},
+                        engagementScore: 0
                     };
                 }
                 
                 const user = userMetrics[email];
                 user.sessions++;
-                user.totalMessages += (session.conversation || []).length;
-                if (session.metadata?.aiProfile) {
-                    user.aiProfiles.add(session.metadata.aiProfile);
+                
+                // Count user vs AI messages
+                conversation.forEach(msg => {
+                    if (msg.role === 'user') {
+                        user.userMessages++;
+                    } else if (msg.role === 'assistant') {
+                        user.aiMessages++;
+                    }
+                });
+                user.totalMessages += conversation.length;
+                
+                // Track AI profiles
+                const aiProfile = extractAiProfile(session);
+                if (aiProfile && aiProfile !== 'default') {
+                    user.aiProfiles.add(aiProfile);
+                    user.profileUsage[aiProfile] = (user.profileUsage[aiProfile] || 0) + 1;
                 }
                 
-                const sessionDate = new Date(session.timestamp);
+                // Session duration tracking
+                const duration = session.metadata?.sessionDuration || 0;
+                if (duration > 0) {
+                    user.sessionDurations.push(duration);
+                    user.maxSessionLength = Math.max(user.maxSessionLength, duration);
+                }
+                
+                // Recent activity tracking
+                if (sessionDate >= sevenDaysAgo) {
+                    user.recentSessions++;
+                    const dayOfWeek = sessionDate.getDay();
+                    user.weeklyActiveDays.add(dayOfWeek);
+                }
+                
+                // Time of day patterns
+                const hour = sessionDate.getHours();
+                const timeSlot = hour < 6 ? 'Night' : hour < 12 ? 'Morning' : hour < 18 ? 'Afternoon' : 'Evening';
+                user.timeOfDayPattern[timeSlot] = (user.timeOfDayPattern[timeSlot] || 0) + 1;
+                
+                // Track metrics if available
+                if (session.metrics) {
+                    user.totalTokens += session.metrics.totalTokens || 0;
+                    if (session.metrics.avgConfidence) {
+                        user.confidenceScores.push(session.metrics.avgConfidence);
+                    }
+                }
+                
+                // Update last active
                 if (!user.lastActive || sessionDate > new Date(user.lastActive)) {
                     user.lastActive = session.timestamp;
                 }
             });
             
-            // Convert sets to arrays
+            // Calculate derived metrics
             Object.keys(userMetrics).forEach(email => {
-                userMetrics[email].aiProfiles = Array.from(userMetrics[email].aiProfiles);
+                const user = userMetrics[email];
+                
+                // Average session duration
+                if (user.sessionDurations.length > 0) {
+                    user.avgSessionLength = user.sessionDurations.reduce((a, b) => a + b, 0) / user.sessionDurations.length;
+                }
+                
+                // Average confidence
+                if (user.confidenceScores.length > 0) {
+                    user.avgConfidence = user.confidenceScores.reduce((a, b) => a + b, 0) / user.confidenceScores.length;
+                }
+                
+                // Favorite profile
+                if (Object.keys(user.profileUsage).length > 0) {
+                    user.favoriteProfile = Object.keys(user.profileUsage).reduce((a, b) => 
+                        user.profileUsage[a] > user.profileUsage[b] ? a : b
+                    );
+                }
+                
+                // Engagement score (0-100)
+                const sessionScore = Math.min(user.sessions * 5, 30); // Max 30 points for sessions
+                const messageScore = Math.min(user.totalMessages * 0.5, 25); // Max 25 points for messages
+                const recentScore = Math.min(user.recentSessions * 10, 25); // Max 25 points for recent activity
+                const diversityScore = user.aiProfiles.size * 5; // 5 points per AI profile used
+                const loyaltyScore = Math.min((currentDate - new Date(user.firstSession)) / (1000 * 60 * 60 * 24 * 7), 15); // Loyalty bonus
+                
+                user.engagementScore = Math.round(sessionScore + messageScore + recentScore + diversityScore + loyaltyScore);
+                
+                // Convert sets to arrays/counts
+                user.aiProfiles = Array.from(user.aiProfiles);
+                user.weeklyActiveDays = user.weeklyActiveDays.size;
             });
             
             const sortedUsers = Object.values(userMetrics)
-                .sort((a, b) => b.sessions - a.sessions)
+                .sort((a, b) => b.engagementScore - a.engagementScore)
                 .slice(0, 20);
+            
+            // Calculate summary stats
+            const totalUsers = Object.keys(userMetrics).length;
+            const activeUsersLastWeek = Object.values(userMetrics).filter(u => u.recentSessions > 0).length;
+            const avgEngagement = Object.values(userMetrics).reduce((sum, u) => sum + u.engagementScore, 0) / totalUsers;
+            const topProfiles = {};
+            Object.values(userMetrics).forEach(u => {
+                if (u.favoriteProfile) {
+                    topProfiles[u.favoriteProfile] = (topProfiles[u.favoriteProfile] || 0) + 1;
+                }
+            });
+            const mostPopularProfile = Object.keys(topProfiles).length > 0 ? 
+                Object.keys(topProfiles).reduce((a, b) => topProfiles[a] > topProfiles[b] ? a : b) : 'Unknown';
             
             section.innerHTML = `
                 <div class="page-header">
                     <h1 class="page-title">User Analytics</h1>
-                    <p class="page-description">Detailed insights into user engagement and behavior</p>
+                    <p class="page-description">Comprehensive insights into user engagement, behavior patterns, and AI interaction preferences</p>
                 </div>
                 
+                <!-- Summary Stats -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Total Users</div>
+                            <div class="stat-icon"><i class="fas fa-users"></i></div>
+                        </div>
+                        <div class="stat-value">${totalUsers}</div>
+                        <div class="stat-change positive">
+                            <i class="fas fa-user-plus"></i>
+                            ${activeUsersLastWeek} active this week
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Avg Engagement Score</div>
+                            <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+                        </div>
+                        <div class="stat-value">${avgEngagement.toFixed(1)}</div>
+                        <div class="stat-change positive">
+                            <i class="fas fa-arrow-up"></i>
+                            Out of 100 points
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Most Popular AI</div>
+                            <div class="stat-icon"><i class="fas fa-robot"></i></div>
+                        </div>
+                        <div class="stat-value" style="font-size: 20px;">${getProfileName(mostPopularProfile)}</div>
+                        <div class="stat-change positive">
+                            <i class="fas fa-star"></i>
+                            ${topProfiles[mostPopularProfile] || 0} users prefer this
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Weekly Retention</div>
+                            <div class="stat-icon"><i class="fas fa-redo"></i></div>
+                        </div>
+                        <div class="stat-value">${((activeUsersLastWeek / totalUsers) * 100).toFixed(1)}%</div>
+                        <div class="stat-change positive">
+                            <i class="fas fa-calendar-check"></i>
+                            Users returning weekly
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Top Users Table -->
                 <div class="data-table-container">
                     <div class="table-header">
-                        <h3 class="table-title">Top Active Users</h3>
+                        <h3 class="table-title">Top Engaged Users</h3>
+                        <div class="table-actions">
+                            <button class="btn btn-sm btn-secondary" onclick="alert('User analytics export coming soon')">
+                                <i class="fas fa-download"></i> Export
+                            </button>
+                        </div>
                     </div>
                     <table class="data-table">
                         <thead>
                             <tr>
                                 <th>User</th>
-                                <th>Department</th>
+                                <th>Engagement Score</th>
                                 <th>Sessions</th>
-                                <th>Messages</th>
-                                <th>AI Profiles Used</th>
+                                <th>Messages (U/AI)</th>
+                                <th>Favorite AI</th>
+                                <th>Peak Time</th>
                                 <th>Last Active</th>
+                                <th>Insights</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${sortedUsers.map(user => `
-                                <tr>
-                                    <td>
-                                        <div style="display: flex; align-items: center; gap: 8px;">
-                                            <div class="user-avatar">${getUserInitials(user.name)}</div>
-                                            <div>
-                                                <div style="font-weight: 600;">${user.name}</div>
-                                                <div style="font-size: 12px; color: var(--gray-500);">${user.email}</div>
+                            ${sortedUsers.map(user => {
+                                const peakTime = Object.keys(user.timeOfDayPattern).length > 0 ? 
+                                    Object.keys(user.timeOfDayPattern).reduce((a, b) => 
+                                        user.timeOfDayPattern[a] > user.timeOfDayPattern[b] ? a : b
+                                    ) : 'N/A';
+                                
+                                const isNewUser = (currentDate - new Date(user.firstSession)) / (1000 * 60 * 60 * 24) <= 7;
+                                const isHighlyActive = user.recentSessions >= 5;
+                                const isVersatile = user.aiProfiles.length >= 3;
+                                
+                                let insights = [];
+                                if (isNewUser) insights.push('🆕 New');
+                                if (isHighlyActive) insights.push('🔥 Very Active');
+                                if (isVersatile) insights.push('🎯 Multi-AI User');
+                                if (user.maxSessionLength > 600000) insights.push('💬 Long Sessions'); // > 10 min
+                                if (user.weeklyActiveDays >= 5) insights.push('📅 Daily User');
+                                
+                                return `
+                                    <tr>
+                                        <td>
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <div class="user-avatar">${getUserInitials(user.name)}</div>
+                                                <div>
+                                                    <div style="font-weight: 600;">${user.name}</div>
+                                                    <div style="font-size: 12px; color: var(--gray-500);">${user.email}</div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </td>
-                                    <td>${user.department}</td>
-                                    <td><strong>${user.sessions}</strong></td>
-                                    <td>${user.totalMessages}</td>
-                                    <td>
-                                        ${user.aiProfiles.map(profile => `
-                                            <span class="status-badge success">${getProfileName(profile)}</span>
-                                        `).join(' ')}
-                                    </td>
-                                    <td>${formatDate(user.lastActive)}</td>
-                                </tr>
-                            `).join('')}
+                                        </td>
+                                        <td>
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <div style="font-weight: 700; font-size: 16px; color: ${user.engagementScore >= 80 ? 'var(--success-600)' : user.engagementScore >= 60 ? 'var(--warning-600)' : 'var(--gray-600)'}">
+                                                    ${user.engagementScore}
+                                                </div>
+                                                <div style="font-size: 10px; color: var(--gray-500);">/ 100</div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div>
+                                                <strong>${user.sessions}</strong>
+                                                ${user.recentSessions > 0 ? `<div style="font-size: 11px; color: var(--success-600);">${user.recentSessions} this week</div>` : ''}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div style="font-size: 13px;">
+                                                <span style="color: var(--primary-600); font-weight: 600;">${user.userMessages}</span>
+                                                <span style="color: var(--gray-400);"> / </span>
+                                                <span style="color: var(--gray-600);">${user.aiMessages}</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="status-badge ${user.favoriteProfile ? 'success' : 'warning'}">
+                                                ${getProfileName(user.favoriteProfile || 'default')}
+                                            </span>
+                                            ${user.aiProfiles.length > 1 ? `<div style="font-size: 10px; color: var(--gray-500); margin-top: 2px;">+${user.aiProfiles.length - 1} others</div>` : ''}
+                                        </td>
+                                        <td>
+                                            <span class="status-badge success">${peakTime}</span>
+                                        </td>
+                                        <td>${formatDate(user.lastActive)}</td>
+                                        <td>
+                                            <div style="display: flex; flex-wrap: wrap; gap: 2px;">
+                                                ${insights.slice(0, 2).map(insight => `
+                                                    <span style="font-size: 10px; background: var(--primary-100); color: var(--primary-700); padding: 2px 4px; border-radius: 4px;">
+                                                        ${insight}
+                                                    </span>
+                                                `).join('')}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
                         </tbody>
                     </table>
                 </div>
@@ -4315,57 +4737,188 @@ Provide insights about conversation quality and satisfaction in JSON format:
                 return;
             }
             
-            const deptMetrics = groupByDepartment(conversationData);
+            const deptMetrics = calculateEnhancedDepartmentMetrics(conversationData);
             
             const sortedDepartments = Object.entries(deptMetrics)
-                .sort(([,a], [,b]) => b.sessions - a.sessions);
+                .sort(([,a], [,b]) => b.engagementScore - a.engagementScore);
+            
+            // Calculate summary insights
+            const totalDepts = Object.keys(deptMetrics).length;
+            const mostActive = sortedDepartments[0];
+            const totalSessions = Object.values(deptMetrics).reduce((sum, d) => sum + d.sessions, 0);
+            const avgSessionsPerDept = totalSessions / totalDepts;
             
             section.innerHTML = `
                 <div class="page-header">
                     <h1 class="page-title">Department Statistics</h1>
-                    <p class="page-description">Usage patterns and insights by department</p>
+                    <p class="page-description">Comprehensive analysis of AI usage patterns, productivity metrics, and engagement across departments</p>
                 </div>
                 
+                <!-- Department Summary Stats -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Total Departments</div>
+                            <div class="stat-icon"><i class="fas fa-building"></i></div>
+                        </div>
+                        <div class="stat-value">${totalDepts}</div>
+                        <div class="stat-change positive">
+                            <i class="fas fa-chart-line"></i>
+                            ${Object.values(deptMetrics).filter(d => d.recentActivity > 0).length} active this week
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Most Engaged</div>
+                            <div class="stat-icon"><i class="fas fa-trophy"></i></div>
+                        </div>
+                        <div class="stat-value" style="font-size: 18px;">${mostActive ? mostActive[0] : 'N/A'}</div>
+                        <div class="stat-change positive">
+                            <i class="fas fa-star"></i>
+                            ${mostActive ? mostActive[1].engagementScore : 0} engagement score
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Avg Sessions/Dept</div>
+                            <div class="stat-icon"><i class="fas fa-chart-bar"></i></div>
+                        </div>
+                        <div class="stat-value">${avgSessionsPerDept.toFixed(1)}</div>
+                        <div class="stat-change positive">
+                            <i class="fas fa-equals"></i>
+                            Across all departments
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">AI Profile Diversity</div>
+                            <div class="stat-icon"><i class="fas fa-palette"></i></div>
+                        </div>
+                        <div class="stat-value">${calculateProfileDiversity(deptMetrics).toFixed(1)}</div>
+                        <div class="stat-change positive">
+                            <i class="fas fa-robot"></i>
+                            Avg profiles per dept
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Top Performing Departments -->
                 <div class="stats-grid" style="margin-bottom: 2rem;">
                     ${sortedDepartments.slice(0, 4).map(([dept, metrics]) => `
                         <div class="stat-card">
                             <div class="stat-header">
                                 <div class="stat-title">${dept}</div>
-                                <div class="stat-icon"><i class="fas fa-building"></i></div>
+                                <div class="stat-icon"><i class="fas fa-${getDepartmentIcon(dept)}"></i></div>
                             </div>
                             <div class="stat-value">${metrics.sessions}</div>
                             <div class="stat-change positive">
                                 <i class="fas fa-users"></i>
-                                ${metrics.users} users
+                                ${metrics.uniqueUsers} users • ${metrics.engagementScore}/100 score
+                            </div>
+                            <div style="margin-top: 8px; display: flex; gap: 4px; flex-wrap: wrap;">
+                                ${metrics.topProfiles.slice(0, 2).map(profile => `
+                                    <span class="status-badge success" style="font-size: 10px;">${getProfileName(profile)}</span>
+                                `).join('')}
                             </div>
                         </div>
                     `).join('')}
                 </div>
                 
+                <!-- Detailed Department Table -->
                 <div class="data-table-container">
                     <div class="table-header">
-                        <h3 class="table-title">Department Breakdown</h3>
+                        <h3 class="table-title">Department Performance Analysis</h3>
+                        <div class="table-actions">
+                            <button class="btn btn-sm btn-secondary" onclick="alert('Department analytics export coming soon')">
+                                <i class="fas fa-download"></i> Export
+                            </button>
+                        </div>
                     </div>
                     <table class="data-table">
                         <thead>
                             <tr>
                                 <th>Department</th>
+                                <th>Engagement Score</th>
                                 <th>Sessions</th>
                                 <th>Users</th>
                                 <th>Messages</th>
-                                <th>Avg per Session</th>
+                                <th>Productivity Index</th>
+                                <th>Top AI Profile</th>
+                                <th>Recent Activity</th>
+                                <th>Trends</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${sortedDepartments.map(([dept, metrics]) => `
-                                <tr>
-                                    <td><strong>${dept}</strong></td>
-                                    <td>${metrics.sessions}</td>
-                                    <td>${metrics.users}</td>
-                                    <td>${metrics.messages}</td>
-                                    <td>${metrics.sessions > 0 ? (metrics.messages / metrics.sessions).toFixed(1) : 0}</td>
-                                </tr>
-                            `).join('')}
+                            ${sortedDepartments.map(([dept, metrics]) => {
+                                const productivityIndex = metrics.avgMessagesPerSession > 0 ? 
+                                    Math.min((metrics.avgMessagesPerSession / 10) * 100, 100).toFixed(0) : 0;
+                                
+                                const isHighActivity = metrics.recentActivity >= 5;
+                                const isGrowth = metrics.weekGrowth > 0;
+                                const isHighEngagement = metrics.engagementScore >= 70;
+                                
+                                let trends = [];
+                                if (isHighActivity) trends.push('🔥 High Activity');
+                                if (isGrowth) trends.push('📈 Growing');
+                                if (isHighEngagement) trends.push('⭐ High Engagement');
+                                if (metrics.diversityScore >= 3) trends.push('🌈 Multi-AI');
+                                
+                                return `
+                                    <tr>
+                                        <td>
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <i class="fas fa-${getDepartmentIcon(dept)}" style="color: var(--primary-500);"></i>
+                                                <strong>${dept}</strong>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <div style="font-weight: 700; font-size: 16px; color: ${metrics.engagementScore >= 80 ? 'var(--success-600)' : metrics.engagementScore >= 60 ? 'var(--warning-600)' : 'var(--gray-600)'}">
+                                                    ${metrics.engagementScore}
+                                                </div>
+                                                <div style="font-size: 10px; color: var(--gray-500);">/ 100</div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div>
+                                                <strong>${metrics.sessions}</strong>
+                                                ${metrics.recentActivity > 0 ? `<div style="font-size: 11px; color: var(--success-600);">${metrics.recentActivity} this week</div>` : ''}
+                                            </div>
+                                        </td>
+                                        <td><strong>${metrics.uniqueUsers}</strong></td>
+                                        <td>${metrics.totalMessages.toLocaleString()}</td>
+                                        <td>
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <div style="width: 40px; height: 6px; background: var(--gray-200); border-radius: 3px; overflow: hidden;">
+                                                    <div style="width: ${productivityIndex}%; height: 100%; background: ${productivityIndex >= 70 ? 'var(--success-500)' : productivityIndex >= 40 ? 'var(--warning-500)' : 'var(--error-500)'};" title="${productivityIndex}%"></div>
+                                                </div>
+                                                <span style="font-size: 12px; color: var(--gray-600);">${productivityIndex}%</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="status-badge success">${getProfileName(metrics.topProfile)}</span>
+                                            ${metrics.diversityScore > 1 ? `<div style="font-size: 10px; color: var(--gray-500); margin-top: 2px;">+${metrics.diversityScore - 1} others</div>` : ''}
+                                        </td>
+                                        <td>
+                                            <span class="status-badge ${metrics.recentActivity > 0 ? 'success' : 'warning'}">
+                                                ${metrics.recentActivity > 0 ? `${metrics.recentActivity} sessions` : 'Inactive'}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div style="display: flex; flex-wrap: wrap; gap: 2px;">
+                                                ${trends.slice(0, 2).map(trend => `
+                                                    <span style="font-size: 10px; background: var(--primary-100); color: var(--primary-700); padding: 2px 4px; border-radius: 4px;">
+                                                        ${trend}
+                                                    </span>
+                                                `).join('')}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
                         </tbody>
                     </table>
                 </div>
