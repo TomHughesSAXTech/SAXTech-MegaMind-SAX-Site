@@ -2669,61 +2669,32 @@
                 const currentIndex = (selEl && selEl.value) ? selEl.value : INDEX_CONFIG.indexName;
                 INDEX_CONFIG.indexName = currentIndex; // keep in sync
 
-                // Use Azure Search API directly
-                const searchUrl = `${INDEX_CONFIG.searchEndpoint}/indexes/${currentIndex}/docs/search?api-version=2023-11-01`;
-                
-                // 1) Document count
+                // Use Function App endpoint to avoid CORS issues
                 let totalDocs = 0;
-                try {
-                    const countResponse = await fetch(searchUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'api-key': INDEX_CONFIG.searchApiKey
-                        },
-                        body: JSON.stringify({
-                            search: '*',
-                            searchMode: 'any',
-                            count: true,
-                            top: 0
-                        })
-                    });
-                    
-                    if (countResponse.ok) {
-                        const countData = await countResponse.json();
-                        totalDocs = countData['@odata.count'] || 0;
-                    } else {
-                        console.error('Azure Search count failed:', countResponse.status, await countResponse.text());
-                    }
-                } catch (e) {
-                    console.error('Document count error:', e);
-                }
-                
-                document.getElementById('totalDocs').textContent = totalDocs.toLocaleString();
-                const sizeInMB = (totalDocs * 50 / 1024).toFixed(1);
-                document.getElementById('indexSize').textContent = `${sizeInMB} MB`;
-
-                // 2) Get recent documents for last update time
                 let lastUpdateTime = null;
+                
                 try {
-                    const recentResponse = await fetch(searchUrl, {
+                    const response = await fetch(`${INDEX_CONFIG.functionUrl}/documents/search`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'api-key': INDEX_CONFIG.searchApiKey
+                            'x-functions-key': INDEX_CONFIG.functionKey
                         },
                         body: JSON.stringify({
                             search: '*',
-                            searchMode: 'any',
                             top: 20,
+                            count: true,
+                            indexName: currentIndex,
                             orderby: 'metadata_storage_last_modified desc',
                             select: 'uploadDate,createdDate,modifiedDate,lastModified,metadata_storage_last_modified'
                         })
                     });
                     
-                    if (recentResponse.ok) {
-                        const recentData = await recentResponse.json();
-                        const documents = recentData.value || [];
+                    if (response.ok) {
+                        const data = await response.json();
+                        totalDocs = data['@odata.count'] || (data.value ? data.value.length : 0) || 0;
+                        
+                        const documents = data.value || [];
                         
                         // Find the most recent date from all document date fields
                         documents.forEach(doc => {
@@ -2743,11 +2714,15 @@
                             });
                         });
                     } else {
-                        console.error('Azure Search recent docs failed:', recentResponse.status, await recentResponse.text());
+                        console.error('Function App search failed:', response.status, await response.text());
                     }
                 } catch (e) {
-                    console.error('Recent documents error:', e);
+                    console.error('Function App search error:', e);
                 }
+                
+                document.getElementById('totalDocs').textContent = totalDocs.toLocaleString();
+                const sizeInMB = (totalDocs * 50 / 1024).toFixed(1);
+                document.getElementById('indexSize').textContent = `${sizeInMB} MB`;
 
                 // Update last update display
                 const lastUpdateEl = document.getElementById('lastUpdate');
@@ -2785,48 +2760,62 @@
                 if (cfrEl) cfrEl.textContent = 'Loading...';
                 if (auditEl) auditEl.textContent = 'Loading...';
                 
-                // Fetch latest tax code indexer status
-                const response = await fetch('https://saxtech-tax-status.azurewebsites.net/api/get_latest_update', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    
-                    // Convert UTC timestamps to Eastern time and format for display
-                    if (data.usc_latest && uscEl) {
-                        const uscDate = new Date(data.usc_latest + 'Z'); // Add Z to ensure it's treated as UTC
-                        const uscFormatted = formatDateToEST(uscDate.toISOString());
-                        uscEl.textContent = uscFormatted.replace(' EST', '').replace(' EDT', ''); // Remove timezone for brevity
-                    }
-                    
-                    if (data.cfr_latest && cfrEl) {
-                        const cfrDate = new Date(data.cfr_latest + 'Z'); // Add Z to ensure it's treated as UTC
-                        const cfrFormatted = formatDateToEST(cfrDate.toISOString());
-                        cfrEl.textContent = cfrFormatted.replace(' EST', '').replace(' EDT', ''); // Remove timezone for brevity
-                    }
-                    
-                    showIndexAlert('success', 'Indexer status refreshed successfully');
-                } else {
-                    throw new Error(`Tax indexer status API returned ${response.status}`);
-                }
-                
-                // For audit indexer, check the audit-tax-documents index directly for latest update
+                // Try to get indexer status from the Function App instead
                 try {
-                    const auditUrl = `${INDEX_CONFIG.searchEndpoint}/indexes/audit-tax-documents/docs/search?api-version=2023-11-01`;
-                    const auditResponse = await fetch(auditUrl, {
+                    // Use Function App endpoint that has CORS configured
+                    const response = await fetch(`${INDEX_CONFIG.functionUrl}/documents/search`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'api-key': INDEX_CONFIG.searchApiKey
+                            'x-functions-key': INDEX_CONFIG.functionKey
                         },
                         body: JSON.stringify({
                             search: '*',
-                            searchMode: 'any',
                             top: 1,
+                            indexName: 'ustaxpublic',
+                            orderby: 'metadata_storage_last_modified desc',
+                            select: 'metadata_storage_last_modified'
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        const docs = data.value || [];
+                        
+                        if (docs.length > 0 && docs[0].metadata_storage_last_modified && uscEl && cfrEl) {
+                            const taxDate = new Date(docs[0].metadata_storage_last_modified);
+                            const taxFormatted = formatDateToEST(taxDate.toISOString());
+                            const shortFormat = taxFormatted.replace(' EST', '').replace(' EDT', '');
+                            
+                            // Use same date for both USC and CFR since they're in the same index
+                            uscEl.textContent = shortFormat;
+                            cfrEl.textContent = shortFormat;
+                        } else {
+                            if (uscEl) uscEl.textContent = 'No tax docs';
+                            if (cfrEl) cfrEl.textContent = 'No tax docs';
+                        }
+                    } else {
+                        if (uscEl) uscEl.textContent = 'Error';
+                        if (cfrEl) cfrEl.textContent = 'Error';
+                    }
+                } catch (error) {
+                    console.error('Tax index query failed:', error);
+                    if (uscEl) uscEl.textContent = 'Error';
+                    if (cfrEl) cfrEl.textContent = 'Error';
+                }
+                
+                // For audit documents, use Function App as well
+                try {
+                    const auditResponse = await fetch(`${INDEX_CONFIG.functionUrl}/documents/search`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-functions-key': INDEX_CONFIG.functionKey
+                        },
+                        body: JSON.stringify({
+                            search: '*',
+                            top: 1,
+                            indexName: 'audit-tax-documents',
                             orderby: 'metadata_storage_last_modified desc',
                             select: 'metadata_storage_last_modified'
                         })
@@ -2846,13 +2835,15 @@
                             if (auditEl) auditEl.textContent = 'No docs';
                         }
                     } else {
-                        console.error('Audit index query failed:', auditResponse.status);
+                        console.error('Audit index query failed via Function App:', auditResponse.status);
                         if (auditEl) auditEl.textContent = 'Error';
                     }
                 } catch (auditError) {
                     console.error('Audit indexer status error:', auditError);
                     if (auditEl) auditEl.textContent = 'Error';
                 }
+                
+                showIndexAlert('success', 'Indexer status refreshed successfully');
                 
             } catch (error) {
                 console.error('Error refreshing indexer status:', error);
@@ -2882,13 +2873,11 @@
             document.getElementById('results').innerHTML = '';
             
             try {
-                // Use Azure Search API directly
-                const searchUrl = `${INDEX_CONFIG.searchEndpoint}/indexes/${currentIndex}/docs/search?api-version=2023-11-01`;
-                
+                // Use Function App endpoint to avoid CORS issues
                 const searchBody = {
                     search: query,
-                    searchMode: 'any',
-                    top: 1000, // Get up to 1000 results
+                    top: 1000,
+                    indexName: currentIndex,
                     select: 'id,title,fileName,department,documentType,uploadDate,createdDate,lastModified,metadata_storage_last_modified,author,fileSize,status,contentHash,contentLength,content'
                 };
                 
@@ -2897,22 +2886,22 @@
                     searchBody.filter = filter;
                 }
                 
-                const response = await fetch(searchUrl, {
+                const response = await fetch(`${INDEX_CONFIG.functionUrl}/documents/search`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'api-key': INDEX_CONFIG.searchApiKey
+                        'x-functions-key': INDEX_CONFIG.functionKey
                     },
                     body: JSON.stringify(searchBody)
                 });
                 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    throw new Error(`Azure Search API error ${response.status}: ${errorText}`);
+                    throw new Error(`Function App search error ${response.status}: ${errorText}`);
                 }
                 
                 const data = await response.json();
-                const documents = data.value || [];
+                const documents = data.value || data.results || [];
                     
                     // Debug: Log first document to see structure
                     if (documents.length > 0) {
