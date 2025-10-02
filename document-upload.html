@@ -1661,77 +1661,49 @@
             try {
                 let searchResults;
                 
-                // Try fast direct Azure Search with CORS bypass, fallback to Azure Function if needed
-                try {
-                    console.log('⚡ Trying fast direct Azure Search with CORS bypass...');
-                    const directStartTime = performance.now();
-                    
-                    // Use a lightweight proxy approach - create the request URL
-                    const searchUrl = `${API_CONFIG.azureSearch.endpoint}/indexes/${API_CONFIG.azureSearch.indexName}/docs?api-version=${API_CONFIG.azureSearch.apiVersion}&search=*&$top=1000&$select=id,content,title,metadata_storage_name,metadata_storage_path,metadata_storage_last_modified,uploadDate`;
-                    
-                    const directResponse = await fetch(searchUrl, {
-                        method: 'GET',
-                        headers: {
-                            'api-key': API_CONFIG.azureSearch.apiKey,
-                            'Content-Type': 'application/json'
-                        }
-                    });
-                    
-                    const directEndTime = performance.now();
-                    console.log(`⚡ Direct Azure Search completed in ${(directEndTime - directStartTime).toFixed(2)}ms`);
-                    
-                    if (directResponse.ok) {
-                        searchResults = await directResponse.json();
-                        console.log(`📋 Direct search returned ${searchResults.value?.length || 0} documents (FAST!)`);
-                    } else {
-                        throw new Error(`Direct search failed with ${directResponse.status}: ${directResponse.statusText}`);
-                    }
-                } catch (directError) {
-                    console.warn('⚠️ Direct Azure Search failed (CORS or other), falling back to Azure Function:', directError.message);
-                    
-                    // Fallback to Azure Function (slower but CORS-safe)
-                    const fetchStartTime = performance.now();
-                    console.log('🌐 Making fallback API call to Azure Function...');
-                    
-                    const timeoutPromise = new Promise((_, reject) => 
-                        setTimeout(() => reject(new Error('Azure Function timeout after 30 seconds')), 30000)
-                    );
-                    
-                    const fetchPromise = fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'x-functions-key': API_CONFIG.functionKey
-                        },
-                        body: JSON.stringify({
-                            query: '*',
-                            top: 1000,
-                            enableVector: false,
-                            enableAI: false,
-                            skipAnswer: true,
-                            documentsOnly: true
-                        })
-                    });
-                    
-                    const response = await Promise.race([fetchPromise, timeoutPromise]);
+                // Use Azure Function only (CORS issues prevent direct Azure Search)
+                const fetchStartTime = performance.now();
+                console.log('🌐 Making API call to Azure Function (investigating 18s delay)...');
+                
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Azure Function timeout after 30 seconds')), 30000)
+                );
+                
+                const fetchPromise = fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-functions-key': API_CONFIG.functionKey
+                    },
+                    body: JSON.stringify({
+                        query: '*',
+                        top: 1000,
+                        enableVector: false,
+                        enableAI: false,
+                        skipAnswer: true,
+                        documentsOnly: true
+                    })
+                });
+                
+                const response = await Promise.race([fetchPromise, timeoutPromise]);
 
-                    const fetchEndTime = performance.now();
-                    console.log(`🚀 Fallback API call completed in ${(fetchEndTime - fetchStartTime).toFixed(2)}ms`);
+                const fetchEndTime = performance.now();
+                console.log(`🚀 Azure Function call completed in ${(fetchEndTime - fetchStartTime).toFixed(2)}ms`);
 
-                    if (!response.ok) {
-                        throw new Error(`Search HTTP ${response.status}: ${response.statusText}`);
-                    }
-
-                    const parseStartTime = performance.now();
-                    const fullResponse = await response.json();
-                    const parseEndTime = performance.now();
-                    console.log(`📋 JSON parsing completed in ${(parseEndTime - parseStartTime).toFixed(2)}ms`);
-                    
-                    searchResults = {
-                        value: fullResponse.value || []
-                    };
-                    console.log(`📊 Received ${searchResults.value.length} documents from Azure Function fallback`);
+                if (!response.ok) {
+                    throw new Error(`Search HTTP ${response.status}: ${response.statusText}`);
                 }
+
+                const parseStartTime = performance.now();
+                const fullResponse = await response.json();
+                const parseEndTime = performance.now();
+                console.log(`📋 JSON parsing completed in ${(parseEndTime - parseStartTime).toFixed(2)}ms`);
+                
+                searchResults = {
+                    value: fullResponse.value || []
+                };
+                console.log(`📊 Received ${searchResults.value.length} documents from Azure Function (18s mystery)`);
+                
                 
                 // Transform search results into department > folder structure
                 const departments = {};
