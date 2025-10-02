@@ -3989,18 +3989,110 @@ Provide 3-4 actionable insights in JSON format:
         // Token usage analytics functions
         async function loadTokenUsageAnalytics(sessions) {
             try {
-                // Extract token data from conversation sessions
-                const tokenAnalytics = analyzeTokenUsage(sessions);
+                // Try to get real usage data from Azure OpenAI first
+                const realUsageData = await fetchAzureOpenAIUsage();
                 
-                // Update token usage display
-                updateTokenUsageDisplay(tokenAnalytics);
-                
-                console.log('Token usage analytics loaded:', tokenAnalytics);
+                if (realUsageData && realUsageData.hasData) {
+                    updateTokenUsageDisplay(realUsageData);
+                    console.log('Real Azure OpenAI usage data loaded:', realUsageData);
+                } else {
+                    // Fallback to estimated data from conversations
+                    const tokenAnalytics = analyzeTokenUsage(sessions);
+                    updateTokenUsageDisplay(tokenAnalytics);
+                    console.log('Using estimated token usage from conversations:', tokenAnalytics);
+                }
                 
             } catch (error) {
                 console.error('Failed to load token usage analytics:', error);
                 showTokenUsageFallback();
             }
+        }
+        
+        // Fetch real token usage from Azure OpenAI usage API
+        async function fetchAzureOpenAIUsage() {
+            try {
+                // Your Azure OpenAI endpoint and key
+                const endpoint = 'https://client-fcs.cognitiveservices.azure.com';
+                const apiKey = '7kqSyPtlOO7KcaG2UPcENUc4Xodp4DU8bJFa4DnI5cSiyhi9pMphJQQJ99BHACHYHv6XJ3w3AAAAACOGtis6';
+                
+                // Get usage data for the last 30 days
+                const endDate = new Date();
+                const startDate = new Date();
+                startDate.setDate(startDate.getDate() - 30);
+                
+                const startDateStr = startDate.toISOString().split('T')[0];
+                const endDateStr = endDate.toISOString().split('T')[0];
+                
+                // Try Azure OpenAI Usage API
+                const usageResponse = await fetch(`${endpoint}/openai/usage?api-version=2024-08-01-preview&start_time=${startDateStr}&end_time=${endDateStr}`, {
+                    method: 'GET',
+                    headers: {
+                        'api-key': apiKey,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (usageResponse.ok) {
+                    const usageData = await usageResponse.json();
+                    return parseAzureUsageData(usageData);
+                } else {
+                    console.log('Azure OpenAI usage API not available or no permissions');
+                    return null;
+                }
+                
+            } catch (error) {
+                console.log('Could not fetch real Azure OpenAI usage data:', error.message);
+                return null;
+            }
+        }
+        
+        // Parse Azure OpenAI usage data
+        function parseAzureUsageData(usageData) {
+            let totalTokens = 0;
+            let inputTokens = 0;
+            let outputTokens = 0;
+            let embeddingTokens = 0;
+            let totalCost = 0;
+            let requestCount = { gpt: 0, embedding: 0 };
+            
+            if (usageData && usageData.data) {
+                usageData.data.forEach(dayUsage => {
+                    if (dayUsage.usage) {
+                        dayUsage.usage.forEach(modelUsage => {
+                            if (modelUsage.model_name === 'gpt-4.1-mini' || modelUsage.model_name.includes('gpt-4')) {
+                                inputTokens += modelUsage.prompt_tokens || 0;
+                                outputTokens += modelUsage.completion_tokens || 0;
+                                totalTokens += modelUsage.total_tokens || 0;
+                                requestCount.gpt += modelUsage.requests || 0;
+                            } else if (modelUsage.model_name === 'text-embedding-3-large' || modelUsage.model_name.includes('embedding')) {
+                                embeddingTokens += modelUsage.total_tokens || 0;
+                                requestCount.embedding += modelUsage.requests || 0;
+                            }
+                            
+                            // Add cost if available
+                            totalCost += modelUsage.cost || 0;
+                        });
+                    }
+                });
+            }
+            
+            return {
+                gpt: {
+                    input: inputTokens,
+                    output: outputTokens,
+                    total: totalTokens
+                },
+                embedding: {
+                    total: embeddingTokens
+                },
+                totalCost: totalCost,
+                estimatedMonthlyCost: totalCost, // This is already monthly data
+                rateLimitUtilization: calculateRateLimitUsage({ total: totalTokens }, { total: embeddingTokens }),
+                requestCount: requestCount,
+                sessionCount: 0, // Not available from usage API
+                hasData: true,
+                dataSource: 'Azure OpenAI Usage API'
+            };
         }
         
         function analyzeTokenUsage(sessions) {
@@ -4153,20 +4245,25 @@ Provide 3-4 actionable insights in JSON format:
             document.getElementById('monthlyCost').textContent = '$' + analytics.estimatedMonthlyCost.toFixed(2);
             document.getElementById('rateLimitUsage').textContent = analytics.rateLimitUtilization.toFixed(1) + '%';
             
+            // Show real vs estimated data
+            const isRealData = analytics.dataSource === 'Azure OpenAI Usage API';
+            const dataLabel = isRealData ? '' : ' (est.)';
+            
             // Update trends with more detailed info
             document.getElementById('gptTokenTrend').innerHTML = `
                 <i class="fas fa-chart-line"></i>
-                <span>In: ${formatNumber(analytics.gpt.input)} | Out: ${formatNumber(analytics.gpt.output)} (est.)</span>
+                <span>In: ${formatNumber(analytics.gpt.input)} | Out: ${formatNumber(analytics.gpt.output)}${dataLabel}</span>
             `;
             
             document.getElementById('embeddingTokenTrend').innerHTML = `
                 <i class="fas fa-search"></i>
-                <span>text-embedding-3-large (est.)</span>
+                <span>text-embedding-3-large${dataLabel}</span>
             `;
             
+            const costLabel = isRealData ? '/month' : '/day (est.)';
             document.getElementById('costTrend').innerHTML = `
                 <i class="fas fa-calculator"></i>
-                <span>Estimated: $${(analytics.totalCost).toFixed(3)}/day</span>
+                <span>${isRealData ? 'Actual' : 'Estimated'}: $${(isRealData ? analytics.totalCost : analytics.totalCost).toFixed(3)}${costLabel}</span>
             `;
             
             const rateLimitStatus = analytics.rateLimitUtilization < 50 ? 'Healthy' : 
@@ -4180,11 +4277,11 @@ Provide 3-4 actionable insights in JSON format:
             `;
             
             // Update detailed usage panels
-            updateGptUsageDetails(analytics.gpt, analytics.requestCount.gpt, analytics.sessionCount);
-            updateEmbeddingUsageDetails(analytics.embedding, analytics.requestCount.embedding);
+            updateGptUsageDetails(analytics.gpt, analytics.requestCount.gpt, analytics.sessionCount, analytics);
+            updateEmbeddingUsageDetails(analytics.embedding, analytics.requestCount.embedding, analytics);
         }
         
-        function updateGptUsageDetails(gptAnalytics, requestCount, sessionCount) {
+        function updateGptUsageDetails(gptAnalytics, requestCount, sessionCount, analytics) {
             const container = document.getElementById('gptUsageDetails');
             const avgTokensPerSession = sessionCount > 0 ? Math.round(gptAnalytics.total / sessionCount) : 0;
             const outputRatio = gptAnalytics.input > 0 ? ((gptAnalytics.output / gptAnalytics.input) * 100).toFixed(1) : 0;
@@ -4209,15 +4306,17 @@ Provide 3-4 actionable insights in JSON format:
                     </div>
                     <div style="padding: var(--space-sm) 0;">
                         <div style="color: var(--gray-600); font-size: 14px; margin-bottom: var(--space-xs);">Output Ratio: ${outputRatio}%</div>
-                        <div style="color: var(--primary-600); font-size: 14px; margin-bottom: var(--space-xs);">AI Responses: ${requestCount}</div>
+                        <div style="color: var(--primary-600); font-size: 14px; margin-bottom: var(--space-xs);">${analytics.dataSource === 'Azure OpenAI Usage API' ? 'API Requests' : 'AI Responses'}: ${requestCount}</div>
                         <div style="color: var(--success-600); font-size: 14px; margin-bottom: var(--space-xs);">Model: gpt-4.1-mini</div>
-                        <div style="color: var(--warning-600); font-size: 12px; font-style: italic;">📊 Estimated from conversation content</div>
+                        <div style="color: ${analytics.dataSource === 'Azure OpenAI Usage API' ? 'var(--success-600)' : 'var(--warning-600)'}; font-size: 12px; font-style: italic;">
+                            ${analytics.dataSource === 'Azure OpenAI Usage API' ? '✅ Real Azure OpenAI usage data' : '📊 Estimated from conversation content'}
+                        </div>
                     </div>
                 </div>
             `;
         }
         
-        function updateEmbeddingUsageDetails(embeddingAnalytics, requestCount) {
+        function updateEmbeddingUsageDetails(embeddingAnalytics, requestCount, analytics) {
             const container = document.getElementById('embeddingUsageDetails');
             const estimatedDocuments = Math.ceil(embeddingAnalytics.total / 8192) || 0; // Assuming ~8K tokens per doc
             const avgTokensPerDoc = estimatedDocuments > 0 ? Math.round(embeddingAnalytics.total / estimatedDocuments) : 0;
@@ -4243,7 +4342,9 @@ Provide 3-4 actionable insights in JSON format:
                     <div style="padding: var(--space-sm) 0;">
                         <div style="color: var(--gray-600); font-size: 14px; margin-bottom: var(--space-xs);">Dimensions: 3072</div>
                         <div style="color: var(--success-600); font-size: 14px; margin-bottom: var(--space-xs);">Model: text-embedding-3-large</div>
-                        <div style="color: var(--warning-600); font-size: 12px; font-style: italic;">🔍 Estimated from search responses</div>
+                        <div style="color: ${analytics.dataSource === 'Azure OpenAI Usage API' ? 'var(--success-600)' : 'var(--warning-600)'}; font-size: 12px; font-style: italic;">
+                            ${analytics.dataSource === 'Azure OpenAI Usage API' ? '✅ Real Azure OpenAI usage data' : '🔍 Estimated from search responses'}
+                        </div>
                     </div>
                 </div>
             `;
