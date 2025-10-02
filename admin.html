@@ -1317,7 +1317,7 @@
             
             <!-- Token Usage Analytics -->
             <div class="admin-card full-width" style="margin-bottom: var(--space-2xl);">
-                <h2><i class="fas fa-coins"></i> Azure OpenAI Token Usage</h2>
+                <h2><i class="fas fa-coins"></i> Azure OpenAI Token Usage <span id="tokenApiStatus" style="font-size: 12px; font-weight: normal;"></span></h2>
                 <p style="color: var(--gray-600); margin-bottom: var(--space-xl);">Real-time token consumption and cost analysis for your AI models</p>
                 
                 <div class="stats-grid">
@@ -3842,7 +3842,16 @@ Respond with only a JSON object containing:
                     throw new Error('No content in GPT response');
                 }
                 
-                return JSON.parse(content);
+                // Clean up content - remove markdown code blocks if present
+                let cleanContent = content.trim();
+                if (cleanContent.startsWith('```json') || cleanContent.startsWith('```')) {
+                    // Remove opening code block
+                    cleanContent = cleanContent.replace(/^```(json)?\s*/, '');
+                    // Remove closing code block
+                    cleanContent = cleanContent.replace(/\s*```\s*$/, '');
+                }
+                
+                return JSON.parse(cleanContent);
             } catch (error) {
                 console.error('GPT call error:', error);
                 return { error: error.message };
@@ -3998,6 +4007,16 @@ Provide 3-4 actionable insights in JSON format:
                 } else {
                     // Fallback to estimated data from conversations
                     const tokenAnalytics = analyzeTokenUsage(sessions);
+                    
+                    // Add API accessibility info if available
+                    if (realUsageData && realUsageData.apiAccessible) {
+                        tokenAnalytics.apiStatus = '✅ Azure OpenAI API accessible';
+                        tokenAnalytics.statusNote = 'Using conversation estimates (Usage API not enabled)';
+                    } else {
+                        tokenAnalytics.apiStatus = '⚠️ Azure OpenAI API test failed';
+                        tokenAnalytics.statusNote = 'Using conversation content estimates';
+                    }
+                    
                     updateTokenUsageDisplay(tokenAnalytics);
                     console.log('Using estimated token usage from conversations:', tokenAnalytics);
                 }
@@ -4023,25 +4042,83 @@ Provide 3-4 actionable insights in JSON format:
                 const startDateStr = startDate.toISOString().split('T')[0];
                 const endDateStr = endDate.toISOString().split('T')[0];
                 
-                // Try Azure OpenAI Usage API
-                const usageResponse = await fetch(`${endpoint}/openai/usage?api-version=2024-08-01-preview&start_time=${startDateStr}&end_time=${endDateStr}`, {
-                    method: 'GET',
-                    headers: {
-                        'api-key': apiKey,
-                        'Content-Type': 'application/json'
-                    }
-                });
+                // Try multiple Azure OpenAI Usage API endpoints
+                const endpoints = [
+                    `${endpoint}/openai/usage?api-version=2024-08-01-preview&start_time=${startDateStr}&end_time=${endDateStr}`,
+                    `${endpoint}/openai/usages?api-version=2024-08-01-preview&start_time=${startDateStr}&end_time=${endDateStr}`,
+                    `${endpoint}/openai/usage?api-version=2024-02-15-preview&start_time=${startDateStr}&end_time=${endDateStr}`
+                ];
                 
-                if (usageResponse.ok) {
-                    const usageData = await usageResponse.json();
-                    return parseAzureUsageData(usageData);
-                } else {
-                    console.log('Azure OpenAI usage API not available or no permissions');
-                    return null;
+                for (const url of endpoints) {
+                    try {
+                        const usageResponse = await fetch(url, {
+                            method: 'GET',
+                            headers: {
+                                'api-key': apiKey,
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                        
+                        if (usageResponse.ok) {
+                            const usageData = await usageResponse.json();
+                            console.log('Successfully fetched usage data from:', url);
+                            return parseAzureUsageData(usageData);
+                        } else {
+                            console.log(`Usage API failed for ${url}: ${usageResponse.status}`);
+                        }
+                    } catch (apiError) {
+                        console.log(`API error for ${url}:`, apiError.message);
+                    }
                 }
+                
+                console.log('All Azure OpenAI usage API endpoints failed');
+                
+                // Alternative: Make a simple test call to validate API and estimate current usage
+                return await estimateUsageFromTestCall(endpoint, apiKey);
                 
             } catch (error) {
                 console.log('Could not fetch real Azure OpenAI usage data:', error.message);
+                return null;
+            }
+        }
+        
+        // Alternative method: estimate usage by making test calls
+        async function estimateUsageFromTestCall(endpoint, apiKey) {
+            try {
+                // Make a minimal test call to verify API access
+                const testResponse = await fetch(`${endpoint}/openai/deployments/gpt-4.1-mini/chat/completions?api-version=2025-01-01-preview`, {
+                    method: 'POST',
+                    headers: {
+                        'api-key': apiKey,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messages: [{ role: 'user', content: 'test' }],
+                        max_tokens: 1
+                    })
+                });
+                
+                if (testResponse.ok) {
+                    const testResult = await testResponse.json();
+                    if (testResult.usage) {
+                        console.log('✅ Azure OpenAI API is accessible, but usage API is not available');
+                        console.log('Test call usage:', testResult.usage);
+                        
+                        // We can access the API but not usage history
+                        // Return a status indicating estimated data should be used
+                        return {
+                            hasData: false,
+                            apiAccessible: true,
+                            testUsage: testResult.usage,
+                            message: 'API accessible but usage history not available'
+                        };
+                    }
+                }
+                
+                return null;
+                
+            } catch (error) {
+                console.log('Azure OpenAI API test call failed:', error.message);
                 return null;
             }
         }
@@ -4239,6 +4316,12 @@ Provide 3-4 actionable insights in JSON format:
         }
         
         function updateTokenUsageDisplay(analytics) {
+            // Update API status in header if available
+            const statusEl = document.getElementById('tokenApiStatus');
+            if (statusEl && (analytics.apiStatus || analytics.statusNote)) {
+                statusEl.innerHTML = `<span style="color: var(--gray-500);">(📊 ${analytics.statusNote || 'Estimated data'})</span>`;
+            }
+            
             // Update main stats
             document.getElementById('gptTokens').textContent = formatNumber(analytics.gpt.total);
             document.getElementById('embeddingTokens').textContent = formatNumber(analytics.embedding.total);
