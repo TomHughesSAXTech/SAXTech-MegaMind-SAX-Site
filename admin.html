@@ -4227,44 +4227,146 @@ Respond with only a JSON object containing:
             generateFullRAGReport();
         }
         
-        // Generate daily insights
-        async function generateDailyInsights() {
-            const today = new Date();
-            const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+        // Executive Summary Analysis
+        async function generateExecutiveSummary(conversations) {
+            const container = document.getElementById('executiveSummary');
             
-            const recentSessions = conversationData.filter(s => {
-                if (!s.timestamp) return false;
-                const sessionDate = new Date(s.timestamp);
-                return sessionDate >= lastWeek;
-            });
+            const totalSessions = conversations.length;
+            const uniqueUsers = new Set(conversations.map(s => s.userEmail)).size;
+            const totalMessages = conversations.reduce((sum, s) => sum + (s.conversation || []).length, 0);
+            const avgMessagesPerSession = totalSessions > 0 ? (totalMessages / totalSessions).toFixed(1) : 0;
             
-            const prompt = `Analyze recent AI assistant usage data (last 7 days) and provide key insights:
-            
-Sessions: ${recentSessions.length}
-Total Users: ${new Set(recentSessions.map(s => s.userEmail)).size}
-Most Used Profile: ${getMostUsedProfile(recentSessions)}
-Average Messages: ${calculateAvgMessages(recentSessions)}
+            const prompt = `Analyze this AI assistant usage data and provide an executive summary for RAG system optimization:
 
-Sample conversations:
-${JSON.stringify(recentSessions.slice(0, 3).map(s => ({
-    user: s.userEmail?.split('@')[0],
-    department: s.metadata?.department,
-    aiProfile: s.metadata?.aiProfile,
-    firstQuestion: s.conversation?.[0]?.content?.substring(0, 100)
+PERFORMANCE METRICS:
+- Total Sessions: ${totalSessions}
+- Unique Users: ${uniqueUsers}
+- Total Messages: ${totalMessages}
+- Avg Messages per Session: ${avgMessagesPerSession}
+
+SAMPLE CONVERSATIONS (first user message from recent sessions):
+${JSON.stringify(conversations.slice(0, 10).map(s => ({
+    user: s.userEmail?.split('@')[0] || 'anonymous',
+    department: s.metadata?.department || 'unknown',
+    firstQuestion: s.conversation?.[0]?.content?.substring(0, 150) || 'No message',
+    messageCount: s.conversation?.length || 0
 })), null, 2)}
 
-Provide 3-4 actionable insights in JSON format:
+Provide a comprehensive executive summary in JSON format:
 {
-    "insights": [
-        {
-            "title": "Peak Usage Pattern",
-            "description": "Insight about usage patterns this week",
-            "type": "trend"
-        }
+    "overallHealth": "Good/Fair/Poor",
+    "keyMetrics": {
+        "userEngagement": "High/Medium/Low",
+        "avgResolutionTime": "estimate in messages",
+        "satisfactionIndicator": "Positive/Neutral/Negative"
+    },
+    "topFindings": [
+        "Most common question types",
+        "User experience highlights",
+        "System performance insights"
+    ],
+    "urgentActions": [
+        "Immediate improvements needed"
     ]
 }`;
             
-            return await callGPT(prompt);
+            try {
+                const analysis = await callGPT(prompt);
+                container.innerHTML = formatExecutiveSummary(analysis);
+            } catch (error) {
+                container.innerHTML = '<div style="color: var(--error-600);">Failed to generate executive summary</div>';
+            }
+        }
+        
+        // Question Type Analysis
+        async function analyzeQuestionTypes(conversations) {
+            const container = document.getElementById('questionTypeAnalysis');
+            
+            const questions = conversations.flatMap(s => 
+                (s.conversation || []).filter(msg => msg.role === 'user').map(msg => msg.content)
+            ).slice(0, 50); // Analyze up to 50 recent questions
+            
+            const prompt = `Analyze these user questions from an AI assistant and categorize them for RAG system optimization:
+
+QUESTIONS TO ANALYZE:
+${JSON.stringify(questions, null, 2)}
+
+Provide analysis in JSON format:
+{
+    "questionCategories": [
+        {
+            "category": "Tax Code Inquiries",
+            "percentage": 35,
+            "examples": ["example questions"],
+            "complexity": "High/Medium/Low"
+        }
+    ],
+    "insights": [
+        "Most questions are about specific tax codes",
+        "Users often ask follow-up clarification questions"
+    ],
+    "ragOptimizations": [
+        "Need more detailed tax code examples in knowledge base",
+        "Consider structured FAQ format"
+    ]
+}`;
+            
+            try {
+                const analysis = await callGPT(prompt);
+                container.innerHTML = formatQuestionTypeAnalysis(analysis);
+            } catch (error) {
+                container.innerHTML = '<div style="color: var(--error-600);">Failed to analyze question types</div>';
+            }
+        }
+        
+        // Sentiment Analysis
+        async function analyzeSentiment(conversations) {
+            const container = document.getElementById('sentimentAnalysis');
+            
+            const userMessages = conversations.flatMap(s => 
+                (s.conversation || []).filter(msg => msg.role === 'user').map(msg => ({
+                    content: msg.content,
+                    sessionId: s.sessionId,
+                    user: s.userEmail?.split('@')[0] || 'anonymous'
+                }))
+            ).slice(0, 30); // Analyze up to 30 recent user messages
+            
+            const prompt = `Analyze user sentiment in these AI assistant conversations to improve RAG system:
+
+USER MESSAGES:
+${JSON.stringify(userMessages.map(m => ({
+    message: m.content.substring(0, 200),
+    user: m.user
+})), null, 2)}
+
+Provide sentiment analysis in JSON format:
+{
+    "overallSentiment": "Positive/Neutral/Negative",
+    "sentimentBreakdown": {
+        "satisfied": 65,
+        "neutral": 25,
+        "frustrated": 10
+    },
+    "frustrationIndicators": [
+        "Users asking same question multiple ways",
+        "Expressions of confusion"
+    ],
+    "satisfactionIndicators": [
+        "Thank you messages",
+        "Positive feedback"
+    ],
+    "recommendations": [
+        "Improve response clarity for tax questions",
+        "Add confirmation that answer was helpful"
+    ]
+}`;
+            
+            try {
+                const analysis = await callGPT(prompt);
+                container.innerHTML = formatSentimentAnalysis(analysis);
+            } catch (error) {
+                container.innerHTML = '<div style="color: var(--error-600);">Failed to analyze sentiment</div>';
+            }
         }
         
         // Utility functions
@@ -4283,35 +4385,527 @@ Provide 3-4 actionable insights in JSON format:
             return (total / sessions.length).toFixed(1);
         }
         
-        function formatInsights(insights) {
-            if (!insights || !insights.length) {
-                return '<p style="color: var(--gray-500);">No insights available</p>';
+        // Knowledge Gaps Detection
+        async function detectKnowledgeGaps(conversations) {
+            const container = document.getElementById('knowledgeGapsAnalysis');
+            
+            // Look for patterns indicating knowledge gaps
+            const multiTurnConversations = conversations.filter(s => 
+                (s.conversation || []).length > 4
+            ).slice(0, 20);
+            
+            const prompt = `Detect knowledge gaps in this AI assistant by analyzing multi-turn conversations:
+
+CONVERSATIONS WITH MULTIPLE EXCHANGES:
+${JSON.stringify(multiTurnConversations.map(s => ({
+    user: s.userEmail?.split('@')[0] || 'anonymous',
+    messageCount: s.conversation?.length || 0,
+    conversation: (s.conversation || []).slice(0, 8).map(msg => ({
+        role: msg.role,
+        content: msg.content?.substring(0, 150) || 'No content'
+    }))
+})), null, 2)}
+
+Analyze for knowledge gaps and provide JSON response:
+{
+    "identifiedGaps": [
+        {
+            "topic": "Specific tax code interpretations",
+            "frequency": "High/Medium/Low",
+            "evidence": "Users repeatedly ask for clarification",
+            "impact": "High/Medium/Low"
+        }
+    ],
+    "conversationPatterns": [
+        "Users often need 3-4 exchanges to get complete answer",
+        "Frequent requests for examples or clarification"
+    ],
+    "recommendedContent": [
+        "Add comprehensive tax code examples",
+        "Create step-by-step guides for common processes"
+    ]
+}`;
+            
+            try {
+                const analysis = await callGPT(prompt);
+                container.innerHTML = formatKnowledgeGapsAnalysis(analysis);
+            } catch (error) {
+                container.innerHTML = '<div style="color: var(--error-600);">Failed to detect knowledge gaps</div>';
             }
+        }
+        
+        // Follow-up Pattern Analysis
+        async function analyzeFollowupPatterns(conversations) {
+            const container = document.getElementById('followupAnalysis');
+            
+            const followupData = conversations.map(s => ({
+                messageCount: (s.conversation || []).length,
+                userMessages: (s.conversation || []).filter(msg => msg.role === 'user').length,
+                aiMessages: (s.conversation || []).filter(msg => msg.role === 'assistant').length,
+                firstQuestion: (s.conversation || [])[0]?.content?.substring(0, 100) || 'No question',
+                followupQuestions: (s.conversation || []).filter(msg => msg.role === 'user').slice(1, 4).map(msg => msg.content?.substring(0, 100))
+            })).filter(d => d.userMessages > 1).slice(0, 15);
+            
+            const prompt = `Analyze follow-up question patterns to identify when the AI is providing incomplete or unclear responses:
+
+FOLLOW-UP CONVERSATION PATTERNS:
+${JSON.stringify(followupData, null, 2)}
+
+Provide analysis in JSON format:
+{
+    "averageExchanges": 3.2,
+    "resolutionRate": {
+        "oneExchange": 45,
+        "twoToThree": 35,
+        "fourOrMore": 20
+    },
+    "commonFollowupTypes": [
+        {
+            "type": "Clarification Request",
+            "percentage": 40,
+            "examples": ["Can you explain that in simpler terms?"]
+        }
+    ],
+    "problematicPatterns": [
+        "Users asking same question differently",
+        "Requests for specific examples after general answers"
+    ],
+    "improvements": [
+        "Provide examples in initial responses",
+        "Ask clarifying questions upfront"
+    ]
+}`;
+            
+            try {
+                const analysis = await callGPT(prompt);
+                container.innerHTML = formatFollowupAnalysis(analysis);
+            } catch (error) {
+                container.innerHTML = '<div style="color: var(--error-600);">Failed to analyze follow-up patterns</div>';
+            }
+        }
+        
+        // Resolution Efficiency Analysis
+        async function analyzeResolutionEfficiency(conversations) {
+            const container = document.getElementById('resolutionAnalysis');
+            
+            const efficiencyData = {
+                totalSessions: conversations.length,
+                avgMessagesPerSession: conversations.length > 0 ? 
+                    (conversations.reduce((sum, s) => sum + (s.conversation || []).length, 0) / conversations.length).toFixed(1) : 0,
+                shortSessions: conversations.filter(s => (s.conversation || []).length <= 2).length,
+                longSessions: conversations.filter(s => (s.conversation || []).length >= 6).length,
+                sampleLongSessions: conversations.filter(s => (s.conversation || []).length >= 6).slice(0, 5).map(s => ({
+                    messageCount: s.conversation?.length || 0,
+                    topic: s.conversation?.[0]?.content?.substring(0, 100) || 'No topic',
+                    department: s.metadata?.department || 'unknown'
+                }))
+            };
+            
+            const prompt = `Analyze resolution efficiency of AI assistant conversations:
+
+EFFICIENCY METRICS:
+${JSON.stringify(efficiencyData, null, 2)}
+
+Provide efficiency analysis in JSON format:
+{
+    "efficiencyScore": "Good/Fair/Poor",
+    "resolutionBreakdown": {
+        "quickResolution": { "percentage": 60, "description": "1-2 exchanges" },
+        "normalResolution": { "percentage": 30, "description": "3-5 exchanges" },
+        "problematicResolution": { "percentage": 10, "description": "6+ exchanges" }
+    },
+    "efficientTopics": [
+        "Simple fact lookups resolve quickly"
+    ],
+    "inefficientTopics": [
+        "Complex tax scenarios require many exchanges"
+    ],
+    "recommendations": [
+        "Create templates for complex topics",
+        "Improve initial response comprehensiveness"
+    ]
+}`;
+            
+            try {
+                const analysis = await callGPT(prompt);
+                container.innerHTML = formatResolutionAnalysis(analysis);
+            } catch (error) {
+                container.innerHTML = '<div style="color: var(--error-600);">Failed to analyze resolution efficiency</div>';
+            }
+        }
+        
+        // Generate Improvement Recommendations
+        async function generateImprovementRecommendations(conversations) {
+            const container = document.getElementById('improvementRecommendations');
+            
+            const summaryData = {
+                totalSessions: conversations.length,
+                uniqueUsers: new Set(conversations.map(s => s.userEmail)).size,
+                avgMessagesPerSession: conversations.length > 0 ? 
+                    (conversations.reduce((sum, s) => sum + (s.conversation || []).length, 0) / conversations.length).toFixed(1) : 0,
+                longSessions: conversations.filter(s => (s.conversation || []).length >= 6).length,
+                departments: [...new Set(conversations.map(s => s.metadata?.department).filter(Boolean))],
+                commonQuestionStarts: conversations.flatMap(s => 
+                    (s.conversation || []).filter(msg => msg.role === 'user').map(msg => 
+                        msg.content?.substring(0, 50) || ''
+                    )
+                ).slice(0, 30)
+            };
+            
+            const prompt = `Based on this AI assistant conversation analysis, provide comprehensive RAG system improvement recommendations:
+
+SYSTEM ANALYSIS SUMMARY:
+${JSON.stringify(summaryData, null, 2)}
+
+Provide actionable recommendations in JSON format:
+{
+    "immediateActions": [
+        {
+            "priority": "High",
+            "action": "Add tax code examples to knowledge base",
+            "expectedImpact": "Reduce average conversation length by 30%",
+            "effort": "Medium"
+        }
+    ],
+    "contentImprovements": [
+        "Add more specific examples",
+        "Create FAQ sections for common topics"
+    ],
+    "systemEnhancements": [
+        "Implement conversation context retention",
+        "Add follow-up question suggestions"
+    ],
+    "userExperienceImprovements": [
+        "Provide satisfaction feedback mechanism",
+        "Add conversation summary at end"
+    ],
+    "monitoringRecommendations": [
+        "Track resolution time by topic",
+        "Monitor user satisfaction scores"
+    ]
+}`;
+            
+            try {
+                const analysis = await callGPT(prompt);
+                container.innerHTML = formatImprovementRecommendations(analysis);
+            } catch (error) {
+                container.innerHTML = '<div style="color: var(--error-600);">Failed to generate recommendations</div>';
+            }
+        }
+        
+        // Formatting functions for RAG analysis results
+        function formatExecutiveSummary(analysis) {
+            if (!analysis) return '<div style="color: var(--error-600);">No analysis available</div>';
+            
+            const healthColor = analysis.overallHealth === 'Good' ? 'var(--success-600)' : 
+                               analysis.overallHealth === 'Fair' ? 'var(--warning-600)' : 'var(--error-600)';
             
             return `
-                <ul class="insight-list">
-                    ${insights.map(insight => `
-                        <li class="insight-item">
-                            <div class="insight-item-icon"><i class="fas fa-${getInsightIcon(insight.type)}"></i></div>
-                            <div class="insight-item-content">
-                                <h4>${insight.title}</h4>
-                                <p>${insight.description}</p>
-                            </div>
-                        </li>
-                    `).join('')}
-                </ul>
+                <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 24px; margin-bottom: 24px;">
+                    <div>
+                        <div style="font-size: 48px; font-weight: 700; color: ${healthColor}; margin-bottom: 8px;">
+                            ${analysis.overallHealth}
+                        </div>
+                        <div style="color: var(--gray-600); font-size: 16px;">Overall System Health</div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+                        <div style="text-align: center; padding: 12px; background: var(--gray-50); border-radius: 8px;">
+                            <div style="font-weight: 600; color: var(--primary-600);">${analysis.keyMetrics?.userEngagement || 'N/A'}</div>
+                            <div style="font-size: 12px; color: var(--gray-600);">User Engagement</div>
+                        </div>
+                        <div style="text-align: center; padding: 12px; background: var(--gray-50); border-radius: 8px;">
+                            <div style="font-weight: 600; color: var(--primary-600);">${analysis.keyMetrics?.avgResolutionTime || 'N/A'}</div>
+                            <div style="font-size: 12px; color: var(--gray-600);">Avg Resolution</div>
+                        </div>
+                        <div style="text-align: center; padding: 12px; background: var(--gray-50); border-radius: 8px;">
+                            <div style="font-weight: 600; color: var(--primary-600);">${analysis.keyMetrics?.satisfactionIndicator || 'N/A'}</div>
+                            <div style="font-size: 12px; color: var(--gray-600);">User Satisfaction</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                    <div>
+                        <h4 style="margin-bottom: 12px; color: var(--gray-800);">🔍 Key Findings</h4>
+                        <ul style="list-style: none; padding: 0; margin: 0;">
+                            ${(analysis.topFindings || []).map(finding => `
+                                <li style="padding: 8px 0; border-bottom: 1px solid var(--gray-100);">
+                                    <i class="fas fa-check-circle" style="color: var(--success-500); margin-right: 8px;"></i>
+                                    ${finding}
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 style="margin-bottom: 12px; color: var(--error-600);">⚠️ Urgent Actions</h4>
+                        <ul style="list-style: none; padding: 0; margin: 0;">
+                            ${(analysis.urgentActions || []).map(action => `
+                                <li style="padding: 8px 0; border-bottom: 1px solid var(--gray-100);">
+                                    <i class="fas fa-exclamation-triangle" style="color: var(--error-500); margin-right: 8px;"></i>
+                                    ${action}
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                </div>
             `;
         }
         
-        function getInsightIcon(type) {
-            const icons = {
-                trend: 'chart-line',
-                performance: 'tachometer-alt',
-                behavior: 'user-chart',
-                quality: 'star',
-                error: 'exclamation-triangle'
-            };
-            return icons[type] || 'lightbulb';
+        function formatQuestionTypeAnalysis(analysis) {
+            if (!analysis?.questionCategories) return '<div style="color: var(--error-600);">No analysis available</div>';
+            
+            return `
+                <div style="margin-bottom: 20px;">
+                    ${analysis.questionCategories.map(cat => {
+                        const complexityColor = cat.complexity === 'High' ? 'var(--error-500)' : 
+                                              cat.complexity === 'Medium' ? 'var(--warning-500)' : 'var(--success-500)';
+                        return `
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--gray-50); border-radius: 6px; margin-bottom: 12px;">
+                                <div>
+                                    <div style="font-weight: 600; margin-bottom: 4px;">${cat.category}</div>
+                                    <div style="font-size: 12px; color: ${complexityColor};">Complexity: ${cat.complexity}</div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 24px; font-weight: 700; color: var(--primary-600);">${cat.percentage}%</div>
+                                    <div style="font-size: 10px; color: var(--gray-500);">of questions</div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                
+                <div style="margin-top: 16px;">
+                    <h5 style="margin-bottom: 8px;">💡 Insights</h5>
+                    <ul style="margin: 0; padding-left: 16px;">
+                        ${(analysis.insights || []).map(insight => `<li style="margin-bottom: 4px;">${insight}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        function formatSentimentAnalysis(analysis) {
+            if (!analysis?.sentimentBreakdown) return '<div style="color: var(--error-600);">No analysis available</div>';
+            
+            const sentiment = analysis.sentimentBreakdown;
+            const overallColor = analysis.overallSentiment === 'Positive' ? 'var(--success-600)' : 
+                               analysis.overallSentiment === 'Neutral' ? 'var(--warning-600)' : 'var(--error-600)';
+            
+            return `
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="font-size: 36px; font-weight: 700; color: ${overallColor}; margin-bottom: 8px;">
+                        ${analysis.overallSentiment}
+                    </div>
+                    <div style="color: var(--gray-600);">Overall Sentiment</div>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: var(--success-600);">Satisfied: ${sentiment.satisfied}%</span>
+                        <span style="color: var(--warning-600);">Neutral: ${sentiment.neutral}%</span>
+                        <span style="color: var(--error-600);">Frustrated: ${sentiment.frustrated}%</span>
+                    </div>
+                    <div style="display: flex; height: 6px; border-radius: 3px; overflow: hidden;">
+                        <div style="width: ${sentiment.satisfied}%; background: var(--success-400);"></div>
+                        <div style="width: ${sentiment.neutral}%; background: var(--warning-400);"></div>
+                        <div style="width: ${sentiment.frustrated}%; background: var(--error-400);"></div>
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div>
+                        <h6 style="color: var(--error-600); margin-bottom: 8px;">😤 Frustration Signs</h6>
+                        <ul style="margin: 0; padding-left: 16px; font-size: 13px;">
+                            ${(analysis.frustrationIndicators || []).map(indicator => `<li style="margin-bottom: 4px;">${indicator}</li>`).join('')}
+                        </ul>
+                    </div>
+                    <div>
+                        <h6 style="color: var(--success-600); margin-bottom: 8px;">😊 Satisfaction Signs</h6>
+                        <ul style="margin: 0; padding-left: 16px; font-size: 13px;">
+                            ${(analysis.satisfactionIndicators || []).map(indicator => `<li style="margin-bottom: 4px;">${indicator}</li>`).join('')}
+                        </ul>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function formatKnowledgeGapsAnalysis(analysis) {
+            if (!analysis?.identifiedGaps) return '<div style="color: var(--error-600);">No analysis available</div>';
+            
+            return `
+                <div style="margin-bottom: 20px;">
+                    ${analysis.identifiedGaps.map(gap => {
+                        const impactColor = gap.impact === 'High' ? 'var(--error-600)' : 
+                                          gap.impact === 'Medium' ? 'var(--warning-600)' : 'var(--success-600)';
+                        const frequencyColor = gap.frequency === 'High' ? 'var(--error-500)' : 
+                                            gap.frequency === 'Medium' ? 'var(--warning-500)' : 'var(--success-500)';
+                        return `
+                            <div style="padding: 16px; border: 1px solid var(--gray-200); border-radius: 8px; margin-bottom: 12px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <h5 style="margin: 0; color: var(--gray-800);">${gap.topic}</h5>
+                                    <div style="display: flex; gap: 8px;">
+                                        <span style="font-size: 11px; padding: 2px 6px; background: ${frequencyColor}; color: white; border-radius: 4px;">${gap.frequency}</span>
+                                        <span style="font-size: 11px; padding: 2px 6px; background: ${impactColor}; color: white; border-radius: 4px;">${gap.impact}</span>
+                                    </div>
+                                </div>
+                                <p style="margin: 0; font-size: 13px; color: var(--gray-600);">${gap.evidence}</p>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                
+                <div style="margin-top: 16px;">
+                    <h5 style="margin-bottom: 8px;">📋 Recommended Content</h5>
+                    <ul style="margin: 0; padding-left: 16px; font-size: 13px;">
+                        ${(analysis.recommendedContent || []).map(content => `<li style="margin-bottom: 4px;">${content}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        function formatFollowupAnalysis(analysis) {
+            if (!analysis?.resolutionRate) return '<div style="color: var(--error-600);">No analysis available</div>';
+            
+            const resolution = analysis.resolutionRate;
+            
+            return `
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="font-size: 32px; font-weight: 700; color: var(--primary-600); margin-bottom: 8px;">
+                        ${analysis.averageExchanges}
+                    </div>
+                    <div style="color: var(--gray-600);">Average Exchanges per Session</div>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <h5 style="margin-bottom: 12px;">Resolution Distribution</h5>
+                    <div style="display: grid; gap: 8px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: var(--success-50); border-radius: 6px;">
+                            <span style="font-size: 13px;">Quick (1 exchange)</span>
+                            <span style="font-weight: 600; color: var(--success-600);">${resolution.oneExchange}%</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: var(--warning-50); border-radius: 6px;">
+                            <span style="font-size: 13px;">Normal (2-3 exchanges)</span>
+                            <span style="font-weight: 600; color: var(--warning-600);">${resolution.twoToThree}%</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: var(--error-50); border-radius: 6px;">
+                            <span style="font-size: 13px;">Long (4+ exchanges)</span>
+                            <span style="font-weight: 600; color: var(--error-600);">${resolution.fourOrMore}%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <h5 style="margin-bottom: 8px;">🔄 Common Follow-up Types</h5>
+                    ${(analysis.commonFollowupTypes || []).map(type => `
+                        <div style="margin-bottom: 8px; padding: 8px; background: var(--gray-50); border-radius: 6px;">
+                            <div style="font-weight: 600; margin-bottom: 4px;">${type.type} (${type.percentage}%)</div>
+                            <div style="font-size: 12px; color: var(--gray-600); font-style: italic;">${type.examples?.[0] || 'No examples'}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+        
+        function formatResolutionAnalysis(analysis) {
+            if (!analysis?.resolutionBreakdown) return '<div style="color: var(--error-600);">No analysis available</div>';
+            
+            const scoreColor = analysis.efficiencyScore === 'Good' ? 'var(--success-600)' : 
+                             analysis.efficiencyScore === 'Fair' ? 'var(--warning-600)' : 'var(--error-600)';
+            
+            return `
+                <div style="display: grid; grid-template-columns: 200px 1fr; gap: 24px; margin-bottom: 20px;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 48px; font-weight: 700; color: ${scoreColor}; margin-bottom: 8px;">
+                            ${analysis.efficiencyScore}
+                        </div>
+                        <div style="color: var(--gray-600);">Efficiency Score</div>
+                    </div>
+                    <div>
+                        <h5 style="margin-bottom: 12px;">Resolution Breakdown</h5>
+                        <div style="display: grid; gap: 8px;">
+                            ${Object.entries(analysis.resolutionBreakdown).map(([key, data]) => {
+                                const color = key.includes('quick') ? 'var(--success-600)' : 
+                                            key.includes('normal') ? 'var(--warning-600)' : 'var(--error-600)';
+                                return `
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: var(--gray-50); border-radius: 6px;">
+                                        <span style="font-size: 13px;">${data.description}</span>
+                                        <span style="font-weight: 600; color: ${color};">${data.percentage}%</span>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                    <div>
+                        <h5 style="color: var(--success-600); margin-bottom: 8px;">✅ Efficient Topics</h5>
+                        <ul style="margin: 0; padding-left: 16px; font-size: 13px;">
+                            ${(analysis.efficientTopics || []).map(topic => `<li style="margin-bottom: 4px;">${topic}</li>`).join('')}
+                        </ul>
+                    </div>
+                    <div>
+                        <h5 style="color: var(--error-600); margin-bottom: 8px;">⚠️ Inefficient Topics</h5>
+                        <ul style="margin: 0; padding-left: 16px; font-size: 13px;">
+                            ${(analysis.inefficientTopics || []).map(topic => `<li style="margin-bottom: 4px;">${topic}</li>`).join('')}
+                        </ul>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function formatImprovementRecommendations(analysis) {
+            if (!analysis?.immediateActions) return '<div style="color: var(--error-600);">No analysis available</div>';
+            
+            return `
+                <div style="margin-bottom: 24px;">
+                    <h4 style="margin-bottom: 16px; color: var(--error-600);">🚨 Immediate Actions Required</h4>
+                    ${(analysis.immediateActions || []).map(action => {
+                        const priorityColor = action.priority === 'High' ? 'var(--error-600)' : 
+                                            action.priority === 'Medium' ? 'var(--warning-600)' : 'var(--success-600)';
+                        const effortColor = action.effort === 'High' ? 'var(--error-500)' : 
+                                          action.effort === 'Medium' ? 'var(--warning-500)' : 'var(--success-500)';
+                        return `
+                            <div style="border: 1px solid var(--gray-200); border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <h5 style="margin: 0; color: var(--gray-800);">${action.action}</h5>
+                                    <div style="display: flex; gap: 8px;">
+                                        <span style="font-size: 11px; padding: 2px 6px; background: ${priorityColor}; color: white; border-radius: 4px;">${action.priority}</span>
+                                        <span style="font-size: 11px; padding: 2px 6px; background: ${effortColor}; color: white; border-radius: 4px;">${action.effort}</span>
+                                    </div>
+                                </div>
+                                <p style="margin: 0; font-size: 13px; color: var(--gray-600);">Expected Impact: ${action.expectedImpact}</p>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px;">
+                    <div>
+                        <h5 style="margin-bottom: 12px;">📝 Content Improvements</h5>
+                        <ul style="margin: 0; padding-left: 16px; font-size: 13px;">
+                            ${(analysis.contentImprovements || []).map(item => `<li style="margin-bottom: 6px;">${item}</li>`).join('')}
+                        </ul>
+                    </div>
+                    <div>
+                        <h5 style="margin-bottom: 12px;">⚙️ System Enhancements</h5>
+                        <ul style="margin: 0; padding-left: 16px; font-size: 13px;">
+                            ${(analysis.systemEnhancements || []).map(item => `<li style="margin-bottom: 6px;">${item}</li>`).join('')}
+                        </ul>
+                    </div>
+                    <div>
+                        <h5 style="margin-bottom: 12px;">🎯 UX Improvements</h5>
+                        <ul style="margin: 0; padding-left: 16px; font-size: 13px;">
+                            ${(analysis.userExperienceImprovements || []).map(item => `<li style="margin-bottom: 6px;">${item}</li>`).join('')}
+                        </ul>
+                    </div>
+                    <div>
+                        <h5 style="margin-bottom: 12px;">📊 Monitoring</h5>
+                        <ul style="margin: 0; padding-left: 16px; font-size: 13px;">
+                            ${(analysis.monitoringRecommendations || []).map(item => `<li style="margin-bottom: 6px;">${item}</li>`).join('')}
+                        </ul>
+                    </div>
+                </div>
+            `;
         }
         
         // Token usage analytics functions
@@ -5819,13 +6413,16 @@ Provide insights about conversation quality and satisfaction in JSON format:
                                 if (user.weeklyActiveDays >= 5) insights.push('📅 Daily User');
                                 
                                 return `
-                                    <tr>
+                                    <tr style="cursor: pointer;" onclick="showUserAnalysisModal('${user.email}', '${user.name}')">
                                         <td>
                                             <div style="display: flex; align-items: center; gap: 8px;">
                                                 <div class="user-avatar">${getUserInitials(user.name)}</div>
                                                 <div>
                                                     <div style="font-weight: 600;">${user.name}</div>
                                                     <div style="font-size: 12px; color: var(--gray-500);">${user.email}</div>
+                                                </div>
+                                                <div style="margin-left: auto;">
+                                                    <i class="fas fa-brain" style="color: var(--primary-500); font-size: 12px;" title="Click for AI analysis"></i>
                                                 </div>
                                             </div>
                                         </td>
@@ -6469,10 +7066,234 @@ Provide insights about conversation quality and satisfaction in JSON format:
             return `${startDate} to ${endDate}`;
         }
         
+        // User Analysis Modal Functions
+        function showUserAnalysisModal(userEmail, userName) {
+            const modal = document.getElementById('userAnalysisModal');
+            if (!modal) {
+                // Create modal if it doesn't exist
+                const modalHTML = `
+                    <div id="userAnalysisModal" class="modal">
+                        <div class="modal-content" style="max-width: 800px;">
+                            <div class="modal-header">
+                                <h2 id="userAnalysisTitle">User Analysis</h2>
+                                <span class="close" onclick="closeUserAnalysisModal()">&times;</span>
+                            </div>
+                            <div id="userAnalysisContent">
+                                <!-- Content will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.insertAdjacentHTML('beforeend', modalHTML);
+            }
+            
+            document.getElementById('userAnalysisTitle').textContent = `AI Analysis: ${userName}`;
+            document.getElementById('userAnalysisContent').innerHTML = '<div class="loading"><div class="spinner"></div>Analyzing user behavior...</div>';
+            document.getElementById('userAnalysisModal').style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+            
+            // Generate AI analysis for this specific user
+            generateUserAnalysis(userEmail, userName);
+        }
+        
+        function closeUserAnalysisModal() {
+            const modal = document.getElementById('userAnalysisModal');
+            if (modal) {
+                modal.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }
+        }
+        
+        // Generate AI analysis for specific user
+        async function generateUserAnalysis(userEmail, userName) {
+            const userConversations = conversationData.filter(s => s.userEmail === userEmail);
+            
+            if (userConversations.length === 0) {
+                document.getElementById('userAnalysisContent').innerHTML = '<div style="color: var(--error-600);">No conversation data found for this user.</div>';
+                return;
+            }
+            
+            const analysisData = {
+                userName: userName,
+                userEmail: userEmail,
+                totalSessions: userConversations.length,
+                totalMessages: userConversations.reduce((sum, s) => sum + (s.conversation || []).length, 0),
+                avgMessagesPerSession: userConversations.length > 0 ? 
+                    (userConversations.reduce((sum, s) => sum + (s.conversation || []).length, 0) / userConversations.length).toFixed(1) : 0,
+                departments: [...new Set(userConversations.map(s => s.metadata?.department).filter(Boolean))],
+                aiProfiles: [...new Set(userConversations.map(s => s.metadata?.aiProfile).filter(Boolean))],
+                recentConversations: userConversations.slice(0, 5).map(s => ({
+                    timestamp: s.timestamp,
+                    messageCount: s.conversation?.length || 0,
+                    firstQuestion: s.conversation?.[0]?.content?.substring(0, 200) || 'No question',
+                    conversation: (s.conversation || []).slice(0, 8).map(msg => ({
+                        role: msg.role,
+                        content: msg.content?.substring(0, 300) || 'No content'
+                    }))
+                }))
+            };
+            
+            const prompt = `Analyze this specific user's AI assistant usage patterns and provide personalized insights:
+
+USER PROFILE:
+Name: ${analysisData.userName}
+Email: ${analysisData.userEmail}
+Total Sessions: ${analysisData.totalSessions}
+Total Messages: ${analysisData.totalMessages}
+Average Messages per Session: ${analysisData.avgMessagesPerSession}
+Departments: ${analysisData.departments.join(', ') || 'Unknown'}
+AI Profiles Used: ${analysisData.aiProfiles.join(', ') || 'Unknown'}
+
+RECENT CONVERSATION SAMPLES:
+${JSON.stringify(analysisData.recentConversations, null, 2)}
+
+Provide detailed user analysis in JSON format:
+{
+    "userPersona": "Power User/Casual User/New User",
+    "engagementLevel": "High/Medium/Low",
+    "behaviorPatterns": [
+        "Asks complex multi-part questions",
+        "Tends to follow up for clarification"
+    ],
+    "questioningStyle": "Direct/Exploratory/Cautious",
+    "topicPreferences": [
+        "Tax code inquiries",
+        "Employee handbook questions"
+    ],
+    "satisfactionIndicators": [
+        "Provides thank you responses",
+        "Asks follow-up questions showing engagement"
+    ],
+    "challengeAreas": [
+        "Needs multiple exchanges for complex topics",
+        "Sometimes asks same question differently"
+    ],
+    "recommendations": [
+        "Provide more comprehensive initial responses",
+        "Consider proactive follow-up suggestions"
+    ],
+    "ragOptimizations": [
+        "Add specific examples for this user's common question types",
+        "Create personalized response templates"
+    ]
+}`;
+            
+            try {
+                const analysis = await callGPT(prompt);
+                document.getElementById('userAnalysisContent').innerHTML = formatUserAnalysis(analysis, analysisData);
+            } catch (error) {
+                console.error('Failed to generate user analysis:', error);
+                document.getElementById('userAnalysisContent').innerHTML = '<div style="color: var(--error-600);">Failed to generate analysis. Please try again.</div>';
+            }
+        }
+        
+        // Format user analysis results
+        function formatUserAnalysis(analysis, userData) {
+            if (!analysis) return '<div style="color: var(--error-600);">No analysis available</div>';
+            
+            const engagementColor = analysis.engagementLevel === 'High' ? 'var(--success-600)' : 
+                                   analysis.engagementLevel === 'Medium' ? 'var(--warning-600)' : 'var(--gray-600)';
+            
+            return `
+                <div style="margin-bottom: 24px; padding: 20px; background: var(--primary-50); border-radius: 12px; border: 1px solid var(--primary-200);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <div>
+                            <h3 style="margin: 0; color: var(--primary-800);">${userData.userName}</h3>
+                            <div style="color: var(--primary-600); font-size: 14px; margin-top: 4px;">${userData.userEmail}</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 24px; font-weight: 700; color: ${engagementColor};">${analysis.engagementLevel}</div>
+                            <div style="font-size: 12px; color: var(--gray-600);">Engagement Level</div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+                        <div style="text-align: center; padding: 12px; background: white; border-radius: 8px;">
+                            <div style="font-weight: 600; color: var(--primary-600);">${userData.totalSessions}</div>
+                            <div style="font-size: 11px; color: var(--gray-600);">Total Sessions</div>
+                        </div>
+                        <div style="text-align: center; padding: 12px; background: white; border-radius: 8px;">
+                            <div style="font-weight: 600; color: var(--primary-600);">${userData.avgMessagesPerSession}</div>
+                            <div style="font-size: 11px; color: var(--gray-600);">Avg Messages/Session</div>
+                        </div>
+                        <div style="text-align: center; padding: 12px; background: white; border-radius: 8px;">
+                            <div style="font-weight: 600; color: var(--primary-600);">${analysis.userPersona || 'Unknown'}</div>
+                            <div style="font-size: 11px; color: var(--gray-600);">User Type</div>
+                        </div>
+                        <div style="text-align: center; padding: 12px; background: white; border-radius: 8px;">
+                            <div style="font-weight: 600; color: var(--primary-600);">${analysis.questioningStyle || 'Unknown'}</div>
+                            <div style="font-size: 11px; color: var(--gray-600);">Question Style</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+                    <div>
+                        <h4 style="margin-bottom: 12px; color: var(--gray-800);">🎯 Topic Preferences</h4>
+                        <ul style="list-style: none; padding: 0; margin: 0;">
+                            ${(analysis.topicPreferences || []).map(topic => `
+                                <li style="padding: 8px; background: var(--gray-50); border-radius: 6px; margin-bottom: 6px;">
+                                    <i class="fas fa-bookmark" style="color: var(--primary-500); margin-right: 8px;"></i>
+                                    ${topic}
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 style="margin-bottom: 12px; color: var(--gray-800);">📊 Behavior Patterns</h4>
+                        <ul style="list-style: none; padding: 0; margin: 0;">
+                            ${(analysis.behaviorPatterns || []).map(pattern => `
+                                <li style="padding: 8px; background: var(--gray-50); border-radius: 6px; margin-bottom: 6px;">
+                                    <i class="fas fa-chart-line" style="color: var(--success-500); margin-right: 8px;"></i>
+                                    ${pattern}
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+                    <div>
+                        <h4 style="margin-bottom: 12px; color: var(--success-600);">😊 Satisfaction Indicators</h4>
+                        <ul style="margin: 0; padding-left: 16px; font-size: 13px;">
+                            ${(analysis.satisfactionIndicators || []).map(indicator => `<li style="margin-bottom: 4px;">${indicator}</li>`).join('')}
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 style="margin-bottom: 12px; color: var(--error-600);">⚠️ Challenge Areas</h4>
+                        <ul style="margin: 0; padding-left: 16px; font-size: 13px;">
+                            ${(analysis.challengeAreas || []).map(challenge => `<li style="margin-bottom: 4px;">${challenge}</li>`).join('')}
+                        </ul>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 24px;">
+                    <h4 style="margin-bottom: 12px; color: var(--primary-600);">💡 Personalized Recommendations</h4>
+                    <div style="background: var(--warning-50); border: 1px solid var(--warning-200); border-radius: 8px; padding: 16px;">
+                        <ul style="margin: 0; padding-left: 16px; font-size: 14px;">
+                            ${(analysis.recommendations || []).map(rec => `<li style="margin-bottom: 8px; font-weight: 500;">${rec}</li>`).join('')}
+                        </ul>
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 style="margin-bottom: 12px; color: var(--info-600);">🔧 RAG System Optimizations</h4>
+                    <div style="background: var(--info-50); border: 1px solid var(--info-200); border-radius: 8px; padding: 16px;">
+                        <ul style="margin: 0; padding-left: 16px; font-size: 14px;">
+                            ${(analysis.ragOptimizations || []).map(opt => `<li style="margin-bottom: 8px;">${opt}</li>`).join('')}
+                        </ul>
+                    </div>
+                </div>
+            `;
+        }
+        
         // Close modal when clicking outside
         document.addEventListener('click', (e) => {
             if (e.target.id === 'drilldownModal') {
                 closeDrilldownModal();
+            }
+            if (e.target.id === 'userAnalysisModal') {
+                closeUserAnalysisModal();
             }
         });
         
