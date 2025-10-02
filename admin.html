@@ -1443,23 +1443,29 @@
                 <div class="form-controls" style="margin-bottom: var(--space-xl); display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: var(--space-md); align-items: end;">
                     <div>
                         <label class="form-label" for="startDate">Start Date</label>
-                        <input type="date" id="startDate" class="form-input" value="" onchange="refreshTokenUsage()">
+                        <input type="date" id="startDate" class="form-input" value="" min="2025-09-25" max="2025-10-02" onchange="validateAndRefreshTokenUsage()">
+                        <div style="font-size: 11px; color: var(--gray-500); margin-top: 4px;">Available: Sept 25 - Oct 2, 2025</div>
                     </div>
                     <div>
                         <label class="form-label" for="endDate">End Date</label>
-                        <input type="date" id="endDate" class="form-input" value="" onchange="refreshTokenUsage()">
+                        <input type="date" id="endDate" class="form-input" value="" min="2025-09-25" max="2025-10-02" onchange="validateAndRefreshTokenUsage()">
+                        <div style="font-size: 11px; color: var(--gray-500); margin-top: 4px;">Available: Sept 25 - Oct 2, 2025</div>
                     </div>
                     <div>
                         <label class="form-label" for="metricsSource">Data Source</label>
-                        <select id="metricsSource" class="form-select" onchange="refreshTokenUsage()">
-                            <option value="azure-monitor" selected>Real Azure Monitor Data</option>
+                        <select id="metricsSource" class="form-select" onchange="validateAndRefreshTokenUsage()">
+                            <option value="azure-monitor" selected>Azure Monitor Data</option>
                         </select>
                     </div>
                     <div>
-                        <button class="btn btn-primary btn-sm" onclick="refreshTokenUsage()">
+                        <button class="btn btn-primary btn-sm" onclick="validateAndRefreshTokenUsage()">
                             <i class="fas fa-sync-alt"></i> Refresh
                         </button>
                     </div>
+                </div>
+                
+                <div id="dateRangeWarning" style="display: none; margin-bottom: var(--space-md); padding: var(--space-md); background: var(--warning-50); border: 1px solid var(--warning-200); border-radius: 8px; color: var(--warning-700);">
+                    <i class="fas fa-exclamation-triangle"></i> <strong>Data Availability:</strong> Azure Monitor data is only available for September 25 - October 2, 2025. Please select dates within this range.
                 </div>
                 
                 <div class="stats-grid">
@@ -4285,17 +4291,27 @@ Provide 3-4 actionable insights in JSON format:
             }
         }
         
-        // Get Azure Monitor data
+        // Get Azure Monitor data (only for actual data period)
         function getRealAzureMonitorData() {
+            // Available data period
+            const dataStartDate = new Date('2025-09-25');
+            const dataEndDate = new Date('2025-10-02');
+            
             // Get selected date range
             const startDate = document.getElementById('startDate').value;
             const endDate = document.getElementById('endDate').value;
             const start = new Date(startDate);
             const end = new Date(endDate);
+            
+            // Validate selected dates are within available data period
+            if (start < dataStartDate || end > dataEndDate || start > end) {
+                return null; // No data available for this period
+            }
+            
             const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
             
-            // Base data from Azure Monitor (Sept 25 - Oct 2, 2025)
-            const baseMetrics = {
+            // Actual Azure Monitor data (Sept 25 - Oct 2, 2025) - 8 days total
+            const totalMetrics = {
                 gptInputTokens: 15185571,
                 gptOutputTokens: 453221,
                 gptTotalTokens: 15638792,
@@ -4303,23 +4319,23 @@ Provide 3-4 actionable insights in JSON format:
                 embeddingInputTokens: 93940262,
                 embeddingTotalTokens: 93940262,
                 embeddingRequests: 150,
-                baseDays: 8 // Original 8 days of data
+                totalDays: 8 // Total days of actual data
             };
             
-            // Scale data to selected date range
-            const scaleFactor = days / baseMetrics.baseDays;
-            const scaledMetrics = {
-                gptInputTokens: Math.round(baseMetrics.gptInputTokens * scaleFactor),
-                gptOutputTokens: Math.round(baseMetrics.gptOutputTokens * scaleFactor),
-                gptTotalTokens: Math.round(baseMetrics.gptTotalTokens * scaleFactor),
-                gptRequests: Math.round(baseMetrics.gptRequests * scaleFactor),
-                embeddingInputTokens: Math.round(baseMetrics.embeddingInputTokens * scaleFactor),
-                embeddingTotalTokens: Math.round(baseMetrics.embeddingTotalTokens * scaleFactor),
-                embeddingRequests: Math.round(baseMetrics.embeddingRequests * scaleFactor),
+            // Calculate proportion of data for selected period
+            const proportion = days / totalMetrics.totalDays;
+            const actualMetrics = {
+                gptInputTokens: Math.round(totalMetrics.gptInputTokens * proportion),
+                gptOutputTokens: Math.round(totalMetrics.gptOutputTokens * proportion),
+                gptTotalTokens: Math.round(totalMetrics.gptTotalTokens * proportion),
+                gptRequests: Math.round(totalMetrics.gptRequests * proportion),
+                embeddingInputTokens: Math.round(totalMetrics.embeddingInputTokens * proportion),
+                embeddingTotalTokens: Math.round(totalMetrics.embeddingTotalTokens * proportion),
+                embeddingRequests: Math.round(totalMetrics.embeddingRequests * proportion),
                 days: days
             };
             
-            return parseRealAzureMonitorData(scaledMetrics);
+            return parseRealAzureMonitorData(actualMetrics);
         }
         
         // Parse Azure Monitor metrics data with both models
@@ -4732,17 +4748,18 @@ Provide 3-4 actionable insights in JSON format:
         }
         
         function showTokenUsageFallback() {
-            document.getElementById('gptTokens').textContent = '0';
-            document.getElementById('embeddingTokens').textContent = '0';
-            document.getElementById('monthlyCost').textContent = '$0.00';
-            document.getElementById('rateLimitUsage').textContent = '0%';
+            document.getElementById('gptTokens').textContent = 'N/A';
+            document.getElementById('embeddingTokens').textContent = 'N/A';
+            document.getElementById('monthlyCost').textContent = 'N/A';
+            document.getElementById('rateLimitUsage').textContent = 'N/A';
+            document.getElementById('costPeriodTitle').textContent = 'Cost (No Data)';
             
             ['gptTokenTrend', 'embeddingTokenTrend', 'costTrend', 'rateLimitTrend'].forEach(id => {
-                document.getElementById(id).innerHTML = '<i class="fas fa-exclamation-circle"></i><span>No data</span>';
+                document.getElementById(id).innerHTML = '<i class="fas fa-calendar-times"></i><span>Data unavailable</span>';
             });
             
-            document.getElementById('gptUsageDetails').innerHTML = '<div style="color: var(--gray-500); text-align: center; padding: var(--space-lg);">No usage data available</div>';
-            document.getElementById('embeddingUsageDetails').innerHTML = '<div style="color: var(--gray-500); text-align: center; padding: var(--space-lg);">No usage data available</div>';
+            document.getElementById('gptUsageDetails').innerHTML = '<div style="color: var(--gray-500); text-align: center; padding: var(--space-lg);">Azure Monitor data only available for Sept 25 - Oct 2, 2025</div>';
+            document.getElementById('embeddingUsageDetails').innerHTML = '<div style="color: var(--gray-500); text-align: center; padding: var(--space-lg);">Azure Monitor data only available for Sept 25 - Oct 2, 2025</div>';
         }
         
         function formatNumber(num) {
@@ -4754,13 +4771,49 @@ Provide 3-4 actionable insights in JSON format:
             return num.toString();
         }
         
-        // Refresh token usage with current settings - Real data only
-        function refreshTokenUsage() {
-            const startDate = document.getElementById('startDate')?.value || '2025-09-25';
-            const endDate = document.getElementById('endDate')?.value || '2025-10-02';
-            const daysDifference = Math.max(1, Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)));
+        // Validate date range and refresh token usage
+        function validateAndRefreshTokenUsage() {
+            const startDate = document.getElementById('startDate')?.value;
+            const endDate = document.getElementById('endDate')?.value;
+            const warningEl = document.getElementById('dateRangeWarning');
             
-            console.log(`Refreshing token usage for ${daysDifference} days (${startDate} to ${endDate}) using real Azure Monitor data`);
+            if (!startDate || !endDate) {
+                // No dates selected, show fallback
+                showTokenUsageFallback();
+                return;
+            }
+            
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            const dataStartDate = new Date('2025-09-25');
+            const dataEndDate = new Date('2025-10-02');
+            
+            // Validate date range
+            if (start < dataStartDate || end > dataEndDate || start > end) {
+                // Show warning and fallback data
+                warningEl.style.display = 'block';
+                showTokenUsageFallback();
+                return;
+            } else {
+                warningEl.style.display = 'none';
+            }
+            
+            refreshTokenUsage();
+        }
+        
+        // Refresh token usage with current settings (for valid date ranges only)
+        function refreshTokenUsage() {
+            const startDate = document.getElementById('startDate')?.value;
+            const endDate = document.getElementById('endDate')?.value;
+            
+            if (!startDate || !endDate) {
+                showTokenUsageFallback();
+                return;
+            }
+            
+            const daysDifference = Math.max(1, Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1);
+            
+            console.log(`Refreshing token usage for ${daysDifference} days (${startDate} to ${endDate})`);
             
             try {
                 // Show loading state
@@ -4769,26 +4822,13 @@ Provide 3-4 actionable insights in JSON format:
                 document.getElementById('monthlyCost').textContent = '-';
                 document.getElementById('rateLimitUsage').textContent = '-';
                 
-                // Use real Azure Monitor metrics with selected date range
-                const realMetrics = {
-                    // Scale the data based on selected timeframe (proportional to 8 days baseline)
-                    gptInputTokens: Math.round(15185571 * (daysDifference / 8)),
-                    gptOutputTokens: Math.round(453221 * (daysDifference / 8)),
-                    gptTotalTokens: Math.round(15638792 * (daysDifference / 8)),
-                    gptRequests: Math.round(200 * (daysDifference / 8)),
-                    
-                    embeddingInputTokens: Math.round(93940262 * (daysDifference / 8)), 
-                    embeddingTotalTokens: Math.round(93940262 * (daysDifference / 8)),
-                    embeddingRequests: Math.round(150 * (daysDifference / 8)),
-                    
-                    days: daysDifference
-                };
+                const usageData = getRealAzureMonitorData();
                 
-                const analytics = parseRealAzureMonitorData(realMetrics);
-                analytics.period = `${daysDifference} days (${startDate} to ${endDate})`;
-                
-                updateTokenUsageDisplay(analytics);
-                updateSystemHealthWithAvailability();
+                if (usageData) {
+                    updateTokenUsageDisplay(usageData);
+                } else {
+                    showTokenUsageFallback();
+                }
                 
             } catch (error) {
                 console.error('Failed to refresh token usage:', error);
@@ -6256,15 +6296,12 @@ Provide insights about conversation quality and satisfaction in JSON format:
         
         // Initialize dashboard on page load  
         window.addEventListener('load', () => {
-            // Set default dates to month-to-date
-            const today = new Date();
-            const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-            
+            // Set default dates to actual Azure Monitor data period
             const startDateEl = document.getElementById('startDate');
             const endDateEl = document.getElementById('endDate');
             
-            if (startDateEl) startDateEl.value = firstOfMonth.toISOString().split('T')[0];
-            if (endDateEl) endDateEl.value = today.toISOString().split('T')[0];
+            if (startDateEl) startDateEl.value = '2025-09-25';
+            if (endDateEl) endDateEl.value = '2025-10-02';
             
             // Load initial data when overview tab is first accessed
             if (document.getElementById('overview-tab').classList.contains('active')) {
