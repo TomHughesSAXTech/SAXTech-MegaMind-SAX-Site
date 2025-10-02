@@ -3088,7 +3088,7 @@ if (idx.name === 'ustaxpublic' || idx.name === 'audit-tax-documents') {
         const target = document.getElementById(`lastUpdate-${idx.name}`);
         if (target) target.textContent = 'Error';
     }
-}
+} else {
     // Regular document search for non-indexer indexes
     try {
         const latestResp = await fetch(`/api/documents-search/${idx.name}`, {
@@ -3122,45 +3122,49 @@ if (idx.name === 'ustaxpublic' || idx.name === 'audit-tax-documents') {
         }
     } catch (e) {
         // Fallback to Function App without orderby/select
-        const fbLatest = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-functions-key': API_CONFIG.functionKey
-            },
-            body: JSON.stringify({ search: '*', top: 20, indexName: idx.name })
-        });
-        if (fbLatest.ok) {
-            const latest = await fbLatest.json();
-            const docs = latest.value || latest.results || [];
-            let mostRecent = null;
-            docs.forEach(d => {
-                [d.uploadDate, d.createdDate, d.modifiedDate, d.lastModified, d.metadata_storage_last_modified]
-                    .filter(Boolean)
-                    .forEach(ds => {
-                        const dt = new Date(ds);
-                        if (!mostRecent || dt > mostRecent) mostRecent = dt;
-                    });
+        try {
+            const fbLatest = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-functions-key': API_CONFIG.functionKey
+                },
+                body: JSON.stringify({ search: '*', top: 20, indexName: idx.name })
             });
-            const target = document.getElementById(`lastUpdate-${idx.name}`);
-            if (target) {
-                if (mostRecent) {
-                    const opts = { timeZone: 'America/New_York', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true };
-                    target.textContent = new Intl.DateTimeFormat('en-US', opts).format(mostRecent);
-                } else {
-                    target.textContent = '--';
+            if (fbLatest.ok) {
+                const latest = await fbLatest.json();
+                const docs = latest.value || latest.results || [];
+                let mostRecent = null;
+                docs.forEach(d => {
+                    [d.uploadDate, d.createdDate, d.modifiedDate, d.lastModified, d.metadata_storage_last_modified]
+                        .filter(Boolean)
+                        .forEach(ds => {
+                            const dt = new Date(ds);
+                            if (!mostRecent || dt > mostRecent) mostRecent = dt;
+                        });
+                });
+                const target = document.getElementById(`lastUpdate-${idx.name}`);
+                if (target) {
+                    if (mostRecent) {
+                        const opts = { timeZone: 'America/New_York', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true };
+                        target.textContent = new Intl.DateTimeFormat('en-US', opts).format(mostRecent);
+                    } else {
+                        target.textContent = '--';
+                    }
                 }
+            } else {
+                const target = document.getElementById(`lastUpdate-${idx.name}`);
+                if (target) target.textContent = 'Error';
             }
+        } catch (fallbackError) {
+            console.warn('Function App fallback failed for', idx.name, fallbackError);
+            const target = document.getElementById(`lastUpdate-${idx.name}`);
+            if (target) target.textContent = 'Error';
         }
     }
 }
-                } catch (e) {
-                    console.warn('Failed index stats for', idx.name, e);
-                }
-            }
-        }
 
-        // Legacy single-index stats (kept for backward compatibility but no longer used) 
+        // Legacy single-index stats (kept for backward compatibility but no longer used)
         async function loadIndexStatistics() {
             try {
                 // First get document count
