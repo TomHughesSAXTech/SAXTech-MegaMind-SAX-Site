@@ -2230,21 +2230,396 @@
         // Admin Console - Voice Management & Index Management Combined
 
         // Export helpers (by user and date filters)
+        // Export Tab Functions
+        function loadExportOptions() {
+            // Export tab content is already loaded in HTML, no additional loading needed
+            console.log('Export options loaded');
+        }
+        
+        // Get export filters from the Export tab
+        function getExportFilters() {
+            const userEmail = (document.getElementById('exportUserEmail')?.value || '').trim();
+            const range = document.getElementById('exportDateRange')?.value || 'week';
+            const format = document.getElementById('exportFormat')?.value || 'xlsx';
+            return { userEmail, range, format };
+        }
+        
+        // Legacy function for sessions tab compatibility
         function getSessionFilters() {
             const userEmail = (document.getElementById('sessionUserEmail')?.value || '').trim() || document.getElementById('userFilterDropdown')?.value || '';
             const range = document.getElementById('sessionDateRange')?.value || 'week';
             return { userEmail, range };
         }
+        
+        // Main conversation export function
+        function exportConversations() {
+            const { userEmail, range, format } = getExportFilters();
+            
+            let url;
+            if (userEmail) {
+                // Export specific user data
+                url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=exportUser&format=${format}&adminKey=sax-admin-2024&userEmail=${encodeURIComponent(userEmail)}&range=${encodeURIComponent(range)}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
+            } else {
+                // Export all data
+                url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=exportAll&format=${format}&adminKey=sax-admin-2024&range=${encodeURIComponent(range)}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
+            }
+            
+            window.open(url, '_blank');
+        }
+        
+        // Legacy export functions (for compatibility with old buttons)
         function exportToExcel() {
             const { userEmail, range } = getSessionFilters();
             if (!userEmail) { alert('Select or enter a user email first'); return; }
             const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=exportUser&format=xlsx&adminKey=sax-admin-2024&userEmail=${encodeURIComponent(userEmail)}&range=${encodeURIComponent(range)}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
             window.open(url, '_blank');
         }
+        
         function exportToPDF() {
             const { userEmail, range } = getSessionFilters();
             if (!userEmail) { alert('Select or enter a user email first'); return; }
             const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=exportUser&format=pdf&adminKey=sax-admin-2024&userEmail=${encodeURIComponent(userEmail)}&range=${encodeURIComponent(range)}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
+            window.open(url, '_blank');
+        }
+        
+        // Quick Export Functions
+        function exportAllConversations() {
+            const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=exportAll&format=xlsx&adminKey=sax-admin-2024&range=all&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
+            window.open(url, '_blank');
+        }
+        
+        function exportUserSummary() {
+            const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=exportUserSummary&format=xlsx&adminKey=sax-admin-2024&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
+            window.open(url, '_blank');
+        }
+        
+        async function exportRAGReport() {
+            if (!conversationData.length) {
+                await loadOverviewData();
+            }
+            
+            // Generate RAG analysis report and export as JSON
+            const reportData = {
+                timestamp: new Date().toISOString(),
+                reportType: 'RAG Enhancement Analysis',
+                summary: {
+                    totalConversations: conversationData.length,
+                    uniqueUsers: new Set(conversationData.map(s => s.userEmail)).size,
+                    totalMessages: conversationData.reduce((sum, s) => sum + (s.conversation || []).length, 0)
+                },
+                conversations: conversationData.map(s => ({
+                    timestamp: s.timestamp,
+                    userEmail: s.userEmail,
+                    department: s.metadata?.department,
+                    aiProfile: s.metadata?.aiProfile,
+                    messageCount: s.conversation?.length || 0,
+                    conversation: s.conversation || []
+                }))
+            };
+            
+            const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `rag-analysis-report-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        function exportTokenUsage() {
+            // Export token usage data as CSV
+            const tokenData = {
+                reportDate: new Date().toISOString(),
+                gptTokens: {
+                    input: 15185571,
+                    output: 453221,
+                    total: 15638792
+                },
+                embeddingTokens: {
+                    total: 93940262
+                },
+                costs: {
+                    gptInputCost: (15185571 / 1000) * 0.000015,
+                    gptOutputCost: (453221 / 1000) * 0.0003,
+                    embeddingCost: (93940262 / 1000) * 0.00013,
+                    totalCost: ((15185571 / 1000) * 0.000015) + ((453221 / 1000) * 0.0003) + ((93940262 / 1000) * 0.00013)
+                },
+                period: '2025-09-25 to 2025-10-02'
+            };
+            
+            const csvContent = `Report Date,Model,Token Type,Token Count,Cost per 1K Tokens,Total Cost\n` +
+                `${tokenData.reportDate},GPT-4.1-mini,Input,${tokenData.gptTokens.input},$0.000015,$${tokenData.costs.gptInputCost.toFixed(4)}\n` +
+                `${tokenData.reportDate},GPT-4.1-mini,Output,${tokenData.gptTokens.output},$0.0003,$${tokenData.costs.gptOutputCost.toFixed(4)}\n` +
+                `${tokenData.reportDate},text-embedding-3-large,Embedding,${tokenData.embeddingTokens.total},$0.00013,$${tokenData.costs.embeddingCost.toFixed(4)}\n` +
+                `${tokenData.reportDate},Total,,${tokenData.gptTokens.total + tokenData.embeddingTokens.total},,$${tokenData.costs.totalCost.toFixed(4)}`;
+            
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `token-usage-report-${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        // Analytics Report Export Functions
+        async function exportExecutiveSummary() {
+            if (!conversationData.length) {
+                await loadOverviewData();
+            }
+            
+            const summaryData = {
+                reportDate: new Date().toISOString(),
+                reportType: 'Executive Summary',
+                metrics: {
+                    totalConversations: conversationData.length,
+                    uniqueUsers: new Set(conversationData.map(s => s.userEmail)).size,
+                    totalMessages: conversationData.reduce((sum, s) => sum + (s.conversation || []).length, 0),
+                    avgMessagesPerSession: conversationData.length > 0 ? 
+                        (conversationData.reduce((sum, s) => sum + (s.conversation || []).length, 0) / conversationData.length).toFixed(1) : 0
+                },
+                topUsers: Object.entries(
+                    conversationData.reduce((acc, s) => {
+                        const email = s.userEmail || 'Unknown';
+                        acc[email] = (acc[email] || 0) + 1;
+                        return acc;
+                    }, {})
+                ).sort((a, b) => b[1] - a[1]).slice(0, 10),
+                departments: [...new Set(conversationData.map(s => s.metadata?.department).filter(Boolean))],
+                aiProfiles: [...new Set(conversationData.map(s => s.metadata?.aiProfile).filter(Boolean))]
+            };
+            
+            const blob = new Blob([JSON.stringify(summaryData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `executive-summary-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        function exportDepartmentAnalysis() {
+            if (!conversationData.length) {
+                alert('No conversation data available. Please load data first.');
+                return;
+            }
+            
+            const deptData = conversationData.reduce((acc, session) => {
+                const dept = session.metadata?.department || 'Unknown';
+                if (!acc[dept]) {
+                    acc[dept] = {
+                        sessions: 0,
+                        users: new Set(),
+                        messages: 0,
+                        aiProfiles: new Set()
+                    };
+                }
+                acc[dept].sessions++;
+                if (session.userEmail) acc[dept].users.add(session.userEmail);
+                acc[dept].messages += (session.conversation || []).length;
+                if (session.metadata?.aiProfile) acc[dept].aiProfiles.add(session.metadata.aiProfile);
+                return acc;
+            }, {});
+            
+            // Convert to exportable format
+            const exportData = {
+                reportDate: new Date().toISOString(),
+                reportType: 'Department Analysis',
+                departments: Object.entries(deptData).map(([name, data]) => ({
+                    name,
+                    sessions: data.sessions,
+                    uniqueUsers: data.users.size,
+                    totalMessages: data.messages,
+                    avgMessagesPerSession: data.sessions > 0 ? (data.messages / data.sessions).toFixed(1) : 0,
+                    aiProfilesUsed: Array.from(data.aiProfiles)
+                }))
+            };
+            
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `department-analysis-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        function exportUserEngagement() {
+            if (!conversationData.length) {
+                alert('No conversation data available. Please load data first.');
+                return;
+            }
+            
+            const userMetrics = {};
+            conversationData.forEach(session => {
+                const email = session.userEmail || 'Unknown';
+                if (!userMetrics[email]) {
+                    userMetrics[email] = {
+                        sessions: 0,
+                        totalMessages: 0,
+                        departments: new Set(),
+                        aiProfiles: new Set(),
+                        firstSession: session.timestamp,
+                        lastSession: session.timestamp
+                    };
+                }
+                
+                userMetrics[email].sessions++;
+                userMetrics[email].totalMessages += (session.conversation || []).length;
+                if (session.metadata?.department) userMetrics[email].departments.add(session.metadata.department);
+                if (session.metadata?.aiProfile) userMetrics[email].aiProfiles.add(session.metadata.aiProfile);
+                
+                const sessionDate = new Date(session.timestamp);
+                if (sessionDate < new Date(userMetrics[email].firstSession)) {
+                    userMetrics[email].firstSession = session.timestamp;
+                }
+                if (sessionDate > new Date(userMetrics[email].lastSession)) {
+                    userMetrics[email].lastSession = session.timestamp;
+                }
+            });
+            
+            const exportData = {
+                reportDate: new Date().toISOString(),
+                reportType: 'User Engagement Analysis',
+                users: Object.entries(userMetrics).map(([email, metrics]) => ({
+                    email,
+                    sessions: metrics.sessions,
+                    totalMessages: metrics.totalMessages,
+                    avgMessagesPerSession: metrics.sessions > 0 ? (metrics.totalMessages / metrics.sessions).toFixed(1) : 0,
+                    departmentsUsed: Array.from(metrics.departments),
+                    aiProfilesUsed: Array.from(metrics.aiProfiles),
+                    firstSession: metrics.firstSession,
+                    lastSession: metrics.lastSession,
+                    engagementScore: Math.min(metrics.sessions * 5 + metrics.totalMessages * 0.5, 100)
+                })).sort((a, b) => b.engagementScore - a.engagementScore)
+            };
+            
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `user-engagement-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        function exportSystemHealth() {
+            const healthData = {
+                reportDate: new Date().toISOString(),
+                reportType: 'System Health Report',
+                azureMonitorData: {
+                    period: '2025-09-25 to 2025-10-02',
+                    gptModel: {
+                        name: 'gpt-4.1-mini',
+                        inputTokens: 15185571,
+                        outputTokens: 453221,
+                        totalTokens: 15638792,
+                        availability: '100%',
+                        requests: 200
+                    },
+                    embeddingModel: {
+                        name: 'text-embedding-3-large',
+                        totalTokens: 93940262,
+                        availability: '100%',
+                        requests: 150
+                    },
+                    costs: {
+                        gptInputCost: (15185571 / 1000) * 0.000015,
+                        gptOutputCost: (453221 / 1000) * 0.0003,
+                        embeddingCost: (93940262 / 1000) * 0.00013,
+                        totalCost: ((15185571 / 1000) * 0.000015) + ((453221 / 1000) * 0.0003) + ((93940262 / 1000) * 0.00013),
+                        estimatedMonthlyCost: (((15185571 / 1000) * 0.000015) + ((453221 / 1000) * 0.0003) + ((93940262 / 1000) * 0.00013)) * (30/8)
+                    },
+                    errorAnalysis: {
+                        totalCalls: 56461,
+                        totalErrors: 2051,
+                        successRate: 96.4,
+                        errorRate: 3.6
+                    }
+                },
+                conversationMetrics: conversationData.length > 0 ? {
+                    totalConversations: conversationData.length,
+                    uniqueUsers: new Set(conversationData.map(s => s.userEmail)).size,
+                    avgMessagesPerSession: (conversationData.reduce((sum, s) => sum + (s.conversation || []).length, 0) / conversationData.length).toFixed(1)
+                } : null
+            };
+            
+            const blob = new Blob([JSON.stringify(healthData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `system-health-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        // System Data Export Functions
+        function exportVoiceConfig() {
+            const voiceData = {
+                exportDate: new Date().toISOString(),
+                exportType: 'Voice Configuration',
+                voices: voices,
+                defaultVoices: defaultVoices,
+                elevenlabsApiKey: localStorage.getItem('elevenlabs_api_key') ? '[CONFIGURED]' : '[NOT SET]'
+            };
+            
+            const blob = new Blob([JSON.stringify(voiceData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `voice-config-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        function exportIndexStats() {
+            alert('Index statistics export will be implemented when search index data is available.');
+        }
+        
+        function exportAPILogs() {
+            alert('API logs export will be implemented when logging system is available.');
+        }
+        
+        function exportBackup() {
+            alert('Full system backup export will be implemented with proper backup procedures.');
+        }
+        
+        // Additional export functions for new buttons
+        function exportExecutiveSummary() {
+            const { userEmail, range, format } = getExportFilters();
+            const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=exportExecutiveSummary&format=${format}&adminKey=sax-admin-2024&range=${encodeURIComponent(range)}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
+            window.open(url, '_blank');
+        }
+        
+        function exportDepartmentAnalysis() {
+            const { userEmail, range, format } = getExportFilters();
+            const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=exportDepartmentAnalysis&format=${format}&adminKey=sax-admin-2024&range=${encodeURIComponent(range)}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
+            window.open(url, '_blank');
+        }
+        
+        function exportUserEngagement() {
+            const { userEmail, range, format } = getExportFilters();
+            const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=exportUserEngagement&format=${format}&adminKey=sax-admin-2024&range=${encodeURIComponent(range)}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
+            window.open(url, '_blank');
+        }
+        
+        function exportSystemHealth() {
+            const { userEmail, range, format } = getExportFilters();
+            const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=exportSystemHealth&format=${format}&adminKey=sax-admin-2024&range=${encodeURIComponent(range)}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
             window.open(url, '_blank');
         }
         // Fixed userProfile reference and merged all index management features
@@ -6774,61 +7149,21 @@ Provide insights about conversation quality and satisfaction in JSON format:
             `;
         }
         
-        // Load export options
+        // Load export options - Export tab UI is already in HTML, just validate functionality
         function loadExportOptions() {
-            const section = document.getElementById('export-tab');
+            // Export tab content is already loaded in HTML, just ensure all functions are ready
+            console.log('Export options loaded - all export functions are available');
             
-            section.innerHTML = `
-                <div class="page-header">
-                    <h1 class="page-title">Export Data</h1>
-                    <p class="page-description">Export conversation data and analytics reports</p>
-                </div>
-                
-                <div class="admin-grid">
-                    <div class="admin-card">
-                        <h2><i class="fas fa-comments"></i> Conversations</h2>
-                        <p>Export all conversation data including messages, timestamps, and metadata.</p>
-                        <div style="margin-top: 1rem;">
-                            <button class="btn btn-primary" onclick="exportConversations()">
-                                <i class="fas fa-download"></i> Export JSON
-                            </button>
-                            <button class="btn btn-secondary" onclick="exportToExcel()">
-                                <i class="fas fa-file-csv"></i> Export CSV
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="admin-card">
-                        <h2><i class="fas fa-users"></i> User Analytics</h2>
-                        <p>Export user engagement metrics and activity summaries.</p>
-                        <div style="margin-top: 1rem;">
-                            <button class="btn btn-primary" onclick="alert('User analytics export - coming soon')">
-                                <i class="fas fa-download"></i> Export Data
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="admin-card">
-                        <h2><i class="fas fa-building"></i> Department Stats</h2>
-                        <p>Export department-level usage statistics and performance metrics.</p>
-                        <div style="margin-top: 1rem;">
-                            <button class="btn btn-primary" onclick="alert('Department stats export - coming soon')">
-                                <i class="fas fa-download"></i> Export Data
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="admin-card">
-                        <h2><i class="fas fa-brain"></i> AI Insights</h2>
-                        <p>Export AI-generated insights and analysis reports.</p>
-                        <div style="margin-top: 1rem;">
-                            <button class="btn btn-primary" onclick="alert('AI insights export - coming soon')">
-                                <i class="fas fa-download"></i> Export Report
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
+            // Validate that export form elements exist
+            const exportUserEmail = document.getElementById('exportUserEmail');
+            const exportDateRange = document.getElementById('exportDateRange');
+            const exportFormat = document.getElementById('exportFormat');
+            
+            if (exportUserEmail && exportDateRange && exportFormat) {
+                console.log('Export form elements validated successfully');
+            } else {
+                console.error('Some export form elements are missing');
+            }
         }
         
         // Export conversations
@@ -7176,12 +7511,12 @@ Provide insights about conversation quality and satisfaction in JSON format:
                 // Create modal if it doesn't exist
                 const modalHTML = `
                     <div id="userAnalysisModal" class="modal">
-                        <div class="modal-content" style="max-width: 800px;">
+                        <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto; margin: 5vh auto;">
                             <div class="modal-header">
                                 <h2 id="userAnalysisTitle">User Analysis</h2>
                                 <span class="close" onclick="closeUserAnalysisModal()">&times;</span>
                             </div>
-                            <div id="userAnalysisContent">
+                            <div id="userAnalysisContent" style="max-height: calc(90vh - 80px); overflow-y: auto; padding: 0 4px;">
                                 <!-- Content will be loaded here -->
                             </div>
                         </div>
@@ -7298,92 +7633,114 @@ Provide detailed user analysis in JSON format:
                                    analysis.engagementLevel === 'Medium' ? 'var(--warning-600)' : 'var(--gray-600)';
             
             return `
-                <div style="margin-bottom: 24px; padding: 20px; background: var(--primary-50); border-radius: 12px; border: 1px solid var(--primary-200);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div style="margin-bottom: 20px; padding: 16px; background: var(--primary-50); border-radius: 12px; border: 1px solid var(--primary-200);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
                         <div>
-                            <h3 style="margin: 0; color: var(--primary-800);">${userData.userName}</h3>
-                            <div style="color: var(--primary-600); font-size: 14px; margin-top: 4px;">${userData.userEmail}</div>
+                            <h3 style="margin: 0; color: var(--primary-800); font-size: 18px;">${userData.userName}</h3>
+                            <div style="color: var(--primary-600); font-size: 13px; margin-top: 2px;">${userData.userEmail}</div>
                         </div>
                         <div style="text-align: right;">
-                            <div style="font-size: 24px; font-weight: 700; color: ${engagementColor};">${analysis.engagementLevel}</div>
-                            <div style="font-size: 12px; color: var(--gray-600);">Engagement Level</div>
+                            <div style="font-size: 20px; font-weight: 700; color: ${engagementColor};">${analysis.engagementLevel}</div>
+                            <div style="font-size: 11px; color: var(--gray-600);">Engagement Level</div>
                         </div>
                     </div>
                     
-                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
-                        <div style="text-align: center; padding: 12px; background: white; border-radius: 8px;">
-                            <div style="font-weight: 600; color: var(--primary-600);">${userData.totalSessions}</div>
-                            <div style="font-size: 11px; color: var(--gray-600);">Total Sessions</div>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                        <div style="text-align: center; padding: 10px; background: white; border-radius: 8px;">
+                            <div style="font-weight: 600; color: var(--primary-600); font-size: 16px;">${userData.totalSessions}</div>
+                            <div style="font-size: 10px; color: var(--gray-600);">Sessions</div>
                         </div>
-                        <div style="text-align: center; padding: 12px; background: white; border-radius: 8px;">
-                            <div style="font-weight: 600; color: var(--primary-600);">${userData.avgMessagesPerSession}</div>
-                            <div style="font-size: 11px; color: var(--gray-600);">Avg Messages/Session</div>
+                        <div style="text-align: center; padding: 10px; background: white; border-radius: 8px;">
+                            <div style="font-weight: 600; color: var(--primary-600); font-size: 16px;">${userData.avgMessagesPerSession}</div>
+                            <div style="font-size: 10px; color: var(--gray-600);">Avg Msgs</div>
                         </div>
-                        <div style="text-align: center; padding: 12px; background: white; border-radius: 8px;">
-                            <div style="font-weight: 600; color: var(--primary-600);">${analysis.userPersona || 'Unknown'}</div>
-                            <div style="font-size: 11px; color: var(--gray-600);">User Type</div>
+                        <div style="text-align: center; padding: 10px; background: white; border-radius: 8px;">
+                            <div style="font-weight: 600; color: var(--primary-600); font-size: 13px;">${analysis.userPersona || 'Unknown'}</div>
+                            <div style="font-size: 10px; color: var(--gray-600);">User Type</div>
                         </div>
-                        <div style="text-align: center; padding: 12px; background: white; border-radius: 8px;">
-                            <div style="font-weight: 600; color: var(--primary-600);">${analysis.questioningStyle || 'Unknown'}</div>
-                            <div style="font-size: 11px; color: var(--gray-600);">Question Style</div>
+                        <div style="text-align: center; padding: 10px; background: white; border-radius: 8px;">
+                            <div style="font-weight: 600; color: var(--primary-600); font-size: 13px;">${analysis.questioningStyle || 'Unknown'}</div>
+                            <div style="font-size: 10px; color: var(--gray-600);">Style</div>
                         </div>
                     </div>
                 </div>
                 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
                     <div>
-                        <h4 style="margin-bottom: 12px; color: var(--gray-800);">🎯 Topic Preferences</h4>
-                        <ul style="list-style: none; padding: 0; margin: 0;">
-                            ${(analysis.topicPreferences || []).map(topic => `
-                                <li style="padding: 8px; background: var(--gray-50); border-radius: 6px; margin-bottom: 6px;">
-                                    <i class="fas fa-bookmark" style="color: var(--primary-500); margin-right: 8px;"></i>
-                                    ${topic}
-                                </li>
-                            `).join('')}
-                        </ul>
+                        <h4 style="margin-bottom: 10px; color: var(--gray-800); font-size: 16px;">🎯 Topic Preferences</h4>
+                        <div style="max-height: 120px; overflow-y: auto;">
+                            ${(analysis.topicPreferences || []).length > 0 ? 
+                                (analysis.topicPreferences).map(topic => `
+                                    <div style="padding: 6px 8px; background: var(--gray-50); border-radius: 6px; margin-bottom: 4px; font-size: 13px;">
+                                        <i class="fas fa-bookmark" style="color: var(--primary-500); margin-right: 6px;"></i>
+                                        ${topic}
+                                    </div>
+                                `).join('') :
+                                '<div style="padding: 8px; color: var(--gray-500); font-style: italic; font-size: 13px;">No specific preferences identified</div>'
+                            }
+                        </div>
                     </div>
                     <div>
-                        <h4 style="margin-bottom: 12px; color: var(--gray-800);">📊 Behavior Patterns</h4>
-                        <ul style="list-style: none; padding: 0; margin: 0;">
-                            ${(analysis.behaviorPatterns || []).map(pattern => `
-                                <li style="padding: 8px; background: var(--gray-50); border-radius: 6px; margin-bottom: 6px;">
-                                    <i class="fas fa-chart-line" style="color: var(--success-500); margin-right: 8px;"></i>
-                                    ${pattern}
-                                </li>
-                            `).join('')}
-                        </ul>
+                        <h4 style="margin-bottom: 10px; color: var(--gray-800); font-size: 16px;">📊 Behavior Patterns</h4>
+                        <div style="max-height: 120px; overflow-y: auto;">
+                            ${(analysis.behaviorPatterns || []).length > 0 ? 
+                                (analysis.behaviorPatterns).map(pattern => `
+                                    <div style="padding: 6px 8px; background: var(--gray-50); border-radius: 6px; margin-bottom: 4px; font-size: 13px;">
+                                        <i class="fas fa-chart-line" style="color: var(--success-500); margin-right: 6px;"></i>
+                                        ${pattern}
+                                    </div>
+                                `).join('') :
+                                '<div style="padding: 8px; color: var(--gray-500); font-style: italic; font-size: 13px;">No specific patterns identified</div>'
+                            }
+                        </div>
                     </div>
                 </div>
                 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
                     <div>
-                        <h4 style="margin-bottom: 12px; color: var(--success-600);">😊 Satisfaction Indicators</h4>
+                        <h4 style="margin-bottom: 10px; color: var(--success-600); font-size: 16px;">😊 Satisfaction Signs</h4>
+                        <div style="max-height: 100px; overflow-y: auto;">
+                            <ul style="margin: 0; padding-left: 16px; font-size: 12px;">
+                                ${(analysis.satisfactionIndicators || []).length > 0 ?
+                                    (analysis.satisfactionIndicators).map(indicator => `<li style="margin-bottom: 3px;">${indicator}</li>`).join('') :
+                                    '<li style="color: var(--gray-500); font-style: italic;">No specific indicators found</li>'
+                                }
+                            </ul>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 style="margin-bottom: 10px; color: var(--error-600); font-size: 16px;">⚠️ Challenge Areas</h4>
+                        <div style="max-height: 100px; overflow-y: auto;">
+                            <ul style="margin: 0; padding-left: 16px; font-size: 12px;">
+                                ${(analysis.challengeAreas || []).length > 0 ?
+                                    (analysis.challengeAreas).map(challenge => `<li style="margin-bottom: 3px;">${challenge}</li>`).join('') :
+                                    '<li style="color: var(--gray-500); font-style: italic;">No specific challenges identified</li>'
+                                }
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <h4 style="margin-bottom: 10px; color: var(--primary-600); font-size: 16px;">💡 Personalized Recommendations</h4>
+                    <div style="background: var(--warning-50); border: 1px solid var(--warning-200); border-radius: 8px; padding: 14px; max-height: 120px; overflow-y: auto;">
                         <ul style="margin: 0; padding-left: 16px; font-size: 13px;">
-                            ${(analysis.satisfactionIndicators || []).map(indicator => `<li style="margin-bottom: 4px;">${indicator}</li>`).join('')}
-                        </ul>
-                    </div>
-                    <div>
-                        <h4 style="margin-bottom: 12px; color: var(--error-600);">⚠️ Challenge Areas</h4>
-                        <ul style="margin: 0; padding-left: 16px; font-size: 13px;">
-                            ${(analysis.challengeAreas || []).map(challenge => `<li style="margin-bottom: 4px;">${challenge}</li>`).join('')}
-                        </ul>
-                    </div>
-                </div>
-                
-                <div style="margin-bottom: 24px;">
-                    <h4 style="margin-bottom: 12px; color: var(--primary-600);">💡 Personalized Recommendations</h4>
-                    <div style="background: var(--warning-50); border: 1px solid var(--warning-200); border-radius: 8px; padding: 16px;">
-                        <ul style="margin: 0; padding-left: 16px; font-size: 14px;">
-                            ${(analysis.recommendations || []).map(rec => `<li style="margin-bottom: 8px; font-weight: 500;">${rec}</li>`).join('')}
+                            ${(analysis.recommendations || []).length > 0 ?
+                                (analysis.recommendations).map(rec => `<li style="margin-bottom: 6px; font-weight: 500;">${rec}</li>`).join('') :
+                                '<li style="color: var(--gray-500); font-style: italic;">No specific recommendations available</li>'
+                            }
                         </ul>
                     </div>
                 </div>
                 
                 <div>
-                    <h4 style="margin-bottom: 12px; color: var(--info-600);">🔧 RAG System Optimizations</h4>
-                    <div style="background: var(--info-50); border: 1px solid var(--info-200); border-radius: 8px; padding: 16px;">
-                        <ul style="margin: 0; padding-left: 16px; font-size: 14px;">
-                            ${(analysis.ragOptimizations || []).map(opt => `<li style="margin-bottom: 8px;">${opt}</li>`).join('')}
+                    <h4 style="margin-bottom: 10px; color: var(--info-600); font-size: 16px;">🔧 RAG System Optimizations</h4>
+                    <div style="background: var(--info-50); border: 1px solid var(--info-200); border-radius: 8px; padding: 14px; max-height: 120px; overflow-y: auto;">
+                        <ul style="margin: 0; padding-left: 16px; font-size: 13px;">
+                            ${(analysis.ragOptimizations || []).length > 0 ?
+                                (analysis.ragOptimizations).map(opt => `<li style="margin-bottom: 6px;">${opt}</li>`).join('') :
+                                '<li style="color: var(--gray-500); font-style: italic;">No specific optimizations suggested</li>'
+                            }
                         </ul>
                     </div>
                 </div>
