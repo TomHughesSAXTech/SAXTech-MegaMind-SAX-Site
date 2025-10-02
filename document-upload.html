@@ -3048,74 +3048,49 @@ const countResp = await fetch(`/api/documents-search/${idx.name}`, {
                     const vecEl = document.getElementById(`vectorized-${idx.name}`);
                     if (vecEl) vecEl.textContent = Math.floor(totalDocs * 0.8).toLocaleString();
 
-// 3) Find last update - use indexer status for tax/audit indexes, regular search for others
+// 3) Find last update - use Function App for all indexes to avoid CORS issues
 if (idx.name === 'ustaxpublic' || idx.name === 'audit-tax-documents') {
-    // For tax indexes that use automated indexers, get latest indexer run times
+    // For tax/audit indexes, use Function App to get latest document times
     try {
-        const indexerStatusResp = await fetch('https://saxtech-tax-status.azurewebsites.net/api/get_latest_update');
-        if (indexerStatusResp.ok) {
-            const statusData = await indexerStatusResp.json();
+        const fbLatest = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-functions-key': API_CONFIG.functionKey
+            },
+            body: JSON.stringify({ 
+                search: '*', 
+                top: 1, 
+                indexName: idx.name,
+                orderby: 'metadata_storage_last_modified desc',
+                select: 'metadata_storage_last_modified'
+            })
+        });
+        
+        if (fbLatest.ok) {
+            const latest = await fbLatest.json();
+            const docs = latest.value || latest.results || [];
             const target = document.getElementById(`lastUpdate-${idx.name}`);
+            
             if (target) {
-                if (idx.name === 'ustaxpublic') {
-                    // Use the latest of USC or CFR for ustaxpublic
-                    let latestDate = null;
-                    if (statusData.usc_latest) {
-                        const uscDate = new Date(statusData.usc_latest + 'Z');
-                        latestDate = uscDate;
-                    }
-                    if (statusData.cfr_latest) {
-                        const cfrDate = new Date(statusData.cfr_latest + 'Z');
-                        if (!latestDate || cfrDate > latestDate) {
-                            latestDate = cfrDate;
-                        }
-                    }
-                    if (latestDate) {
-                        const opts = { timeZone: 'America/New_York', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true };
-                        target.textContent = new Intl.DateTimeFormat('en-US', opts).format(latestDate);
-                    } else {
-                        target.textContent = '--';
-                    }
-                } else if (idx.name === 'audit-tax-documents') {
-                    // For audit documents, try to get latest document from the index directly
-                    try {
-                        const auditResp = await fetch(`/api/documents-search/audit-tax-documents`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                search: '*',
-                                top: 1,
-                                orderby: 'metadata_storage_last_modified desc'
-                            })
-                        });
-                        if (auditResp.ok) {
-                            const auditData = await auditResp.json();
-                            const docs = auditData.value || auditData.results || [];
-                            if (docs.length > 0 && docs[0].metadata_storage_last_modified) {
-                                const auditDate = new Date(docs[0].metadata_storage_last_modified);
-                                const opts = { timeZone: 'America/New_York', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true };
-                                target.textContent = new Intl.DateTimeFormat('en-US', opts).format(auditDate);
-                            } else {
-                                target.textContent = 'No docs';
-                            }
-                        } else {
-                            target.textContent = 'Error';
-                        }
-                    } catch (auditError) {
-                        console.warn('Audit documents query failed:', auditError);
-                        target.textContent = 'Error';
-                    }
+                if (docs.length > 0 && docs[0].metadata_storage_last_modified) {
+                    const docDate = new Date(docs[0].metadata_storage_last_modified);
+                    const opts = { timeZone: 'America/New_York', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true };
+                    target.textContent = new Intl.DateTimeFormat('en-US', opts).format(docDate);
+                } else {
+                    target.textContent = 'No docs';
                 }
             }
         } else {
-            throw new Error('Indexer status not available');
+            const target = document.getElementById(`lastUpdate-${idx.name}`);
+            if (target) target.textContent = 'Error';
         }
     } catch (e) {
-        // Fallback to regular document search for indexer-based indexes
-        console.warn('Indexer status failed for', idx.name, 'falling back to document search');
-        // Fall through to regular search method below
+        console.warn('Function App query failed for', idx.name, e);
+        const target = document.getElementById(`lastUpdate-${idx.name}`);
+        if (target) target.textContent = 'Error';
     }
-} else {
+}
     // Regular document search for non-indexer indexes
     try {
         const latestResp = await fetch(`/api/documents-search/${idx.name}`, {
