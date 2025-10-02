@@ -3160,6 +3160,7 @@ if (idx.name === 'ustaxpublic' || idx.name === 'audit-tax-documents') {
             console.warn('Function App fallback failed for', idx.name, fallbackError);
             const target = document.getElementById(`lastUpdate-${idx.name}`);
             if (target) target.textContent = 'Error';
+        }
     }
 }
                 } catch (e) {
@@ -3167,7 +3168,6 @@ if (idx.name === 'ustaxpublic' || idx.name === 'audit-tax-documents') {
                 }
             } // Close for loop
         } // Close loadAllIndexStatistics function
-    } // Missing brace 1
 
         // Legacy single-index stats (kept for backward compatibility but no longer used)
         async function loadIndexStatistics() {
