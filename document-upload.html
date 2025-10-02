@@ -3046,122 +3046,64 @@ const countResp = await fetch(`/api/documents-search/${idx.name}`, {
                     const vecEl = document.getElementById(`vectorized-${idx.name}`);
                     if (vecEl) vecEl.textContent = Math.floor(totalDocs * 0.8).toLocaleString();
 
-// 3) Find last update - use Function App for all indexes to avoid CORS issues
-if (idx.name === 'ustaxpublic' || idx.name === 'audit-tax-documents') {
-    // For tax/audit indexes, use Function App to get latest document times
-    try {
-        const fbLatest = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-functions-key': API_CONFIG.functionKey
-            },
-            body: JSON.stringify({ 
-                search: '*', 
-                top: 1, 
-                indexName: idx.name,
-                orderby: 'metadata_storage_last_modified desc',
-                select: 'metadata_storage_last_modified'
-            })
-        });
+// 3) Find last update - use Function App consistently for ALL indexes to avoid CORS issues
+try {
+    const fbLatest = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'x-functions-key': API_CONFIG.functionKey
+        },
+        body: JSON.stringify({ 
+            search: '*', 
+            top: 1, 
+            indexName: idx.name,
+            orderby: 'metadata_storage_last_modified desc',
+            select: 'metadata_storage_last_modified,uploadDate,createdDate,modifiedDate,lastModified'
+        })
+    });
+    
+    if (fbLatest.ok) {
+        const latest = await fbLatest.json();
+        const docs = latest.value || latest.results || [];
+        const target = document.getElementById(`lastUpdate-${idx.name}`);
         
-        if (fbLatest.ok) {
-            const latest = await fbLatest.json();
-            const docs = latest.value || latest.results || [];
-            const target = document.getElementById(`lastUpdate-${idx.name}`);
-            
-            if (target) {
-                if (docs.length > 0 && docs[0].metadata_storage_last_modified) {
-                    const docDate = new Date(docs[0].metadata_storage_last_modified);
+        if (target) {
+            if (docs.length > 0) {
+                // Find the most recent date from all available date fields
+                let mostRecentDate = null;
+                const dateFields = ['metadata_storage_last_modified', 'uploadDate', 'createdDate', 'modifiedDate', 'lastModified'];
+                
+                docs.forEach(doc => {
+                    dateFields.forEach(field => {
+                        if (doc[field]) {
+                            const date = new Date(doc[field]);
+                            if (!mostRecentDate || date > mostRecentDate) {
+                                mostRecentDate = date;
+                            }
+                        }
+                    });
+                });
+                
+                if (mostRecentDate) {
                     const opts = { timeZone: 'America/New_York', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true };
-                    target.textContent = new Intl.DateTimeFormat('en-US', opts).format(docDate);
+                    target.textContent = new Intl.DateTimeFormat('en-US', opts).format(mostRecentDate);
                 } else {
-                    target.textContent = 'No docs';
+                    target.textContent = 'No date info';
                 }
+            } else {
+                target.textContent = 'No docs';
             }
-        } else {
-            const target = document.getElementById(`lastUpdate-${idx.name}`);
-            if (target) target.textContent = 'Error';
         }
-    } catch (e) {
-        console.warn('Function App query failed for', idx.name, e);
+    } else {
+        console.warn('Function App search failed for', idx.name, 'Status:', fbLatest.status);
         const target = document.getElementById(`lastUpdate-${idx.name}`);
         if (target) target.textContent = 'Error';
     }
-} else {
-    // Regular document search for non-indexer indexes
-    try {
-        const latestResp = await fetch(`/api/documents-search/${idx.name}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ search: '*', top: 20 })
-        });
-        if (latestResp.ok) {
-            const latest = await latestResp.json();
-            const docs = latest.value || latest.results || [];
-            let mostRecent = null;
-            docs.forEach(d => {
-                [d.uploadDate, d.createdDate, d.modifiedDate, d.lastModified, d.metadata_storage_last_modified]
-                    .filter(Boolean)
-                    .forEach(ds => {
-                        const dt = new Date(ds);
-                        if (!mostRecent || dt > mostRecent) mostRecent = dt;
-                    });
-            });
-            const target = document.getElementById(`lastUpdate-${idx.name}`);
-            if (target) {
-                if (mostRecent) {
-                    const opts = { timeZone: 'America/New_York', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true };
-                    target.textContent = new Intl.DateTimeFormat('en-US', opts).format(mostRecent);
-                } else {
-                    target.textContent = '--';
-                }
-            }
-        } else {
-            throw new Error(`SWA latest ${latestResp.status}`);
-        }
-    } catch (e) {
-        // Fallback to Function App without orderby/select
-        try {
-            const fbLatest = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-functions-key': API_CONFIG.functionKey
-                },
-                body: JSON.stringify({ search: '*', top: 20, indexName: idx.name })
-            });
-            if (fbLatest.ok) {
-                const latest = await fbLatest.json();
-                const docs = latest.value || latest.results || [];
-                let mostRecent = null;
-                docs.forEach(d => {
-                    [d.uploadDate, d.createdDate, d.modifiedDate, d.lastModified, d.metadata_storage_last_modified]
-                        .filter(Boolean)
-                        .forEach(ds => {
-                            const dt = new Date(ds);
-                            if (!mostRecent || dt > mostRecent) mostRecent = dt;
-                        });
-                });
-                const target = document.getElementById(`lastUpdate-${idx.name}`);
-                if (target) {
-                    if (mostRecent) {
-                        const opts = { timeZone: 'America/New_York', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true };
-                        target.textContent = new Intl.DateTimeFormat('en-US', opts).format(mostRecent);
-                    } else {
-                        target.textContent = '--';
-                    }
-                }
-            } else {
-                const target = document.getElementById(`lastUpdate-${idx.name}`);
-                if (target) target.textContent = 'Error';
-            }
-        } catch (fallbackError) {
-            console.warn('Function App fallback failed for', idx.name, fallbackError);
-            const target = document.getElementById(`lastUpdate-${idx.name}`);
-            if (target) target.textContent = 'Error';
-        }
-    }
+} catch (e) {
+    console.warn('Function App query failed for', idx.name, e);
+    const target = document.getElementById(`lastUpdate-${idx.name}`);
+    if (target) target.textContent = 'Error';
 }
                 } catch (e) {
                     console.warn('Failed index stats for', idx.name, e);

@@ -2124,9 +2124,103 @@
         
         <!-- Export Tab -->
         <div id="export-tab" class="tab-content">
-            <div class="loading">
-                <div class="spinner"></div>
-                Loading export options...
+            <div class="page-header">
+                <h1 class="page-title">Data Export</h1>
+                <p class="page-description">Export conversation data, user analytics, and reports in various formats</p>
+            </div>
+            
+            <!-- Conversation Data Export -->
+            <div class="admin-card full-width" style="margin-bottom: 24px;">
+                <h2><i class="fas fa-comments"></i> Conversation Data Export</h2>
+                <p style="color: var(--gray-600); margin-bottom: 20px;">Export conversation logs with filters for specific users or date ranges</p>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 16px; align-items: end; margin-bottom: 20px;">
+                    <div>
+                        <label class="form-label" for="exportUserEmail">User Email (optional)</label>
+                        <input type="email" id="exportUserEmail" class="form-input" placeholder="All users if empty">
+                    </div>
+                    <div>
+                        <label class="form-label" for="exportDateRange">Date Range</label>
+                        <select id="exportDateRange" class="form-select">
+                            <option value="day">Last 24 Hours</option>
+                            <option value="week" selected>Last 7 Days</option>
+                            <option value="month">Last 30 Days</option>
+                            <option value="all">All Time</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label" for="exportFormat">Format</label>
+                        <select id="exportFormat" class="form-select">
+                            <option value="xlsx">Excel (.xlsx)</option>
+                            <option value="pdf">PDF Report</option>
+                            <option value="json">JSON Data</option>
+                            <option value="csv">CSV File</option>
+                        </select>
+                    </div>
+                    <div>
+                        <button class="btn btn-primary" onclick="exportConversations()">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+                    <button class="btn btn-secondary" onclick="exportAllConversations()">
+                        <i class="fas fa-database"></i> Export All Data
+                    </button>
+                    <button class="btn btn-secondary" onclick="exportUserSummary()">
+                        <i class="fas fa-users"></i> User Summary
+                    </button>
+                    <button class="btn btn-secondary" onclick="exportRAGReport()">
+                        <i class="fas fa-brain"></i> RAG Analysis Report
+                    </button>
+                    <button class="btn btn-secondary" onclick="exportTokenUsage()">
+                        <i class="fas fa-coins"></i> Token Usage Report
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Quick Export Options -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                <div class="admin-card">
+                    <h3><i class="fas fa-chart-bar"></i> Analytics Reports</h3>
+                    <p style="color: var(--gray-600); margin-bottom: 16px;">Pre-built reports with analytics and insights</p>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <button class="btn btn-outline" onclick="exportExecutiveSummary()">
+                            <i class="fas fa-chart-line"></i> Executive Summary Report
+                        </button>
+                        <button class="btn btn-outline" onclick="exportDepartmentAnalysis()">
+                            <i class="fas fa-building"></i> Department Analysis
+                        </button>
+                        <button class="btn btn-outline" onclick="exportUserEngagement()">
+                            <i class="fas fa-user-friends"></i> User Engagement Report
+                        </button>
+                        <button class="btn btn-outline" onclick="exportSystemHealth()">
+                            <i class="fas fa-heartbeat"></i> System Health Report
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="admin-card">
+                    <h3><i class="fas fa-cog"></i> System Data</h3>
+                    <p style="color: var(--gray-600); margin-bottom: 16px;">Export system configuration and logs</p>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <button class="btn btn-outline" onclick="exportVoiceConfig()">
+                            <i class="fas fa-microphone"></i> Voice Configuration
+                        </button>
+                        <button class="btn btn-outline" onclick="exportIndexStats()">
+                            <i class="fas fa-search"></i> Search Index Statistics
+                        </button>
+                        <button class="btn btn-outline" onclick="exportAPILogs()">
+                            <i class="fas fa-code"></i> API Usage Logs
+                        </button>
+                        <button class="btn btn-outline" onclick="exportBackup()">
+                            <i class="fas fa-shield-alt"></i> Full System Backup
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -2705,6 +2799,8 @@
                 const currentIndex = (selEl && selEl.value) ? selEl.value : INDEX_CONFIG.indexName;
                 INDEX_CONFIG.indexName = currentIndex; // keep in sync
 
+                console.log('Refreshing stats for index:', currentIndex);
+                
                 // Use Function App endpoint to avoid CORS issues
                 let totalDocs = 0;
                 let lastUpdateTime = null;
@@ -2718,7 +2814,7 @@
                         },
                         body: JSON.stringify({
                             search: '*',
-                            top: 20,
+                            top: 1,  // Only need 1 for last update, count for total
                             count: true,
                             indexName: currentIndex,
                             orderby: 'metadata_storage_last_modified desc',
@@ -2728,12 +2824,14 @@
                     
                     if (response.ok) {
                         const data = await response.json();
-                        totalDocs = data['@odata.count'] || (data.value ? data.value.length : 0) || 0;
+                        totalDocs = data['@odata.count'] || 0;
                         
                         const documents = data.value || [];
+                        console.log('Received', documents.length, 'documents for last update check');
                         
-                        // Find the most recent date from all document date fields
-                        documents.forEach(doc => {
+                        // Find the most recent date from the latest document's date fields
+                        if (documents.length > 0) {
+                            const doc = documents[0]; // Already sorted by latest
                             const dates = [
                                 doc.uploadDate, 
                                 doc.createdDate, 
@@ -2748,12 +2846,17 @@
                                     lastUpdateTime = date;
                                 }
                             });
-                        });
+                            
+                            console.log('Found last update time:', lastUpdateTime);
+                        }
                     } else {
-                        console.error('Function App search failed:', response.status, await response.text());
+                        const errorText = await response.text();
+                        console.error('Function App search failed:', response.status, errorText);
+                        throw new Error(`HTTP ${response.status}: ${errorText}`);
                     }
                 } catch (e) {
                     console.error('Function App search error:', e);
+                    throw e;
                 }
                 
                 document.getElementById('totalDocs').textContent = totalDocs.toLocaleString();
