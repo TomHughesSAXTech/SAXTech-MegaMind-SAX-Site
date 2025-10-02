@@ -2083,11 +2083,9 @@
                 metaItems.push(`<span class="meta-item"><span style="font-size: 10px;">📦</span> ${fileSize}</span>`);
             }
             
-            // Add indexing status
+            // Add indexing status (only show if indexed, hide Processing status)
             if (doc.indexed !== false) {
                 metaItems.push(`<span class="meta-item indexed"><span style="font-size: 10px;">✓</span> Indexed</span>`);
-            } else {
-                metaItems.push(`<span class="meta-item processing"><span style="font-size: 10px;">⟳</span> Processing</span>`);
             }
             
             // Add vectorization status
@@ -2127,7 +2125,7 @@
             if (fileSize) {
                 formattedMeta.push(`<span class="meta-item"><span style="font-size: 10px;">💾</span> Size: ${fileSize}</span>`);
             }
-            if (doc.status) {
+            if (doc.status && doc.status !== 'Processing' && doc.status !== 'processing') {
                 const statusIcon = doc.status === 'indexed' || doc.status === 'completed' ? '✅' : '⏳';
                 formattedMeta.push(`<span class="meta-item"><span style="font-size: 10px;">${statusIcon}</span> ${doc.status}</span>`);
             }
