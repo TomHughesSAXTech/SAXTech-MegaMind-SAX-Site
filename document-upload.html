@@ -750,31 +750,15 @@
                 </div>
             </div>
             <div class="header-meta" style="display: flex; gap: 24px; align-items: center; width: 100%; justify-content: flex-end;">
-                <!-- Multi-index stats container -->
-                <div id="indexesHeaderStats" style="display: grid; grid-auto-flow: column; gap: 12px; align-items: stretch; overflow-x: auto; padding: 6px; background: rgba(255,255,255,0.06); border-radius: 10px;">
-                    <!-- Cards will be injected by JS. We keep the original single-index card as first fallback -->
-                    <div class="index-card" data-index="sop-documents" style="min-width: 260px; display: flex; gap: 16px; padding: 10px 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px;">
-                        <div style="display:flex; flex-direction:column; gap:4px;">
-                            <div style="font-size: 11px; color:#cbd5e1; text-transform: uppercase; letter-spacing:.4px;">sop-documents</div>
-                            <div style="display:flex; gap:12px;">
-                                <div style="text-align:center;">
-                                    <div style="font-size: 18px; font-weight: bold; color: #FFD700;" id="totalDocCount">0</div>
-                                    <div style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Documents</div>
-                                </div>
-                                <div style="text-align: center; border-left: 1px solid rgba(255,255,255,0.2); padding-left: 12px;">
-                                    <div style="font-size: 18px; font-weight: bold; color: #FFD700;" id="totalIndexSize">0 MB</div>
-                                    <div style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Index Size</div>
-                                </div>
-                                <div style="text-align: center; border-left: 1px solid rgba(255,255,255,0.2); padding-left: 12px;">
-                                    <div style="font-size: 18px; font-weight: bold; color: #FFD700;" id="lastIndexUpdate">--</div>
-                                    <div style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Last Update</div>
-                                </div>
-                                <div style="text-align: center; border-left: 1px solid rgba(255,255,255,0.2); padding-left: 12px;">
-                                    <div style="font-size: 18px; font-weight: bold; color: #FFD700;" id="vectorizedCount">0</div>
-                                    <div style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Vectorized</div>
-                                </div>
-                            </div>
-                        </div>
+                <!-- Simple blob storage stats -->
+                <div style="display: flex; gap: 16px; align-items: center; padding: 12px 16px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 18px; font-weight: bold; color: #FFD700;" id="blobDocCount">0</div>
+                        <div style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Blob Files</div>
+                    </div>
+                    <div style="text-align: center; border-left: 1px solid rgba(255,255,255,0.2); padding-left: 16px;">
+                        <div style="font-size: 18px; font-weight: bold; color: #FFD700;" id="blobLastUpdate">--</div>
+                        <div style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Last Upload</div>
                     </div>
                 </div>
             </div>
@@ -1136,15 +1120,15 @@
             });
         }
         
-        // Load index statistics on page load (all indexes)
-        loadAllIndexStatistics();
+        // Load blob storage statistics on page load
+        loadBlobStorageStats();
         
         // Load departments from localStorage (managed in admin.html)
         loadDepartmentsFromLocalStorage();
         
-        // Auto-load all documents on page load
+        // Auto-load blob documents on page load
         setTimeout(() => {
-            loadAllDocuments();
+            loadBlobDocuments();
         }, 500);
         
         // Upload Modal Functions
@@ -1561,34 +1545,34 @@
             filterDocumentsByDepartment(selectedDept);
         }
         
-        function loadAllDocuments() {
+        function loadBlobDocuments() {
             // Show loading state
             emptyState.style.display = 'none';
             explorerContainer.style.display = 'block';
             documentCount.textContent = '0 documents';
             lastUpdated.textContent = 'Last updated: --';
-            folderGrid.innerHTML = '<div style="text-align: center; padding: 40px; color: #64748b;">Loading documents...</div>';
+            folderGrid.innerHTML = '<div style="text-align: center; padding: 40px; color: #64748b;">Loading documents from blob storage...</div>';
 
-            // Fetch all documents
-            fetchAllDocuments()
+            // Fetch documents from blob storage
+            fetchBlobDocuments()
                 .then(data => {
-                    if (!data || !data.departments || Object.keys(data.departments).length === 0) {
+                    if (!data || !data.documents || data.documents.length === 0) {
                         showEmptyRepository();
                         return;
                     }
 
                     // Update stats
-                    documentCount.textContent = `${data.stats.totalDocuments || 0} documents across ${Object.keys(data.departments).length} departments`;
-                    lastUpdated.textContent = `Last updated: ${data.stats.lastUpdated || '--'}`;
+                    documentCount.textContent = `${data.documents.length} documents in blob storage`;
+                    lastUpdated.textContent = `Last updated: ${data.lastModified || '--'}`;
                     
                     // Store all documents for filtering
-                    window.allDocumentsData = data;
+                    window.allBlobDocuments = data.documents;
                     
-                    // Build department structure
-                    buildDepartmentStructure(data.departments);
+                    // Build simple document list
+                    buildBlobDocumentList(data.documents);
                 })
                 .catch(error => {
-                    console.error('Error loading documents:', error);
+                    console.error('Error loading blob documents:', error);
                     showEmptyRepository();
                 });
         }
@@ -1627,83 +1611,148 @@
             }
         }
 
-        async function fetchAllDocuments() {
+        async function fetchBlobDocuments() {
             const startTime = performance.now();
-            console.log('🔍 Starting document fetch...');
-            
-            // Check cache first (5-minute cache)
-            const cacheKey = 'documents_cache';
-            const cacheTimestampKey = 'documents_cache_timestamp';
-            const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+            console.log('🔍 Starting blob storage document fetch...');
             
             try {
-                const cachedData = localStorage.getItem(cacheKey);
-                const cachedTimestamp = localStorage.getItem(cacheTimestampKey);
-                
-                if (cachedData && cachedTimestamp) {
-                    const now = Date.now();
-                    const cacheAge = now - parseInt(cachedTimestamp);
-                    
-                    if (cacheAge < CACHE_DURATION) {
-                        console.log(`💾 Using cached data (${(cacheAge / 1000).toFixed(1)}s old)`);
-                        const cachedResults = JSON.parse(cachedData);
-                        const endTime = performance.now();
-                        console.log(`🏁 Cached document processing completed in ${(endTime - startTime).toFixed(2)}ms (${cachedResults.stats.totalDocuments} documents)`);
-                        return cachedResults;
-                    } else {
-                        console.log(`🚮 Cache expired (${(cacheAge / 1000).toFixed(1)}s old), fetching fresh data`);
-                    }
-                }
-            } catch (e) {
-                console.warn('Cache read error:', e);
-            }
-            
-            try {
-                let searchResults;
-                
-                // Use Azure Function only (CORS issues prevent direct Azure Search)
+                // Call Azure Function to list blob storage documents (should be fast)
                 const fetchStartTime = performance.now();
-                console.log('🌐 Making API call to Azure Function (investigating 18s delay)...');
+                console.log('☁️ Getting documents from blob storage...');
                 
-                const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Azure Function timeout after 30 seconds')), 30000)
-                );
-                
-                const fetchPromise = fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
+                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.generateSAS}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'x-functions-key': API_CONFIG.functionKey
                     },
                     body: JSON.stringify({
-                        query: '*',
-                        top: 1000,
-                        enableVector: false,
-                        enableAI: false,
-                        skipAnswer: true,
-                        documentsOnly: true
+                        containerName: API_CONFIG.blobStorage.containerName,
+                        listBlobs: true  // Flag to list all blobs instead of generating SAS
                     })
                 });
                 
-                const response = await Promise.race([fetchPromise, timeoutPromise]);
-
                 const fetchEndTime = performance.now();
-                console.log(`🚀 Azure Function call completed in ${(fetchEndTime - fetchStartTime).toFixed(2)}ms`);
+                console.log(`⚡ Blob listing completed in ${(fetchEndTime - fetchStartTime).toFixed(2)}ms`);
 
                 if (!response.ok) {
-                    throw new Error(`Search HTTP ${response.status}: ${response.statusText}`);
+                    throw new Error(`Blob listing HTTP ${response.status}: ${response.statusText}`);
                 }
 
-                const parseStartTime = performance.now();
-                const fullResponse = await response.json();
-                const parseEndTime = performance.now();
-                console.log(`📋 JSON parsing completed in ${(parseEndTime - parseStartTime).toFixed(2)}ms`);
+                const blobData = await response.json();
+                console.log(`📊 Received ${blobData.blobs?.length || 0} blobs from storage`);
                 
-                searchResults = {
-                    value: fullResponse.value || []
+                // Transform blob data into document format
+                const documents = (blobData.blobs || []).map(blob => ({
+                    id: blob.name,
+                    title: blob.name.split('/').pop(), // Get filename
+                    fileName: blob.name.split('/').pop(),
+                    size: blob.properties?.contentLength || 0,
+                    lastModified: blob.properties?.lastModified,
+                    contentType: blob.properties?.contentType,
+                    department: blob.name.split('/')[0], // First folder as department
+                    url: `${API_CONFIG.blobStorage.baseUrl}/${API_CONFIG.blobStorage.containerName}/${blob.name}`
+                }));
+                
+                const endTime = performance.now();
+                console.log(`🏁 Blob document processing completed in ${(endTime - startTime).toFixed(2)}ms (${documents.length} documents)`);
+                
+                return {
+                    documents: documents,
+                    lastModified: documents.length > 0 ? 
+                        formatDateToEST(Math.max(...documents.map(d => new Date(d.lastModified).getTime()))) : '--'
                 };
-                console.log(`📊 Received ${searchResults.value.length} documents from Azure Function (18s mystery)`);
                 
+            } catch (error) {
+                console.error('Error fetching blob documents:', error);
+                const endTime = performance.now();
+                console.log(`❌ Blob fetch failed in ${(endTime - startTime).toFixed(2)}ms`);
+                throw error;
+            }
+        }
+        
+        function buildBlobDocumentList(documents) {
+            folderGrid.innerHTML = '';
+            
+            if (!documents || documents.length === 0) {
+                folderGrid.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #64748b;">
+                        <div style="font-size: 24px; margin-bottom: 12px;">📄</div>
+                        <div style="font-weight: 500; margin-bottom: 8px;">No Documents Found</div>
+                        <div style="font-size: 13px;">No documents have been uploaded to blob storage yet.</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Create simple document list
+            const documentList = document.createElement('div');
+            documentList.style.cssText = 'display: grid; gap: 12px; padding: 16px;';
+            
+            documents.forEach(doc => {
+                const docItem = createSimpleBlobDocumentItem(doc);
+                documentList.appendChild(docItem);
+            });
+            
+            folderGrid.appendChild(documentList);
+        }
+        
+        function createSimpleBlobDocumentItem(doc) {
+            const docDiv = document.createElement('div');
+            docDiv.style.cssText = 'border: 1px solid #e5e7eb; border-radius: 8px; background: white; padding: 16px; transition: all 0.2s; cursor: pointer;';
+            docDiv.onmouseover = () => docDiv.style.background = '#f9fafb';
+            docDiv.onmouseout = () => docDiv.style.background = 'white';
+            
+            const fileExt = doc.fileName ? doc.fileName.split('.').pop().toLowerCase() : '';
+            const typeInfo = getFileTypeInfo(fileExt);
+            const enhancedIcon = window.getFileTypeIcon ? window.getFileTypeIcon(doc.fileName) : typeInfo;
+            
+            docDiv.innerHTML = `
+                <div style="display: flex; gap: 16px; align-items: center;">
+                    <div style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: ${enhancedIcon.gradient || typeInfo.gradient}; flex-shrink: 0;">
+                        ${enhancedIcon.svg || (typeof typeInfo.icon === 'string' && typeInfo.icon.includes('<svg') ? typeInfo.icon : `<span style="color: white; font-size: 24px;">${typeInfo.icon}</span>`)}
+                    </div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-weight: 600; color: #1e293b; margin-bottom: 4px;">${doc.title}</div>
+                        <div style="font-size: 12px; color: #64748b; margin-bottom: 8px;">
+                            Size: ${formatFileSize(doc.size)} • Modified: ${formatDateToEST(doc.lastModified)}
+                        </div>
+                        <div style="font-size: 11px; color: #94a3b8;">
+                            📦 ${doc.department || 'No Department'} • 🔗 Blob Storage
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button onclick="downloadBlobDocument('${doc.url}', '${doc.fileName}')" style="padding: 6px 12px; background: #3b82f6; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">Download</button>
+                    </div>
+                </div>
+            `;
+            
+            return docDiv;
+        }
+        
+        function downloadBlobDocument(url, filename) {
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        
+        async function loadBlobStorageStats() {
+            try {
+                const data = await fetchBlobDocuments();
+                if (data && data.documents) {
+                    document.getElementById('blobDocCount').textContent = data.documents.length;
+                    document.getElementById('blobLastUpdate').textContent = data.lastModified.split(' ')[0]; // Just date
+                }
+            } catch (error) {
+                console.error('Error loading blob stats:', error);
+                document.getElementById('blobDocCount').textContent = '0';
+                document.getElementById('blobLastUpdate').textContent = 'Error';
+            }
+        }
+        
                 
                 // Transform search results into department > folder structure
                 const departments = {};
