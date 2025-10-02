@@ -1632,25 +1632,63 @@
             console.log('🔍 Starting document fetch...');
             
             try {
-                // Query all documents using Azure Function
-                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-functions-key': API_CONFIG.functionKey
-                    },
-                    body: JSON.stringify({
-                        query: '*',  // Changed from 'search' to 'query'
-                        top: 1000,
-                        enableVector: false  // Disable vector search
-                    })
-                });
+                let searchResults;
+                
+                // Try direct Azure Search first (faster)
+                try {
+                    console.log('🚀 Trying direct Azure Search...');
+                    const directStartTime = performance.now();
+                    
+                    const directResponse = await fetch(`${API_CONFIG.azureSearch.endpoint}/indexes/${API_CONFIG.azureSearch.indexName}/docs?api-version=${API_CONFIG.azureSearch.apiVersion}&search=*&$top=1000`, {
+                        method: 'GET',
+                        headers: {
+                            'api-key': API_CONFIG.azureSearch.apiKey,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    const directEndTime = performance.now();
+                    console.log(`⚡ Direct Azure Search completed in ${(directEndTime - directStartTime).toFixed(2)}ms`);
+                    
+                    if (directResponse.ok) {
+                        searchResults = await directResponse.json();
+                        console.log(`📋 Direct search returned ${searchResults.value?.length || 0} documents`);
+                    } else {
+                        throw new Error('Direct search failed, falling back to Azure Function');
+                    }
+                } catch (directError) {
+                    console.warn('⚠️ Direct Azure Search failed, falling back to Azure Function:', directError.message);
+                    
+                    // Fallback to Azure Function
+                    const fetchStartTime = performance.now();
+                    console.log('🌐 Making API call to Azure Function...');
+                    
+                    const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-functions-key': API_CONFIG.functionKey
+                        },
+                        body: JSON.stringify({
+                            query: '*',  // Changed from 'search' to 'query'
+                            top: 1000,
+                            enableVector: false  // Disable vector search
+                        })
+                    });
 
-                if (!response.ok) {
-                    throw new Error(`Search HTTP ${response.status}: ${response.statusText}`);
+                    const fetchEndTime = performance.now();
+                    console.log(`🚀 API call completed in ${(fetchEndTime - fetchStartTime).toFixed(2)}ms`);
+
+                    if (!response.ok) {
+                        throw new Error(`Search HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    const parseStartTime = performance.now();
+                    searchResults = await response.json();
+                    const parseEndTime = performance.now();
+                    console.log(`📋 JSON parsing completed in ${(parseEndTime - parseStartTime).toFixed(2)}ms`);
+                    console.log(`📊 Received ${searchResults.value?.length || 0} documents from Azure Search`);
                 }
-
-                const searchResults = await response.json();
                 
                 // Transform search results into department > folder structure
                 const departments = {};
