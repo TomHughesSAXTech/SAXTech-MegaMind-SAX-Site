@@ -2544,13 +2544,13 @@
 const searchResponse = await fetch(`/api/documents-search/sop-documents`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ search: '*', query: '*', top: 0, indexName: currentIndex })
+                        body: JSON.stringify({ search: '*', top: 0, indexName: currentIndex })
                     });
-                    if (statsResponse.ok) {
-                        const statsData = await statsResponse.json();
+                    if (searchResponse.ok) {
+                        const statsData = await searchResponse.json();
                         totalDocs = statsData['@odata.count'] || (statsData.value ? statsData.value.length : 0) || 0;
                     } else {
-                        throw new Error(`SWA API returned ${statsResponse.status}`);
+                        throw new Error(`SWA API returned ${searchResponse.status}`);
                     }
                 } catch (e) {
                     // Fallback to Function App
@@ -2585,7 +2585,6 @@ const searchResponse = await fetch(`/api/documents-search/sop-documents`, {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             search: '*',
-                            query: '*',
                             top: 10,
 orderby: 'modifiedDate desc, metadata_storage_last_modified desc, uploadDate desc, createdDate desc',
 select: 'uploadDate,createdDate,modifiedDate,lastModified,metadata_storage_last_modified',
@@ -2608,7 +2607,6 @@ select: 'uploadDate,createdDate,modifiedDate,lastModified,metadata_storage_last_
                             },
                             body: JSON.stringify({
                                 search: '*',
-                                query: '*',
                                 top: 10,
 orderby: 'modifiedDate desc, metadata_storage_last_modified desc, uploadDate desc, createdDate desc',
 select: 'uploadDate,createdDate,modifiedDate,lastModified,metadata_storage_last_modified',
