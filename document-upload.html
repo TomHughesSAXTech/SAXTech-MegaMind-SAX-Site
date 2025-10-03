@@ -1620,17 +1620,37 @@
                 const fetchStartTime = performance.now();
                 console.log('☁️ Getting documents from blob storage...');
                 
-                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.generateSAS}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-functions-key': API_CONFIG.functionKey
-                    },
-                    body: JSON.stringify({
-                        containerName: API_CONFIG.blobStorage.containerName,
-                        listBlobs: true  // Flag to list all blobs instead of generating SAS
-                    })
-                });
+                // Try the documents/list endpoint first, fallback to generateSAS
+                let response;
+                try {
+                    response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.listDocuments}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-functions-key': API_CONFIG.functionKey
+                        },
+                        body: JSON.stringify({
+                            containerName: API_CONFIG.blobStorage.containerName
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`List documents failed: ${response.status}`);
+                    }
+                } catch (error) {
+                    console.log('⚠️ documents/list failed, trying generateSAS with listBlobs flag...');
+                    response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.generateSAS}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-functions-key': API_CONFIG.functionKey
+                        },
+                        body: JSON.stringify({
+                            containerName: API_CONFIG.blobStorage.containerName,
+                            operation: 'listBlobs'  // Try different parameter name
+                        })
+                    });
+                }
                 
                 const fetchEndTime = performance.now();
                 console.log(`⚡ Blob listing completed in ${(fetchEndTime - fetchStartTime).toFixed(2)}ms`);
@@ -1640,19 +1660,36 @@
                 }
 
                 const blobData = await response.json();
-                console.log(`📊 Received ${blobData.blobs?.length || 0} blobs from storage`);
+                console.log('Raw blob response:', blobData);
+                
+                // Handle different response formats
+                let blobList = [];
+                if (blobData.blobs) {
+                    blobList = blobData.blobs;  // GenerateSAS response format
+                } else if (blobData.documents) {
+                    blobList = blobData.documents;  // documents/list response format
+                } else if (Array.isArray(blobData)) {
+                    blobList = blobData;  // Direct array response
+                } else if (blobData.value) {
+                    blobList = blobData.value;  // Azure API response format
+                }
+                
+                console.log(`📊 Received ${blobList.length} blobs from storage`);
                 
                 // Transform blob data into document format
-                const documents = (blobData.blobs || []).map(blob => ({
-                    id: blob.name,
-                    title: blob.name.split('/').pop(), // Get filename
-                    fileName: blob.name.split('/').pop(),
-                    size: blob.properties?.contentLength || 0,
-                    lastModified: blob.properties?.lastModified,
-                    contentType: blob.properties?.contentType,
-                    department: blob.name.split('/')[0], // First folder as department
-                    url: `${API_CONFIG.blobStorage.baseUrl}/${API_CONFIG.blobStorage.containerName}/${blob.name}`
-                }));
+                const documents = blobList.map(blob => {
+                    const blobName = blob.name || blob.fileName || blob.id;
+                    return {
+                        id: blobName,
+                        title: blobName.split('/').pop(), // Get filename
+                        fileName: blobName.split('/').pop(),
+                        size: blob.properties?.contentLength || blob.size || 0,
+                        lastModified: blob.properties?.lastModified || blob.lastModified || blob.modifiedDate,
+                        contentType: blob.properties?.contentType || blob.contentType,
+                        department: blobName.split('/')[0], // First folder as department
+                        url: `${API_CONFIG.blobStorage.baseUrl}/${API_CONFIG.blobStorage.containerName}/${blobName}`
+                    };
+                });
                 
                 const endTime = performance.now();
                 console.log(`🏁 Blob document processing completed in ${(endTime - startTime).toFixed(2)}ms (${documents.length} documents)`);
