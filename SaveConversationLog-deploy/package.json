@@ -1,0 +1,13 @@
+{
+  "name": "saveconversationlog",
+  "version": "1.0.0",
+  "description": "Azure Function for saving and querying conversation logs",
+  "main": "SaveConversationLog/index.js",
+  "scripts": {
+    "start": "func start"
+  },
+  "dependencies": {
+    "@azure/cosmos": "^4.0.0"
+  },
+  "devDependencies": {}
+}

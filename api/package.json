@@ -1,0 +1,14 @@
+{
+  "name": "megamind-sax-api",
+  "version": "1.0.0",
+  "description": "Azure Functions for MegaMind SAX",
+  "scripts": {
+    "start": "func start",
+    "test": "echo \"No tests yet\""
+  },
+  "dependencies": {
+    "@azure/storage-blob": "^12.28.0",
+    "axios": "^1.12.2",
+    "node-cache": "^5.1.2"
+  }
+}

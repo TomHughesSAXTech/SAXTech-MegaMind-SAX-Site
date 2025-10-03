@@ -1605,7 +1605,7 @@
                 const fetchStartTime = performance.now();
                 console.log('☁️ Getting documents from blob storage...');
                 
-                // Use documents-search with minimal processing to get blob metadata
+                // Try minimal search approach for faster response
                 console.log('🔍 Using documents-search endpoint for blob metadata...');
                 const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
                     method: 'POST',
@@ -1614,13 +1614,14 @@
                         'x-functions-key': API_CONFIG.functionKey
                     },
                     body: JSON.stringify({
-                        query: '*',  // Get all documents
-                        top: 1000,   // Max results
+                        query: '*',
+                        top: 50,
                         enableVector: false,
                         enableAI: false,
                         skipAnswer: true,
                         documentsOnly: true,
-                        includeBlobMetadata: true  // Try to get blob info
+                        count: true,
+                        includeBlobMetadata: true
                     })
                 });
                 
@@ -1651,12 +1652,15 @@
                     }
                 }
                 
-                console.log(`📊 Received ${documentList.length} documents from search index (expected: ${blobData.totalCount || 'unknown'})`);
+                console.log(`📊 Received ${documentList.length} documents from search index (expected: ${blobData.totalCount || blobData['@odata.count'] || 'unknown'})`);
                 
                 // Log first document structure if available
                 if (documentList.length > 0) {
                     console.log('Sample document structure:', Object.keys(documentList[0]));
                     console.log('Sample document:', documentList[0]);
+                } else {
+                    console.warn('⚠️ No documents in documentList! Available response properties:', Object.keys(blobData));
+                    console.log('Full response data:', blobData);
                 }
                 
                 // Transform search documents into blob document format (chunk-level)
@@ -1697,8 +1701,30 @@
                     
                     const displayName = fileName.split('/').pop();
                     
-                    const size = doc.metadata_storage_size || doc.fileSize || doc.size || 0;
-                    const lastMod = doc.metadata_storage_last_modified || doc.lastModified || doc.modifiedDate || doc.uploadDate || doc.createdDate;
+                    // Extract metadata more carefully
+                    let size = 0;
+                    try {
+                        size = parseInt(doc.metadata_storage_size) || parseInt(doc.fileSize) || parseInt(doc.size) || 0;
+                    } catch (e) {
+                        size = 0;
+                    }
+                    
+                    // Extract last modified date more carefully  
+                    let lastMod = null;
+                    const dateFields = ['metadata_storage_last_modified', 'lastModified', 'modifiedDate', 'uploadDate', 'createdDate'];
+                    for (const field of dateFields) {
+                        if (doc[field]) {
+                            try {
+                                const testDate = new Date(doc[field]);
+                                if (testDate && isFinite(testDate.getTime()) && testDate.getTime() > 0) {
+                                    lastMod = doc[field];
+                                    break;
+                                }
+                            } catch (e) {
+                                console.warn(`Invalid date in ${field}:`, doc[field]);
+                            }
+                        }
+                    }
                     
                     // Use blobUrl directly from search index if available, fallback to constructed URL
                     let docUrl = doc.blobUrl;
