@@ -1120,7 +1120,7 @@
             });
         }
         
-        // Load index statistics on page load (using search index only)
+        // Load blob storage statistics on page load
         loadBlobStorageStats();
         
         // Load departments from localStorage (managed in admin.html)
@@ -1553,28 +1553,28 @@
             lastUpdated.textContent = 'Last updated: --';
             folderGrid.innerHTML = '<div style="text-align: center; padding: 40px; color: #64748b;">Loading documents from blob storage...</div>';
 
-        // Use search index ONLY to build the list (no blob fallback)
-        fetchBlobDocuments()
-            .then(data => {
-                if (!data || !data.documents || data.documents.length === 0) {
-                    showEmptyRepository();
-                    return;
-                }
+            // Fetch documents from blob storage
+            fetchBlobDocuments()
+                .then(data => {
+                    if (!data || !data.documents || data.documents.length === 0) {
+                        showEmptyRepository();
+                        return;
+                    }
 
-                // Update stats
-                documentCount.textContent = `${data.documents.length} original documents`;
-                lastUpdated.textContent = `Last updated: ${data.lastModified || '--'}`;
-                
-                // Store all documents for filtering
-                window.allBlobDocuments = data.documents;
-                
-                // Build simple document list
-                buildBlobDocumentList(data.documents);
-            })
-            .catch(error => {
-                console.error('Error loading documents:', error);
-                showEmptyRepository();
-            });
+                    // Update stats
+                    documentCount.textContent = `${data.documents.length} documents in blob storage`;
+                    lastUpdated.textContent = `Last updated: ${data.lastModified || '--'}`;
+                    
+                    // Store all documents for filtering
+                    window.allBlobDocuments = data.documents;
+                    
+                    // Build simple document list
+                    buildBlobDocumentList(data.documents);
+                })
+                .catch(error => {
+                    console.error('Error loading blob documents:', error);
+                    showEmptyRepository();
+                });
         }
         
         function filterDocumentsByDepartment(department) {
@@ -1674,29 +1674,28 @@
                     console.log('Sample document:', documentList[0]);
                 }
                 
-                // Transform search documents into blob document format (chunk-level)
-                const chunkDocs = documentList.map(doc => {
+                // Transform search documents into blob document format
+                const documents = documentList.map(doc => {
+                    // Extract filename from various fields - try more possibilities
                     const fileName = doc.fileName || doc.metadata_storage_name || doc.title || doc.id || 'Unknown Document';
-                    const displayName = fileName.split('/').pop();
+                    const displayName = fileName.split('/').pop(); // Get just the filename
                     
-                    // Get department from doc.department or path
-                    let department = doc.department || 'General';
-                    if (!department && doc.metadata_storage_path) {
+                    // Extract department from path or document metadata
+                    let department = 'General';
+                    if (doc.metadata_storage_path) {
                         const pathParts = doc.metadata_storage_path.split('/');
                         if (pathParts.length > 1) department = pathParts[0];
-                    } else if (!department && fileName.includes('/')) {
+                    } else if (doc.department) {
+                        department = doc.department;
+                    } else if (fileName.includes('/')) {
                         department = fileName.split('/')[0];
                     }
                     
+                    // Extract size with fallbacks
                     const size = doc.metadata_storage_size || doc.fileSize || doc.size || 0;
-                    const lastMod = doc.metadata_storage_last_modified || doc.lastModified || doc.modifiedDate || doc.uploadDate || doc.createdDate;
                     
-                    // Use blobUrl directly from search index if available, fallback to constructed URL
-                    let docUrl = doc.blobUrl;
-                    if (!docUrl) {
-                        const pathFromMeta = doc.metadata_storage_path || `${department}/${displayName}`;
-                        docUrl = `${API_CONFIG.blobStorage.baseUrl}/${API_CONFIG.blobStorage.containerName}/${pathFromMeta}`;
-                    }
+                    // Extract last modified with multiple fallbacks
+                    const lastMod = doc.metadata_storage_last_modified || doc.lastModified || doc.modifiedDate || doc.uploadDate || doc.createdDate;
                     
                     return {
                         id: doc.id || fileName,
@@ -1706,72 +1705,25 @@
                         lastModified: lastMod,
                         contentType: doc.metadata_storage_content_type || doc.contentType || 'application/pdf',
                         department: department,
-                        url: docUrl,  // Use blobUrl from index
+                        // Create blob URL from metadata
+                        url: doc.metadata_storage_path ? 
+                            `${API_CONFIG.blobStorage.baseUrl}/${API_CONFIG.blobStorage.containerName}/${doc.metadata_storage_path}` :
+                            `${API_CONFIG.blobStorage.baseUrl}/${API_CONFIG.blobStorage.containerName}/${fileName}`,
+                        // Add search-specific metadata
                         indexed: true,
-                        searchScore: doc['@search.score']
+                        searchScore: doc['@search.score'],
+                        // Add raw document for debugging
+                        _raw: doc
                     };
                 });
-
-                // Deduplicate chunks back to original files by department + filename
-                const uniqueMap = new Map();
-                chunkDocs.forEach(d => {
-                    const key = `${d.department}/${d.fileName}`;
-                    const existing = uniqueMap.get(key);
-                    if (!existing) {
-                        uniqueMap.set(key, { ...d });
-                    } else {
-                        // Keep the most recent modified time with safe date parsing
-                        const existingTime = existing.lastModified ? (() => {
-                            const t = new Date(existing.lastModified).getTime();
-                            return isFinite(t) ? t : 0;
-                        })() : 0;
-                        const currentTime = d.lastModified ? (() => {
-                            const t = new Date(d.lastModified).getTime();
-                            return isFinite(t) ? t : 0;
-                        })() : 0;
-                        if (currentTime > existingTime) {
-                            existing.lastModified = d.lastModified;
-                            existing.url = d.url;
-                        }
-                        // Prefer non-zero size if any
-                        if (!existing.size && d.size) existing.size = d.size;
-                    }
-                });
-                const documents = Array.from(uniqueMap.values());
-
-                const endTime = performance.now();
-                console.log(`🏁 Blob document processing completed in ${(endTime - startTime).toFixed(2)}ms (${documents.length} documents from ${documentList.length} chunks)`);
                 
-                // Safely compute lastModified string with robust date parsing
-                let lastModStr = '--';
-                const times = documents
-                    .map(d => d.lastModified)
-                    .filter(Boolean)
-                    .map(v => {
-                        try {
-                            const date = new Date(v);
-                            const t = date.getTime();
-                            return Number.isFinite(t) && t > 0 ? t : null;
-                        } catch (e) {
-                            console.warn('Invalid date in document:', v);
-                            return null;
-                        }
-                    })
-                    .filter(Boolean);
-                if (times.length > 0) {
-                    try {
-                        const maxTime = Math.max(...times);
-                        lastModStr = formatDateToEST(new Date(maxTime));
-                    } catch (e) {
-                        console.warn('Error computing max date:', e);
-                        lastModStr = '--';
-                    }
-                }
+                const endTime = performance.now();
+                console.log(`🏁 Blob document processing completed in ${(endTime - startTime).toFixed(2)}ms (${documents.length} documents)`);
                 
                 return {
                     documents: documents,
-                    totalChunks: documentList.length,
-                    lastModified: lastModStr
+                    lastModified: documents.length > 0 ? 
+                        formatDateToEST(Math.max(...documents.map(d => new Date(d.lastModified).getTime()))) : '--'
                 };
                 
             } catch (error) {
@@ -1810,31 +1762,29 @@
         
         function createSimpleBlobDocumentItem(doc) {
             const docDiv = document.createElement('div');
-            docDiv.style.cssText = 'border: 1px solid #e5e7eb; border-radius: 8px; background: white; padding: 16px; transition: all 0.2s;';
+            docDiv.style.cssText = 'border: 1px solid #e5e7eb; border-radius: 8px; background: white; padding: 16px; transition: all 0.2s; cursor: pointer;';
+            docDiv.onmouseover = () => docDiv.style.background = '#f9fafb';
+            docDiv.onmouseout = () => docDiv.style.background = 'white';
             
             const fileExt = doc.fileName ? doc.fileName.split('.').pop().toLowerCase() : '';
             const typeInfo = getFileTypeInfo(fileExt);
             const enhancedIcon = window.getFileTypeIcon ? window.getFileTypeIcon(doc.fileName) : typeInfo;
             
-            const safeSize = (doc.size && Number.isFinite(doc.size)) ? formatFileSize(doc.size) : '--';
-            const safeDate = (doc.lastModified && doc.lastModified !== 'undefined' && doc.lastModified !== 'null') ? formatDateToEST(doc.lastModified) : '--';
-            
             docDiv.innerHTML = `
                 <div style="display: flex; gap: 16px; align-items: center;">
                     <div style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: ${enhancedIcon.gradient || typeInfo.gradient}; flex-shrink: 0;">
-                        ${enhancedIcon.svg || (typeof typeInfo.icon === 'string' && typeInfo.icon.includes('<svg') ? typeInfo.icon : `<span style=\"color: white; font-size: 24px;\">${typeInfo.icon}</span>`)}
+                        ${enhancedIcon.svg || (typeof typeInfo.icon === 'string' && typeInfo.icon.includes('<svg') ? typeInfo.icon : `<span style="color: white; font-size: 24px;">${typeInfo.icon}</span>`)}
                     </div>
                     <div style="flex: 1; min-width: 0;">
                         <div style="font-weight: 600; color: #1e293b; margin-bottom: 4px;">${doc.title}</div>
                         <div style="font-size: 12px; color: #64748b; margin-bottom: 8px;">
-                            Size: ${safeSize} • Modified: ${safeDate}
+                            Size: ${formatFileSize(doc.size)} • Modified: ${formatDateToEST(doc.lastModified)}
                         </div>
                         <div style="font-size: 11px; color: #94a3b8;">
                             📦 ${doc.department || 'No Department'} • 🔗 Blob Storage
                         </div>
                     </div>
                     <div style="display: flex; gap: 8px;">
-                        <button onclick="openPreview('${encodeURI ? encodeURI("" + doc.url) : doc.url}', '${doc.title.replace(/'/g, "\'")}')" style="padding: 6px 12px; background: #10b981; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">Preview</button>
                         <button onclick="downloadBlobDocument('${doc.url}', '${doc.fileName}')" style="padding: 6px 12px; background: #3b82f6; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">Download</button>
                     </div>
                 </div>
@@ -1852,46 +1802,17 @@
             document.body.removeChild(link);
         }
         
-        // Preview modal opener using blob/index URL
-        function openPreview(url, title) {
-            try {
-                const modal = document.getElementById('previewModal');
-                const content = document.getElementById('previewContent');
-                const titleEl = document.getElementById('previewTitle');
-                const infoEl = document.getElementById('previewInfo');
-                if (!modal || !content) return;
-                
-                // Build iframe
-                content.innerHTML = '';
-                const iframe = document.createElement('iframe');
-                iframe.className = 'preview-iframe';
-                iframe.src = url;
-                content.appendChild(iframe);
-                
-                if (titleEl) titleEl.textContent = title || 'Document Preview';
-                if (infoEl) infoEl.textContent = url;
-                
-                modal.style.display = 'flex';
-            } catch (e) {
-                console.error('Preview error:', e);
-            }
-        }
-        
         async function loadBlobStorageStats() {
             try {
                 const data = await fetchBlobDocuments();
                 if (data && data.documents) {
-                    const cntEl = document.getElementById('blobDocCount');
-                    const updEl = document.getElementById('blobLastUpdate');
-                    if (cntEl) cntEl.textContent = data.documents.length;
-                    if (updEl) updEl.textContent = data.lastModified || '--';
+                    document.getElementById('blobDocCount').textContent = data.documents.length;
+                    document.getElementById('blobLastUpdate').textContent = data.lastModified.split(' ')[0]; // Just date
                 }
             } catch (error) {
-                console.error('Error loading index stats:', error);
-                const cntEl = document.getElementById('blobDocCount');
-                const updEl = document.getElementById('blobLastUpdate');
-                if (cntEl) cntEl.textContent = '0';
-                if (updEl) updEl.textContent = 'Error';
+                console.error('Error loading blob stats:', error);
+                document.getElementById('blobDocCount').textContent = '0';
+                document.getElementById('blobLastUpdate').textContent = 'Error';
             }
         }
 
@@ -2822,21 +2743,7 @@
             if (!dateString) return '--';
             
             try {
-                // Handle various input types
-                let date;
-                if (dateString instanceof Date) {
-                    date = dateString;
-                } else if (typeof dateString === 'string' || typeof dateString === 'number') {
-                    date = new Date(dateString);
-                } else {
-                    return '--';
-                }
-                
-                // Validate the date
-                if (isNaN(date.getTime()) || !isFinite(date.getTime())) {
-                    console.warn('Invalid date value:', dateString);
-                    return '--';
-                }
+                const date = new Date(dateString);
                 
                 // Format to EST/EDT (Eastern Time)
                 const options = {
@@ -2859,8 +2766,8 @@
                 
                 return `${formatted} ${timezone}`;
             } catch (error) {
-                console.error('Error formatting date:', error, 'Input:', dateString);
-                return '--';
+                console.error('Error formatting date:', error);
+                return dateString; // Return original if formatting fails
             }
         }
         

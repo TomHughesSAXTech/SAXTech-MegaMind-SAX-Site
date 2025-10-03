@@ -160,10 +160,20 @@
 
         .tab-content {
             display: none;
+            position: relative;
+            width: 100%;
         }
 
         .tab-content.active {
             display: block;
+        }
+
+        /* Ensure User Analytics tab does not collapse or shift */
+        #users-tab {
+            min-height: 400px;
+            width: 100%;
+            position: relative;
+            padding-bottom: var(--space-xl);
         }
 
         .admin-grid {
@@ -3169,6 +3179,13 @@
         }
 
         async function refreshStats() {
+            // Show loading placeholders if present
+            const totalDocsEl = document.getElementById('totalDocs');
+            const indexSizeEl = document.getElementById('indexSize');
+            const lastUpdateEl = document.getElementById('lastUpdate');
+            if (totalDocsEl) totalDocsEl.textContent = '...';
+            if (indexSizeEl) indexSizeEl.textContent = '...';
+            if (lastUpdateEl) lastUpdateEl.textContent = '...';
             try {
                 const selEl = document.getElementById('indexSelector');
                 const currentIndex = (selEl && selEl.value) ? selEl.value : INDEX_CONFIG.indexName;
@@ -3193,7 +3210,7 @@
                             count: true,
                             indexName: currentIndex,
                             orderby: 'metadata_storage_last_modified desc',
-                            select: 'uploadDate,createdDate,modifiedDate,lastModified,metadata_storage_last_modified'
+                            select: 'uploadDate,createdDate,modifiedDate,lastModified,metadata_storage_last_modified,ingestedOn,indexedOn'
                         })
                     });
                     
@@ -3204,16 +3221,14 @@
                         const documents = data.value || [];
                         console.log('Received', documents.length, 'documents for last update check');
                         
-                        // Find the most recent date from the latest document's date fields
+                        // Find the most recent date from the latest document's date fields (with robust fallbacks)
                         if (documents.length > 0) {
                             const doc = documents[0]; // Already sorted by latest
-                            const dates = [
-                                doc.uploadDate, 
-                                doc.createdDate, 
-                                doc.modifiedDate, 
-                                doc.lastModified, 
-                                doc.metadata_storage_last_modified
-                            ].filter(d => d);
+                            const dateFields = [
+                                'uploadDate', 'createdDate', 'modifiedDate', 'lastModified',
+                                'metadata_storage_last_modified', 'ingestedOn', 'indexedOn'
+                            ];
+                            const dates = dateFields.map(f => doc[f]).filter(Boolean);
                             
                             dates.forEach(dateStr => {
                                 const date = new Date(dateStr);
@@ -3247,7 +3262,8 @@
                     } else if (totalDocs === 0) {
                         lastUpdateEl.textContent = 'No documents';
                     } else {
-                        lastUpdateEl.textContent = 'Unable to determine';
+                        // If we have documents but no recognizable timestamp field, indicate presence without date
+                        lastUpdateEl.textContent = 'Docs present (no timestamp field)';
                     }
                 }
 
@@ -3264,6 +3280,13 @@
         
         // Refresh Indexer Status (Tax Code and Audit)
         async function refreshIndexerStatus() {
+            // Show loading state in UI
+            const uscCountEl = document.getElementById('uscIndexerUpdate');
+            const cfrCountEl = document.getElementById('cfrIndexerUpdate');
+            const auditCountEl = document.getElementById('auditIndexerUpdate');
+            if (uscCountEl) uscCountEl.textContent = 'Loading...';
+            if (cfrCountEl) cfrCountEl.textContent = 'Loading...';
+            if (auditCountEl) auditCountEl.textContent = 'Loading...';
             try {
                 // Update elements to show loading state
                 const uscEl = document.getElementById('uscIndexerUpdate');
@@ -3286,6 +3309,7 @@
                         body: JSON.stringify({
                             search: '*',
                             top: 1,
+                            count: true,
                             indexName: 'ustaxpublic',
                             orderby: 'metadata_storage_last_modified desc',
                             select: 'metadata_storage_last_modified'
@@ -3295,6 +3319,7 @@
                     if (response.ok) {
                         const data = await response.json();
                         const docs = data.value || [];
+                        const docCount = data['@odata.count'] || 0;
                         
                         if (docs.length > 0 && docs[0].metadata_storage_last_modified && uscEl && cfrEl) {
                             const taxDate = new Date(docs[0].metadata_storage_last_modified);
@@ -3305,8 +3330,9 @@
                             uscEl.textContent = shortFormat;
                             cfrEl.textContent = shortFormat;
                         } else {
-                            if (uscEl) uscEl.textContent = 'No tax docs';
-                            if (cfrEl) cfrEl.textContent = 'No tax docs';
+                            const label = docCount > 0 ? `${docCount.toLocaleString()} docs (no timestamp)` : 'No tax docs';
+                            if (uscEl) uscEl.textContent = label;
+                            if (cfrEl) cfrEl.textContent = label;
                         }
                     } else {
                         if (uscEl) uscEl.textContent = 'Error';
@@ -3329,6 +3355,7 @@
                         body: JSON.stringify({
                             search: '*',
                             top: 1,
+                            count: true,
                             indexName: 'audit-tax-documents',
                             orderby: 'metadata_storage_last_modified desc',
                             select: 'metadata_storage_last_modified'
@@ -3338,6 +3365,7 @@
                     if (auditResponse.ok) {
                         const auditData = await auditResponse.json();
                         const docs = auditData.value || [];
+                        const docCount = auditData['@odata.count'] || 0;
                         
                         if (docs.length > 0 && docs[0].metadata_storage_last_modified) {
                             const auditDate = new Date(docs[0].metadata_storage_last_modified);
@@ -3346,7 +3374,7 @@
                                 auditEl.textContent = auditFormatted.replace(' EST', '').replace(' EDT', '');
                             }
                         } else {
-                            if (auditEl) auditEl.textContent = 'No docs';
+                            if (auditEl) auditEl.textContent = docCount > 0 ? `${docCount.toLocaleString()} docs (no timestamp)` : 'No docs';
                         }
                     } else {
                         console.error('Audit index query failed via Function App:', auditResponse.status);
@@ -6641,6 +6669,14 @@ Provide insights about conversation quality and satisfaction in JSON format:
         
         // Load user analytics
         function loadUserAnalytics() {
+            // Ensure tab visibility and scroll position are correct
+            const tab = document.getElementById('users-tab');
+            if (tab) {
+                tab.classList.add('active');
+                tab.style.minHeight = '400px';
+                tab.style.position = 'relative';
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
             const section = document.getElementById('users-tab');
             if (!conversationData.length) {
                 loadOverviewData().then(() => loadUserAnalytics());
