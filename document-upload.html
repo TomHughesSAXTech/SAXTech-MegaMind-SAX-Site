@@ -1112,7 +1112,7 @@
                 
                 if (!selectedDept || selectedDept === '') {
                     // Show all documents if "All Departments" is selected
-                    loadAllDocuments();
+                    loadBlobDocuments();
                 } else {
                     // Filter to selected department
                     filterDocumentsByDepartment(selectedDept);
@@ -1578,34 +1578,19 @@
         }
         
         function filterDocumentsByDepartment(department) {
-            if (!window.allDocumentsData) {
-                loadAllDocuments();
+            if (!window.allBlobDocuments) {
+                loadBlobDocuments();
                 return;
             }
             
-            const filteredDepartments = {};
+            // Filter documents by department
+            const filteredDocs = window.allBlobDocuments.filter(doc => 
+                doc.department && doc.department.toLowerCase() === department.toLowerCase()
+            );
             
-            // Try exact match first, then case-insensitive match
-            let foundDept = null;
-            Object.keys(window.allDocumentsData.departments).forEach(deptKey => {
-                if (deptKey === department) {
-                    foundDept = deptKey;
-                } else if (deptKey.toLowerCase() === department.toLowerCase()) {
-                    foundDept = deptKey;
-                }
-            });
-            
-            if (foundDept) {
-                filteredDepartments[foundDept] = window.allDocumentsData.departments[foundDept];
-            }
-            
-            if (Object.keys(filteredDepartments).length > 0) {
-                const totalDocs = Object.values(filteredDepartments).reduce((sum, folders) => {
-                    return sum + Object.values(folders).reduce((s, docs) => s + docs.length, 0);
-                }, 0);
-                
-                documentCount.textContent = `${totalDocs} documents in ${department}`;
-                buildDepartmentStructure(filteredDepartments);
+            if (filteredDocs.length > 0) {
+                documentCount.textContent = `${filteredDocs.length} documents in ${department}`;
+                buildBlobDocumentList(filteredDocs);
             } else {
                 showEmptyDepartment(department);
             }
@@ -1695,7 +1680,17 @@
                     let docUrl = doc.blobUrl;
                     if (!docUrl) {
                         const pathFromMeta = doc.metadata_storage_path || `${department}/${displayName}`;
-                        docUrl = `${API_CONFIG.blobStorage.baseUrl}/${API_CONFIG.blobStorage.containerName}/${pathFromMeta}`;
+                        docUrl = `${API_CONFIG.blobStorage.baseUrl}/${API_CONFIG.blobStorage.containerName}/${encodeURIComponent(pathFromMeta)}`;
+                    } else {
+                        // Ensure the blobUrl is properly encoded
+                        try {
+                            const url = new URL(docUrl);
+                            const pathParts = url.pathname.split('/');
+                            const encodedPath = pathParts.map((part, i) => i === 0 ? part : encodeURIComponent(part)).join('/');
+                            docUrl = `${url.origin}${encodedPath}${url.search}`;
+                        } catch (e) {
+                            console.warn('Could not parse blobUrl:', docUrl, e);
+                        }
                     }
                     
                     return {
