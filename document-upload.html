@@ -1678,18 +1678,26 @@
                 const chunkDocs = documentList.map(doc => {
                     const fileName = doc.fileName || doc.metadata_storage_name || doc.title || doc.id || 'Unknown Document';
                     const displayName = fileName.split('/').pop();
-                    let department = 'General';
-                    if (doc.metadata_storage_path) {
+                    
+                    // Get department from doc.department or path
+                    let department = doc.department || 'General';
+                    if (!department && doc.metadata_storage_path) {
                         const pathParts = doc.metadata_storage_path.split('/');
                         if (pathParts.length > 1) department = pathParts[0];
-                    } else if (doc.department) {
-                        department = doc.department;
-                    } else if (fileName.includes('/')) {
+                    } else if (!department && fileName.includes('/')) {
                         department = fileName.split('/')[0];
                     }
+                    
                     const size = doc.metadata_storage_size || doc.fileSize || doc.size || 0;
                     const lastMod = doc.metadata_storage_last_modified || doc.lastModified || doc.modifiedDate || doc.uploadDate || doc.createdDate;
-                    const pathFromMeta = doc.metadata_storage_path || `${department}/${displayName}`;
+                    
+                    // Use blobUrl directly from search index if available, fallback to constructed URL
+                    let docUrl = doc.blobUrl;
+                    if (!docUrl) {
+                        const pathFromMeta = doc.metadata_storage_path || `${department}/${displayName}`;
+                        docUrl = `${API_CONFIG.blobStorage.baseUrl}/${API_CONFIG.blobStorage.containerName}/${pathFromMeta}`;
+                    }
+                    
                     return {
                         id: doc.id || fileName,
                         title: doc.title || displayName,
@@ -1698,7 +1706,7 @@
                         lastModified: lastMod,
                         contentType: doc.metadata_storage_content_type || doc.contentType || 'application/pdf',
                         department: department,
-                        url: `${API_CONFIG.blobStorage.baseUrl}/${API_CONFIG.blobStorage.containerName}/${pathFromMeta}`,
+                        url: docUrl,  // Use blobUrl from index
                         indexed: true,
                         searchScore: doc['@search.score']
                     };
