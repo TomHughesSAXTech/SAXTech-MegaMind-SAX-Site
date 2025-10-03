@@ -1620,37 +1620,24 @@
                 const fetchStartTime = performance.now();
                 console.log('☁️ Getting documents from blob storage...');
                 
-                // Try the documents/list endpoint first, fallback to generateSAS
-                let response;
-                try {
-                    response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.listDocuments}`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'x-functions-key': API_CONFIG.functionKey
-                        },
-                        body: JSON.stringify({
-                            containerName: API_CONFIG.blobStorage.containerName
-                        })
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error(`List documents failed: ${response.status}`);
-                    }
-                } catch (error) {
-                    console.log('⚠️ documents/list failed, trying generateSAS with listBlobs flag...');
-                    response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.generateSAS}`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'x-functions-key': API_CONFIG.functionKey
-                        },
-                        body: JSON.stringify({
-                            containerName: API_CONFIG.blobStorage.containerName,
-                            operation: 'listBlobs'  // Try different parameter name
-                        })
-                    });
-                }
+                // Use documents-search with minimal processing to get blob metadata
+                console.log('🔍 Using documents-search endpoint for blob metadata...');
+                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-functions-key': API_CONFIG.functionKey
+                    },
+                    body: JSON.stringify({
+                        query: '*',  // Get all documents
+                        top: 1000,   // Max results
+                        enableVector: false,
+                        enableAI: false,
+                        skipAnswer: true,
+                        documentsOnly: true,
+                        includeBlobMetadata: true  // Try to get blob info
+                    })
+                });
                 
                 const fetchEndTime = performance.now();
                 console.log(`⚡ Blob listing completed in ${(fetchEndTime - fetchStartTime).toFixed(2)}ms`);
@@ -1662,32 +1649,50 @@
                 const blobData = await response.json();
                 console.log('Raw blob response:', blobData);
                 
-                // Handle different response formats
-                let blobList = [];
-                if (blobData.blobs) {
-                    blobList = blobData.blobs;  // GenerateSAS response format
-                } else if (blobData.documents) {
-                    blobList = blobData.documents;  // documents/list response format
+                // Handle documents-search response format
+                let documentList = [];
+                if (blobData.value && Array.isArray(blobData.value)) {
+                    documentList = blobData.value;  // Azure Search response format
+                } else if (blobData.documents && Array.isArray(blobData.documents)) {
+                    documentList = blobData.documents;  // Alternative format
                 } else if (Array.isArray(blobData)) {
-                    blobList = blobData;  // Direct array response
-                } else if (blobData.value) {
-                    blobList = blobData.value;  // Azure API response format
+                    documentList = blobData;  // Direct array response
                 }
                 
-                console.log(`📊 Received ${blobList.length} blobs from storage`);
+                console.log(`📊 Received ${documentList.length} documents from search index`);
                 
-                // Transform blob data into document format
-                const documents = blobList.map(blob => {
-                    const blobName = blob.name || blob.fileName || blob.id;
+                // Transform search documents into blob document format
+                const documents = documentList.map(doc => {
+                    // Extract filename from various fields
+                    const fileName = doc.fileName || doc.metadata_storage_name || doc.title || 'Unknown Document';
+                    const displayName = fileName.split('/').pop(); // Get just the filename
+                    
+                    // Extract department from path or document metadata
+                    let department = 'General';
+                    if (doc.metadata_storage_path) {
+                        const pathParts = doc.metadata_storage_path.split('/');
+                        if (pathParts.length > 1) department = pathParts[0];
+                    } else if (doc.department) {
+                        department = doc.department;
+                    } else if (fileName.includes('/')) {
+                        department = fileName.split('/')[0];
+                    }
+                    
                     return {
-                        id: blobName,
-                        title: blobName.split('/').pop(), // Get filename
-                        fileName: blobName.split('/').pop(),
-                        size: blob.properties?.contentLength || blob.size || 0,
-                        lastModified: blob.properties?.lastModified || blob.lastModified || blob.modifiedDate,
-                        contentType: blob.properties?.contentType || blob.contentType,
-                        department: blobName.split('/')[0], // First folder as department
-                        url: `${API_CONFIG.blobStorage.baseUrl}/${API_CONFIG.blobStorage.containerName}/${blobName}`
+                        id: doc.id || fileName,
+                        title: doc.title || displayName,
+                        fileName: displayName,
+                        size: doc.metadata_storage_size || doc.size || 0,
+                        lastModified: doc.metadata_storage_last_modified || doc.modifiedDate || doc.uploadDate,
+                        contentType: doc.metadata_storage_content_type || doc.contentType,
+                        department: department,
+                        // Create blob URL from metadata
+                        url: doc.metadata_storage_path ? 
+                            `${API_CONFIG.blobStorage.baseUrl}/${API_CONFIG.blobStorage.containerName}/${doc.metadata_storage_path}` :
+                            `${API_CONFIG.blobStorage.baseUrl}/${API_CONFIG.blobStorage.containerName}/${fileName}`,
+                        // Add search-specific metadata
+                        indexed: true,
+                        searchScore: doc['@search.score']
                     };
                 });
                 
