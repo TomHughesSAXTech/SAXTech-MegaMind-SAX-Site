@@ -1661,17 +1661,41 @@
                 
                 // Transform search documents into blob document format (chunk-level)
                 const chunkDocs = documentList.map(doc => {
-                    const fileName = doc.fileName || doc.metadata_storage_name || doc.title || doc.id || 'Unknown Document';
-                    const displayName = fileName.split('/').pop();
-                    
-                    // Get department from doc.department or path
+                    // Extract filename from blobUrl if available, fallback to other fields
+                    let fileName = 'Unknown Document';
                     let department = doc.department || 'General';
-                    if (!department && doc.metadata_storage_path) {
-                        const pathParts = doc.metadata_storage_path.split('/');
-                        if (pathParts.length > 1) department = pathParts[0];
-                    } else if (!department && fileName.includes('/')) {
-                        department = fileName.split('/')[0];
+                    
+                    if (doc.blobUrl) {
+                        try {
+                            // Extract filename from blobUrl path
+                            const urlObj = new URL(doc.blobUrl);
+                            const pathParts = urlObj.pathname.split('/').filter(p => p);
+                            // Remove container name (first part) to get the file path
+                            if (pathParts.length > 1) {
+                                const filePath = pathParts.slice(1).join('/');
+                                // Decode the path to get readable filename
+                                fileName = filePath.includes('%') ? decodeURIComponent(filePath) : filePath;
+                                // Extract department from path if not provided
+                                if (!doc.department && fileName.includes('/')) {
+                                    department = fileName.split('/')[0];
+                                }
+                            }
+                        } catch (e) {
+                            console.warn('Could not extract filename from blobUrl:', doc.blobUrl, e);
+                            fileName = doc.fileName || doc.metadata_storage_name || doc.title || doc.id || 'Unknown Document';
+                        }
+                    } else {
+                        fileName = doc.fileName || doc.metadata_storage_name || doc.title || doc.id || 'Unknown Document';
+                        // Get department from other sources if blobUrl is not available
+                        if (!department && doc.metadata_storage_path) {
+                            const pathParts = doc.metadata_storage_path.split('/');
+                            if (pathParts.length > 1) department = pathParts[0];
+                        } else if (!department && fileName.includes('/')) {
+                            department = fileName.split('/')[0];
+                        }
                     }
+                    
+                    const displayName = fileName.split('/').pop();
                     
                     const size = doc.metadata_storage_size || doc.fileSize || doc.size || 0;
                     const lastMod = doc.metadata_storage_last_modified || doc.lastModified || doc.modifiedDate || doc.uploadDate || doc.createdDate;
@@ -1681,17 +1705,8 @@
                     if (!docUrl) {
                         const pathFromMeta = doc.metadata_storage_path || `${department}/${displayName}`;
                         docUrl = `${API_CONFIG.blobStorage.baseUrl}/${API_CONFIG.blobStorage.containerName}/${encodeURIComponent(pathFromMeta)}`;
-                    } else {
-                        // Ensure the blobUrl is properly encoded
-                        try {
-                            const url = new URL(docUrl);
-                            const pathParts = url.pathname.split('/');
-                            const encodedPath = pathParts.map((part, i) => i === 0 ? part : encodeURIComponent(part)).join('/');
-                            docUrl = `${url.origin}${encodedPath}${url.search}`;
-                        } catch (e) {
-                            console.warn('Could not parse blobUrl:', docUrl, e);
-                        }
                     }
+                    // Note: blobUrl from search index is already properly encoded, don't re-encode it
                     
                     return {
                         id: doc.id || fileName,
@@ -1829,7 +1844,7 @@
                         </div>
                     </div>
                     <div style="display: flex; gap: 8px;">
-                        <button onclick="openPreview('${doc.url}', '${doc.title.replace(/'/g, "\'")}')" style="padding: 6px 12px; background: #10b981; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">Preview</button>
+                        <button onclick="openPreview('${doc.url}', '${doc.title.replace(/'/g, "\'")}', '${(doc.fileName || doc.title).replace(/'/g, "\'")}')" style="padding: 6px 12px; background: #10b981; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">Preview</button>
                         <button onclick="downloadBlobDocument('${doc.url}', '${doc.fileName}')" style="padding: 6px 12px; background: #3b82f6; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">Download</button>
                     </div>
                 </div>
@@ -1848,7 +1863,7 @@
         }
         
         // Preview modal opener using blob/index URL with SAS authentication
-        async function openPreview(url, title) {
+        async function openPreview(url, title, fileName = null) {
             try {
                 const modal = document.getElementById('previewModal');
                 const content = document.getElementById('previewContent');
@@ -1863,24 +1878,28 @@
                 // Get SAS token for the file
                 console.log('Getting SAS token for preview:', url);
                 
-                // Extract filename from URL path, handling encoding issues
-                let fileName = '';
-                try {
-                    const urlObj = new URL(url);
-                    let pathParts = urlObj.pathname.split('/');
-                    // Remove container name - typically /docs/ or /container/
-                    if (pathParts.length > 2) {
-                        pathParts = pathParts.slice(2);
+                // Use provided fileName or extract from title/URL
+                if (!fileName) {
+                    if (title && (title.includes('.') || title.includes('/'))) {
+                        fileName = title;
+                    } else {
+                        // Fallback: try to extract from URL
+                        try {
+                            const urlObj = new URL(url);
+                            let pathParts = urlObj.pathname.split('/').filter(p => p);
+                            if (pathParts.length > 1) {
+                                const filePath = pathParts.slice(1).join('/');
+                                fileName = filePath.includes('%') ? decodeURIComponent(filePath) : filePath;
+                            } else {
+                                fileName = title.includes('.') ? title : `${title}.pdf`;
+                            }
+                        } catch (e) {
+                            fileName = title.includes('.') ? title : `${title}.pdf`;
+                        }
                     }
-                    // Join and decode only once
-                    const rawPath = pathParts.join('/');
-                    fileName = rawPath.includes('%') ? decodeURIComponent(rawPath) : rawPath;
-                    console.log('Extracted fileName for SAS:', fileName);
-                } catch (e) {
-                    console.error('Error parsing URL:', e);
-                    // Extract from title as fallback
-                    fileName = title.includes('.') ? title : `${title}.pdf`;
                 }
+                
+                console.log('Using fileName for SAS:', fileName);
                 
                 const sasResponse = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.generateSAS}`, {
                     method: 'POST',

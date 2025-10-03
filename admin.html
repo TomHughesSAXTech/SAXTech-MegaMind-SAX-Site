@@ -1343,6 +1343,80 @@
                 grid-template-columns: 1fr;
             }
         }
+        
+        /* User Analysis Modal - Fixed positioning */
+        #userAnalysisModal {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            background: rgba(0, 0, 0, 0.75) !important;
+            display: none !important;
+            align-items: center !important;
+            justify-content: center !important;
+            z-index: 10000 !important;
+            overflow-y: auto !important;
+            padding: 20px !important;
+            box-sizing: border-box !important;
+        }
+        
+        #userAnalysisModal.show {
+            display: flex !important;
+        }
+        
+        #userAnalysisModal .modal-content {
+            background: white !important;
+            border-radius: 16px !important;
+            max-width: 900px !important;
+            width: 100% !important;
+            max-height: calc(100vh - 40px) !important;
+            overflow-y: auto !important;
+            position: relative !important;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+            margin: 0 !important;
+        }
+        
+        #userAnalysisModal .modal-header {
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            padding: 24px !important;
+            border-bottom: 1px solid var(--gray-200) !important;
+            position: sticky !important;
+            top: 0 !important;
+            background: white !important;
+            border-radius: 16px 16px 0 0 !important;
+            z-index: 10 !important;
+        }
+        
+        #userAnalysisModal .close {
+            position: absolute !important;
+            top: 20px !important;
+            right: 24px !important;
+            background: none !important;
+            border: none !important;
+            font-size: 28px !important;
+            color: var(--gray-400) !important;
+            cursor: pointer !important;
+            width: 40px !important;
+            height: 40px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            border-radius: 50% !important;
+            transition: all 0.2s ease !important;
+        }
+        
+        #userAnalysisModal .close:hover {
+            background: var(--gray-100) !important;
+            color: var(--gray-600) !important;
+        }
+        
+        #userAnalysisContent {
+            padding: 24px !important;
+            max-height: none !important;
+        }
     </style>
     <script src="js/session-export.js"></script>
 </head>
@@ -7542,29 +7616,55 @@ Provide insights about conversation quality and satisfaction in JSON format:
         
         // User Analysis Modal Functions
         function showUserAnalysisModal(userEmail, userName) {
-            const modal = document.getElementById('userAnalysisModal');
+            let modal = document.getElementById('userAnalysisModal');
             if (!modal) {
-                // Create modal if it doesn't exist
+                // Create modal if it doesn't exist with proper structure
                 const modalHTML = `
-                    <div id="userAnalysisModal" class="modal">
-                        <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto; margin: 5vh auto;">
+                    <div id="userAnalysisModal">
+                        <div class="modal-content">
                             <div class="modal-header">
                                 <h2 id="userAnalysisTitle">User Analysis</h2>
-                                <span class="close" onclick="closeUserAnalysisModal()">&times;</span>
+                                <button class="close" onclick="closeUserAnalysisModal()">&times;</button>
                             </div>
-                            <div id="userAnalysisContent" style="max-height: calc(90vh - 80px); overflow-y: auto; padding: 0 4px;">
+                            <div id="userAnalysisContent">
                                 <!-- Content will be loaded here -->
                             </div>
                         </div>
                     </div>
                 `;
                 document.body.insertAdjacentHTML('beforeend', modalHTML);
+                modal = document.getElementById('userAnalysisModal');
+                
+                // Add click outside to close functionality
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) {
+                        closeUserAnalysisModal();
+                    }
+                });
+                
+                // Add escape key handler
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape' && modal.classList.contains('show')) {
+                        closeUserAnalysisModal();
+                    }
+                });
             }
             
+            // Set content and show modal
             document.getElementById('userAnalysisTitle').textContent = `AI Analysis: ${userName}`;
             document.getElementById('userAnalysisContent').innerHTML = '<div class="loading"><div class="spinner"></div>Analyzing user behavior...</div>';
-            document.getElementById('userAnalysisModal').style.display = 'flex';
+            
+            // Show modal with proper z-index and positioning
+            modal.classList.add('show');
+            modal.style.display = 'flex';
             document.body.style.overflow = 'hidden';
+            
+            // Ensure modal starts at top
+            modal.scrollTop = 0;
+            const modalContent = modal.querySelector('.modal-content');
+            if (modalContent) {
+                modalContent.scrollTop = 0;
+            }
             
             // Generate AI analysis for this specific user
             generateUserAnalysis(userEmail, userName);
@@ -7573,8 +7673,16 @@ Provide insights about conversation quality and satisfaction in JSON format:
         function closeUserAnalysisModal() {
             const modal = document.getElementById('userAnalysisModal');
             if (modal) {
+                modal.classList.remove('show');
                 modal.style.display = 'none';
                 document.body.style.overflow = 'auto';
+                
+                // Reset scroll positions
+                modal.scrollTop = 0;
+                const modalContent = modal.querySelector('.modal-content');
+                if (modalContent) {
+                    modalContent.scrollTop = 0;
+                }
             }
         }
         
