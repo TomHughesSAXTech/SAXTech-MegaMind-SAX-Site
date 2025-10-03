@@ -3395,16 +3395,38 @@
                         const docs = data.value || [];
                         const docCount = data['@odata.count'] || 0;
                         
-                        if (docs.length > 0 && docs[0].metadata_storage_last_modified && uscEl && cfrEl) {
-                            const taxDate = new Date(docs[0].metadata_storage_last_modified);
-                            const taxFormatted = formatDateToEST(taxDate.toISOString());
-                            const shortFormat = taxFormatted.replace(' EST', '').replace(' EDT', '');
+                        if (docs.length > 0 && uscEl && cfrEl) {
+                            const doc = docs[0];
+                            // Try multiple timestamp fields for better detection
+                            const timestampFields = ['metadata_storage_last_modified', 'lastModified', 'modifiedDate', 'createdDate', 'uploadDate'];
+                            let foundTimestamp = null;
                             
-                            // Use same date for both USC and CFR since they're in the same index
-                            uscEl.textContent = shortFormat;
-                            cfrEl.textContent = shortFormat;
+                            for (const field of timestampFields) {
+                                if (doc[field]) {
+                                    foundTimestamp = doc[field];
+                                    break;
+                                }
+                            }
+                            
+                            if (foundTimestamp) {
+                                const taxDate = new Date(foundTimestamp);
+                                if (!isNaN(taxDate.getTime())) {
+                                    const taxFormatted = formatDateToEST(taxDate.toISOString());
+                                    const shortFormat = taxFormatted.replace(' EST', '').replace(' EDT', '');
+                                    
+                                    // Use same date for both USC and CFR since they're in the same index
+                                    uscEl.textContent = `${docCount.toLocaleString()} docs`;
+                                    cfrEl.textContent = `${docCount.toLocaleString()} docs`;
+                                } else {
+                                    uscEl.textContent = `${docCount.toLocaleString()} docs`;
+                                    cfrEl.textContent = `${docCount.toLocaleString()} docs`;
+                                }
+                            } else {
+                                uscEl.textContent = `${docCount.toLocaleString()} docs`;
+                                cfrEl.textContent = `${docCount.toLocaleString()} docs`;
+                            }
                         } else {
-                            const label = docCount > 0 ? `${docCount.toLocaleString()} docs (no timestamp)` : 'No tax docs';
+                            const label = docCount > 0 ? `${docCount.toLocaleString()} docs` : 'No docs found';
                             if (uscEl) uscEl.textContent = label;
                             if (cfrEl) cfrEl.textContent = label;
                         }
@@ -4731,7 +4753,7 @@ Respond with only a JSON object containing:
                     throw new Error('No content in GPT response');
                 }
                 
-                // Clean up content - remove markdown code blocks if present
+                // Clean up content - remove markdown code blocks and fix common JSON issues
                 let cleanContent = content.trim();
                 if (cleanContent.startsWith('```json') || cleanContent.startsWith('```')) {
                     // Remove opening code block
@@ -4740,7 +4762,27 @@ Respond with only a JSON object containing:
                     cleanContent = cleanContent.replace(/\s*```\s*$/, '');
                 }
                 
-                return JSON.parse(cleanContent);
+                // Fix common JSON issues
+                cleanContent = cleanContent.trim();
+                // Remove any trailing commas in objects/arrays
+                cleanContent = cleanContent.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
+                // Fix unterminated strings by ensuring proper quote escaping
+                cleanContent = cleanContent.replace(/\\(?!["\\])/g, '\\\\');
+                
+                try {
+                    return JSON.parse(cleanContent);
+                } catch (parseError) {
+                    console.warn('JSON parse failed, attempting repair:', parseError.message);
+                    console.warn('Raw content:', content);
+                    console.warn('Cleaned content:', cleanContent);
+                    
+                    // Return a safe fallback object
+                    return {
+                        error: 'JSON parsing failed',
+                        message: 'Invalid response format',
+                        raw: content.substring(0, 200) + '...'
+                    };
+                }
             } catch (error) {
                 console.error('GPT call error:', error);
                 return { error: error.message };
