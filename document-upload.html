@@ -1553,26 +1553,48 @@
             lastUpdated.textContent = 'Last updated: --';
             folderGrid.innerHTML = '<div style="text-align: center; padding: 40px; color: #64748b;">Loading documents from blob storage...</div>';
 
-            // Fetch documents from blob storage
-            fetchBlobDocuments()
+            // Try direct blob storage first, fallback to search index
+            fetchDirectBlobStorage()
                 .then(data => {
-                    if (!data || !data.documents || data.documents.length === 0) {
-                        showEmptyRepository();
+                    if (data && data.documents && data.documents.length > 0) {
+                        console.log('✅ Using direct blob storage results');
+                        // Update stats
+                        documentCount.textContent = `${data.documents.length} original files in blob storage`;
+                        lastUpdated.textContent = `Files from: Blob Storage`;
+                        
+                        // Store all documents for filtering
+                        window.allBlobDocuments = data.documents;
+                        
+                        // Build simple document list
+                        buildBlobDocumentList(data.documents);
                         return;
                     }
-
-                    // Update stats
-                    documentCount.textContent = `${data.documents.length} documents in blob storage`;
-                    lastUpdated.textContent = `Last updated: ${data.lastModified || '--'}`;
-                    
-                    // Store all documents for filtering
-                    window.allBlobDocuments = data.documents;
-                    
-                    // Build simple document list
-                    buildBlobDocumentList(data.documents);
+                    throw new Error('Direct blob fetch returned no results');
                 })
                 .catch(error => {
-                    console.error('Error loading blob documents:', error);
+                    console.warn('⚠️ Direct blob failed, using search index fallback:', error);
+                    
+                    // Fallback to search index method
+                    return fetchBlobDocuments()
+                        .then(data => {
+                            if (!data || !data.documents || data.documents.length === 0) {
+                                showEmptyRepository();
+                                return;
+                            }
+
+                            // Update stats
+                            documentCount.textContent = `${data.documents.length} documents from search index (deduplicated)`;
+                            lastUpdated.textContent = `Last updated: ${data.lastModified || '--'}`;
+                            
+                            // Store all documents for filtering
+                            window.allBlobDocuments = data.documents;
+                            
+                            // Build simple document list
+                            buildBlobDocumentList(data.documents);
+                        });
+                })
+                .catch(error => {
+                    console.error('Both blob and search methods failed:', error);
                     showEmptyRepository();
                 });
         }
@@ -1648,6 +1670,7 @@
 
                 const blobData = await response.json();
                 console.log('Raw blob response:', blobData);
+                console.log('Response keys:', Object.keys(blobData));
                 
                 // Handle documents-search response format
                 let documentList = [];
@@ -1657,14 +1680,26 @@
                     documentList = blobData.documents;  // Alternative format
                 } else if (Array.isArray(blobData)) {
                     documentList = blobData;  // Direct array response
+                } else {
+                    // Log what we actually got
+                    console.log('Unexpected response format, available properties:', Object.keys(blobData));
+                    if (blobData.totalCount > 0) {
+                        console.log('Total count indicates documents exist but parsing failed');
+                    }
                 }
                 
-                console.log(`📊 Received ${documentList.length} documents from search index`);
+                console.log(`📊 Received ${documentList.length} documents from search index (expected: ${blobData.totalCount || 'unknown'})`);
+                
+                // Log first document structure if available
+                if (documentList.length > 0) {
+                    console.log('Sample document structure:', Object.keys(documentList[0]));
+                    console.log('Sample document:', documentList[0]);
+                }
                 
                 // Transform search documents into blob document format
                 const documents = documentList.map(doc => {
-                    // Extract filename from various fields
-                    const fileName = doc.fileName || doc.metadata_storage_name || doc.title || 'Unknown Document';
+                    // Extract filename from various fields - try more possibilities
+                    const fileName = doc.fileName || doc.metadata_storage_name || doc.title || doc.id || 'Unknown Document';
                     const displayName = fileName.split('/').pop(); // Get just the filename
                     
                     // Extract department from path or document metadata
@@ -1678,13 +1713,19 @@
                         department = fileName.split('/')[0];
                     }
                     
+                    // Extract size with fallbacks
+                    const size = doc.metadata_storage_size || doc.fileSize || doc.size || 0;
+                    
+                    // Extract last modified with multiple fallbacks
+                    const lastMod = doc.metadata_storage_last_modified || doc.lastModified || doc.modifiedDate || doc.uploadDate || doc.createdDate;
+                    
                     return {
                         id: doc.id || fileName,
                         title: doc.title || displayName,
                         fileName: displayName,
-                        size: doc.metadata_storage_size || doc.size || 0,
-                        lastModified: doc.metadata_storage_last_modified || doc.modifiedDate || doc.uploadDate,
-                        contentType: doc.metadata_storage_content_type || doc.contentType,
+                        size: size,
+                        lastModified: lastMod,
+                        contentType: doc.metadata_storage_content_type || doc.contentType || 'application/pdf',
                         department: department,
                         // Create blob URL from metadata
                         url: doc.metadata_storage_path ? 
@@ -1692,7 +1733,9 @@
                             `${API_CONFIG.blobStorage.baseUrl}/${API_CONFIG.blobStorage.containerName}/${fileName}`,
                         // Add search-specific metadata
                         indexed: true,
-                        searchScore: doc['@search.score']
+                        searchScore: doc['@search.score'],
+                        // Add raw document for debugging
+                        _raw: doc
                     };
                 });
                 
@@ -1781,7 +1824,102 @@
             document.body.removeChild(link);
         }
         
+        // New function: Direct blob storage listing (bypasses search index chunks)
+        async function fetchDirectBlobStorage() {
+            const startTime = performance.now();
+            console.log('📁 Fetching actual blob files directly from storage...');
+            
+            try {
+                // Generate SAS token first
+                const sasResponse = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.generateSAS}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-functions-key': API_CONFIG.functionKey
+                    },
+                    body: JSON.stringify({
+                        containerName: API_CONFIG.blobStorage.containerName,
+                        fileName: 'temp.txt' // Just to get container SAS
+                    })
+                });
+                
+                if (!sasResponse.ok) {
+                    throw new Error('Failed to get SAS token');
+                }
+                
+                const sasData = await sasResponse.json();
+                console.log('SAS response:', sasData);
+                
+                // Extract SAS token from URL
+                let sasToken = '';
+                if (sasData.url && sasData.url.includes('?')) {
+                    sasToken = sasData.url.split('?')[1];
+                }
+                
+                // Call Azure Storage REST API directly to list blobs
+                const blobListUrl = `${API_CONFIG.blobStorage.baseUrl}/${API_CONFIG.blobStorage.containerName}?restype=container&comp=list&${sasToken}`;
+                console.log('Calling blob list URL...');
+                
+                const blobResponse = await fetch(blobListUrl);
+                if (!blobResponse.ok) {
+                    throw new Error(`Blob listing failed: ${blobResponse.status}`);
+                }
+                
+                const xmlText = await blobResponse.text();
+                console.log('Raw XML response:', xmlText.substring(0, 500));
+                
+                // Parse XML response (simple parsing for blob names)
+                const blobNames = [];
+                const nameMatches = xmlText.match(/<Name>([^<]+)<\/Name>/g) || [];
+                nameMatches.forEach(match => {
+                    const name = match.replace(/<\/?Name>/g, '');
+                    if (name && name !== 'temp.txt') { // Skip our temp file
+                        blobNames.push(name);
+                    }
+                });
+                
+                console.log('Found blob files:', blobNames);
+                
+                // Transform to document format
+                const documents = blobNames.map(blobName => ({
+                    id: blobName,
+                    title: blobName.split('/').pop(),
+                    fileName: blobName.split('/').pop(), 
+                    department: blobName.includes('/') ? blobName.split('/')[0] : 'General',
+                    url: `${API_CONFIG.blobStorage.baseUrl}/${API_CONFIG.blobStorage.containerName}/${blobName}`,
+                    lastModified: new Date().toISOString(), // We can't get this from the list call
+                    size: 0, // We can't get this from the simple list call
+                    source: 'blob-direct'
+                }));
+                
+                const endTime = performance.now();
+                console.log(`⚙️ Direct blob fetch completed in ${(endTime - startTime).toFixed(2)}ms (${documents.length} files)`);
+                
+                return {
+                    documents: documents,
+                    lastModified: formatDateToEST(new Date())
+                };
+                
+            } catch (error) {
+                console.error('Direct blob fetch failed:', error);
+                throw error;
+            }
+        }
+        
         async function loadBlobStorageStats() {
+            try {
+                // Try direct blob storage first
+                const data = await fetchDirectBlobStorage();
+                if (data && data.documents) {
+                    document.getElementById('blobDocCount').textContent = data.documents.length;
+                    document.getElementById('blobLastUpdate').textContent = data.lastModified.split(' ')[0]; // Just date
+                    return;
+                }
+            } catch (error) {
+                console.warn('Direct blob fetch failed, trying search index:', error);
+            }
+            
+            // Fallback to search index method
             try {
                 const data = await fetchBlobDocuments();
                 if (data && data.documents) {
