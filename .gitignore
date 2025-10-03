@@ -6,6 +6,8 @@
 
 # Keep only essential web app files
 !staticwebapp.config.json
+!package.json
+!api/package.json
 
 # Logs and temp files
 *.log
