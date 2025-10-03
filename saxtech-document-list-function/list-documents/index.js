@@ -11,8 +11,16 @@ module.exports = async function (context, req) {
         const searchKey = process.env.AZURE_SEARCH_KEY;
         const searchIndex = process.env.AZURE_SEARCH_INDEX;
         
+        console.log('Environment check:', {
+            endpoint: searchEndpoint ? 'SET' : 'MISSING',
+            key: searchKey ? 'SET' : 'MISSING', 
+            index: searchIndex || 'MISSING'
+        });
+        
         if (!searchEndpoint || !searchKey || !searchIndex) {
-            throw new Error('Missing Azure Search configuration');
+            const error = `Missing Azure Search configuration: endpoint=${!!searchEndpoint}, key=${!!searchKey}, index=${!!searchIndex}`;
+            console.error(error);
+            throw new Error(error);
         }
         
         // Initialize Azure Search client

@@ -1827,10 +1827,6 @@
                             <div class="value" id="indexSize">-</div>
                             <div class="label">Index Size</div>
                         </div>
-                        <div class="stat-item">
-                            <div class="value" id="lastUpdate">-</div>
-                            <div class="label">Last Update</div>
-                        </div>
                     </div>
                     <button class="btn btn-primary" onclick="refreshStats()">Refresh Stats</button>
                 </div>
@@ -1839,20 +1835,20 @@
                 <div class="admin-card">
                     <h2>🤖 Indexer Status</h2>
                     <p style="color: #666; font-size: 13px; margin-bottom: 15px;">
-                        Latest indexing runs for automated indexes using Azure indexers.
+                        Last run times and document counts for automated Azure indexers.
                     </p>
                     <div class="stats-grid">
                         <div class="stat-item">
                             <div class="value" id="uscIndexerUpdate">--</div>
-                            <div class="label">USC Tax Code</div>
+                            <div class="label">USC Tax Code<br><small id="uscLastRun" style="font-size: 11px; color: #999;">--</small></div>
                         </div>
                         <div class="stat-item">
                             <div class="value" id="cfrIndexerUpdate">--</div>
-                            <div class="label">CFR Tax Regulations</div>
+                            <div class="label">CFR Tax Regulations<br><small id="cfrLastRun" style="font-size: 11px; color: #999;">--</small></div>
                         </div>
                         <div class="stat-item">
                             <div class="value" id="auditIndexerUpdate">--</div>
-                            <div class="label">Audit Documents</div>
+                            <div class="label">Audit Documents<br><small id="auditLastRun" style="font-size: 11px; color: #999;">--</small></div>
                         </div>
                     </div>
                     <button class="btn btn-primary" onclick="refreshIndexerStatus()">Refresh Indexer Status</button>
@@ -3256,10 +3252,8 @@
             // Show loading placeholders if present
             const totalDocsEl = document.getElementById('totalDocs');
             const indexSizeEl = document.getElementById('indexSize');
-            const lastUpdateEl = document.getElementById('lastUpdate');
             if (totalDocsEl) totalDocsEl.textContent = '...';
             if (indexSizeEl) indexSizeEl.textContent = '...';
-            if (lastUpdateEl) lastUpdateEl.textContent = '...';
             try {
                 const selEl = document.getElementById('indexSelector');
                 const currentIndex = (selEl && selEl.value) ? selEl.value : INDEX_CONFIG.indexName;
@@ -3269,7 +3263,6 @@
                 
                 // Use Function App endpoint to avoid CORS issues
                 let totalDocs = 0;
-                let lastUpdateTime = null;
                 
                 try {
                     const response = await fetch(`${INDEX_CONFIG.functionUrl}/documents/search`, {
@@ -3280,39 +3273,15 @@
                         },
                         body: JSON.stringify({
                             search: '*',
-                            top: 1,  // Only need 1 for last update, count for total
+                            top: 0,  // We only need the count, not actual documents
                             count: true,
-                            indexName: currentIndex,
-                            orderby: 'metadata_storage_last_modified desc',
-                            select: 'uploadDate,createdDate,modifiedDate,lastModified,metadata_storage_last_modified,ingestedOn,indexedOn'
+                            indexName: currentIndex
                         })
                     });
                     
                     if (response.ok) {
                         const data = await response.json();
                         totalDocs = data['@odata.count'] || 0;
-                        
-                        const documents = data.value || [];
-                        console.log('Received', documents.length, 'documents for last update check');
-                        
-                        // Find the most recent date from the latest document's date fields (with robust fallbacks)
-                        if (documents.length > 0) {
-                            const doc = documents[0]; // Already sorted by latest
-                            const dateFields = [
-                                'uploadDate', 'createdDate', 'modifiedDate', 'lastModified',
-                                'metadata_storage_last_modified', 'ingestedOn', 'indexedOn'
-                            ];
-                            const dates = dateFields.map(f => doc[f]).filter(Boolean);
-                            
-                            dates.forEach(dateStr => {
-                                const date = new Date(dateStr);
-                                if (!lastUpdateTime || date > lastUpdateTime) {
-                                    lastUpdateTime = date;
-                                }
-                            });
-                            
-                            console.log('Found last update time:', lastUpdateTime);
-                        }
                     } else {
                         const errorText = await response.text();
                         console.error('Function App search failed:', response.status, errorText);
@@ -3327,28 +3296,10 @@
                 const sizeInMB = (totalDocs * 50 / 1024).toFixed(1);
                 document.getElementById('indexSize').textContent = `${sizeInMB} MB`;
 
-                // Update last update display
-                const lastUpdateEl = document.getElementById('lastUpdate');
-                if (lastUpdateEl) {
-                    if (lastUpdateTime) {
-                        const formatted = formatDateToEST(lastUpdateTime.toISOString());
-                        lastUpdateEl.textContent = formatted;
-                    } else if (totalDocs === 0) {
-                        lastUpdateEl.textContent = 'No documents';
-                    } else {
-                        // If we have documents but no recognizable timestamp field, indicate presence without date
-                        lastUpdateEl.textContent = 'Docs present (no timestamp field)';
-                    }
-                }
-
                 showIndexAlert('success', 'Statistics refreshed successfully');
             } catch (error) {
                 console.error('refreshStats error:', error);
                 showIndexAlert('error', 'Error fetching statistics: ' + error.message);
-                const lastUpdateEl = document.getElementById('lastUpdate');
-                if (lastUpdateEl) {
-                    lastUpdateEl.textContent = 'Error';
-                }
             }
         }
         
@@ -3408,6 +3359,14 @@
                                 }
                             }
                             
+                            // Update document counts
+                            uscEl.textContent = `${docCount.toLocaleString()}`;
+                            cfrEl.textContent = `${docCount.toLocaleString()}`;
+                            
+                            // Update last run timestamps
+                            const uscLastRunEl = document.getElementById('uscLastRun');
+                            const cfrLastRunEl = document.getElementById('cfrLastRun');
+                            
                             if (foundTimestamp) {
                                 const taxDate = new Date(foundTimestamp);
                                 if (!isNaN(taxDate.getTime())) {
@@ -3415,20 +3374,24 @@
                                     const shortFormat = taxFormatted.replace(' EST', '').replace(' EDT', '');
                                     
                                     // Use same date for both USC and CFR since they're in the same index
-                                    uscEl.textContent = `${docCount.toLocaleString()} docs`;
-                                    cfrEl.textContent = `${docCount.toLocaleString()} docs`;
+                                    if (uscLastRunEl) uscLastRunEl.textContent = `Last: ${shortFormat}`;
+                                    if (cfrLastRunEl) cfrLastRunEl.textContent = `Last: ${shortFormat}`;
                                 } else {
-                                    uscEl.textContent = `${docCount.toLocaleString()} docs`;
-                                    cfrEl.textContent = `${docCount.toLocaleString()} docs`;
+                                    if (uscLastRunEl) uscLastRunEl.textContent = 'No timestamp';
+                                    if (cfrLastRunEl) cfrLastRunEl.textContent = 'No timestamp';
                                 }
                             } else {
-                                uscEl.textContent = `${docCount.toLocaleString()} docs`;
-                                cfrEl.textContent = `${docCount.toLocaleString()} docs`;
+                                if (uscLastRunEl) uscLastRunEl.textContent = 'No timestamp';
+                                if (cfrLastRunEl) cfrLastRunEl.textContent = 'No timestamp';
                             }
                         } else {
-                            const label = docCount > 0 ? `${docCount.toLocaleString()} docs` : 'No docs found';
-                            if (uscEl) uscEl.textContent = label;
-                            if (cfrEl) cfrEl.textContent = label;
+                            if (uscEl) uscEl.textContent = docCount.toLocaleString();
+                            if (cfrEl) cfrEl.textContent = docCount.toLocaleString();
+                            
+                            const uscLastRunEl = document.getElementById('uscLastRun');
+                            const cfrLastRunEl = document.getElementById('cfrLastRun');
+                            if (uscLastRunEl) uscLastRunEl.textContent = docCount > 0 ? 'No timestamp' : 'No docs';
+                            if (cfrLastRunEl) cfrLastRunEl.textContent = docCount > 0 ? 'No timestamp' : 'No docs';
                         }
                     } else {
                         if (uscEl) uscEl.textContent = 'Error';
@@ -3463,14 +3426,21 @@
                         const docs = auditData.value || [];
                         const docCount = auditData['@odata.count'] || 0;
                         
+                        if (auditEl) {
+                            auditEl.textContent = `${docCount.toLocaleString()}`;
+                        }
+                        
+                        const auditLastRunEl = document.getElementById('auditLastRun');
                         if (docs.length > 0 && docs[0].metadata_storage_last_modified) {
                             const auditDate = new Date(docs[0].metadata_storage_last_modified);
                             const auditFormatted = formatDateToEST(auditDate.toISOString());
-                            if (auditEl) {
-                                auditEl.textContent = auditFormatted.replace(' EST', '').replace(' EDT', '');
+                            if (auditLastRunEl) {
+                                auditLastRunEl.textContent = `Last: ${auditFormatted.replace(' EST', '').replace(' EDT', '')}`;
                             }
                         } else {
-                            if (auditEl) auditEl.textContent = docCount > 0 ? `${docCount.toLocaleString()} docs (no timestamp)` : 'No docs';
+                            if (auditLastRunEl) {
+                                auditLastRunEl.textContent = docCount > 0 ? 'No timestamp' : 'No docs';
+                            }
                         }
                     } else {
                         console.error('Audit index query failed via Function App:', auditResponse.status);
@@ -3516,7 +3486,7 @@
                     search: query,
                     top: 1000,
                     indexName: currentIndex,
-                    select: 'id,title,fileName,department,documentType,uploadDate,createdDate,lastModified,metadata_storage_last_modified,author,fileSize,status,contentHash,contentLength,content'
+                    select: 'id,title,fileName,department,documentType,uploadDate,createdDate,lastModified,metadata_storage_last_modified,author,fileSize,status,contentHash,contentLength,content,ocrText,conversionMethod,isVectorized,chunks,chunkCount'
                 };
                 
                 // Add filter if provided
@@ -3687,9 +3657,28 @@
                                 </td>
                                 <td style="padding: 10px; text-align: center;">${formatSize(doc.fileSize)}</td>
                                 <td style="padding: 10px; text-align: center;">
-                                    ${(doc.vectorized === true || doc.status === 'indexed' || doc.status === 'Active' || (doc.content && doc.content.length > 0)) ? 
-                                        '<span style="color: #16a34a; font-weight: bold;">✓</span>' : 
-                                        '<span style="color: #dc2626;">✗</span>'}
+                                    ${(() => {
+                                        // Determine vectorized status
+                                        let vectorized = 'Unknown';
+                                        if (doc.isVectorized !== undefined) {
+                                            vectorized = doc.isVectorized ? 'Yes' : 'No';
+                                        } else if (doc.vectorized !== undefined) {
+                                            vectorized = doc.vectorized ? 'Yes' : 'No';
+                                        } else if (doc.status === 'indexed' || doc.status === 'Active') {
+                                            vectorized = 'Yes';
+                                        } else if (doc.contentHash || (doc.content && doc.content.length > 0)) {
+                                            vectorized = 'Likely';
+                                        } else {
+                                            vectorized = 'No';
+                                        }
+                                        
+                                        const color = vectorized === 'Yes' ? '#16a34a' : 
+                                                     vectorized === 'Likely' ? '#eab308' : 
+                                                     vectorized === 'No' ? '#dc2626' : '#6b7280';
+                                        
+                                        return `<span style="color: ${color}; font-weight: bold;">${vectorized === 'Yes' ? '✓' : vectorized === 'No' ? '✗' : '?'}</span> 
+                                               <span style="color: ${color}; font-size: 11px;">${vectorized}</span>`;
+                                    })()}
                                 </td>
                                 <td style="padding: 10px; font-size: 11px;">${formatDate(doc.uploadDate || doc.createdDate)}</td>
                                 <td style="padding: 10px; text-align: center;">
