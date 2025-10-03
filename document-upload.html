@@ -1711,7 +1711,8 @@
                     return {
                         id: doc.id || fileName,
                         title: doc.title || displayName,
-                        fileName: displayName,
+                        fileName: fileName,  // Store full path for SAS generation
+                        displayName: displayName,  // Store display name separately
                         size: size,
                         lastModified: lastMod,
                         contentType: doc.metadata_storage_content_type || doc.contentType || 'application/pdf',
@@ -1722,10 +1723,10 @@
                     };
                 });
 
-                // Deduplicate chunks back to original files by department + filename
+                // Deduplicate chunks back to original files by department + displayName
                 const uniqueMap = new Map();
                 chunkDocs.forEach(d => {
-                    const key = `${d.department}/${d.fileName}`;
+                    const key = `${d.department}/${d.displayName}`;
                     const existing = uniqueMap.get(key);
                     if (!existing) {
                         uniqueMap.set(key, { ...d });
@@ -1822,9 +1823,9 @@
             const docDiv = document.createElement('div');
             docDiv.style.cssText = 'border: 1px solid #e5e7eb; border-radius: 8px; background: white; padding: 16px; transition: all 0.2s;';
             
-            const fileExt = doc.fileName ? doc.fileName.split('.').pop().toLowerCase() : '';
+            const fileExt = doc.displayName ? doc.displayName.split('.').pop().toLowerCase() : '';
             const typeInfo = getFileTypeInfo(fileExt);
-            const enhancedIcon = window.getFileTypeIcon ? window.getFileTypeIcon(doc.fileName) : typeInfo;
+            const enhancedIcon = window.getFileTypeIcon ? window.getFileTypeIcon(doc.displayName) : typeInfo;
             
             const safeSize = (doc.size && Number.isFinite(doc.size)) ? formatFileSize(doc.size) : '--';
             const safeDate = (doc.lastModified && doc.lastModified !== 'undefined' && doc.lastModified !== 'null') ? formatDateToEST(doc.lastModified) : '--';
@@ -1845,7 +1846,7 @@
                     </div>
                     <div style="display: flex; gap: 8px;">
                         <button onclick="openPreview('${doc.url}', '${doc.title.replace(/'/g, "\'")}', '${(doc.fileName || doc.title).replace(/'/g, "\'")}')" style="padding: 6px 12px; background: #10b981; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">Preview</button>
-                        <button onclick="downloadBlobDocument('${doc.url}', '${doc.fileName}')" style="padding: 6px 12px; background: #3b82f6; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">Download</button>
+                        <button onclick="downloadBlobDocument('${doc.url}', '${doc.displayName}')" style="padding: 6px 12px; background: #3b82f6; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">Download</button>
                     </div>
                 </div>
             `;
