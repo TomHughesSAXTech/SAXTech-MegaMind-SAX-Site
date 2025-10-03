@@ -4,23 +4,42 @@ module.exports = async function (context, req) {
     const startTime = Date.now();
     
     try {
-        console.log('🚀 Starting fast document list request');
+        context.log('🚀 Starting fast document list request');
         
         // Get Azure Search credentials from environment
         const searchEndpoint = process.env.AZURE_SEARCH_ENDPOINT;
         const searchKey = process.env.AZURE_SEARCH_KEY;
         const searchIndex = process.env.AZURE_SEARCH_INDEX;
         
-        console.log('Environment check:', {
+        context.log('Environment check:', {
             endpoint: searchEndpoint ? 'SET' : 'MISSING',
             key: searchKey ? 'SET' : 'MISSING', 
-            index: searchIndex || 'MISSING'
+            index: searchIndex || 'MISSING',
+            allEnv: Object.keys(process.env).filter(k => k.includes('AZURE')).join(', ')
         });
         
         if (!searchEndpoint || !searchKey || !searchIndex) {
             const error = `Missing Azure Search configuration: endpoint=${!!searchEndpoint}, key=${!!searchKey}, index=${!!searchIndex}`;
-            console.error(error);
-            throw new Error(error);
+            context.log.error(error);
+            
+            // Return error response instead of throwing
+            context.res = {
+                status: 500,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                },
+                body: {
+                    success: false,
+                    error: error,
+                    env: {
+                        endpoint: searchEndpoint || 'NOT_SET',
+                        index: searchIndex || 'NOT_SET',
+                        keyExists: !!searchKey
+                    }
+                }
+            };
+            return;
         }
         
         // Initialize Azure Search client
