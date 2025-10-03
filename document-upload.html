@@ -1847,8 +1847,8 @@
             document.body.removeChild(link);
         }
         
-        // Preview modal opener using blob/index URL
-        function openPreview(url, title) {
+        // Preview modal opener using blob/index URL with SAS authentication
+        async function openPreview(url, title) {
             try {
                 const modal = document.getElementById('previewModal');
                 const content = document.getElementById('previewContent');
@@ -1856,19 +1856,61 @@
                 const infoEl = document.getElementById('previewInfo');
                 if (!modal || !content) return;
                 
-                // Build iframe
-                content.innerHTML = '';
-                const iframe = document.createElement('iframe');
-                iframe.className = 'preview-iframe';
-                iframe.src = url;
-                content.appendChild(iframe);
+                // Show loading
+                content.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #64748b;">Loading document...</div>';
+                modal.style.display = 'flex';
+                
+                // Get SAS token for the file
+                console.log('Getting SAS token for preview:', url);
+                const urlObj = new URL(url);
+                const pathParts = urlObj.pathname.split('/');
+                const fileName = pathParts.slice(2).join('/'); // Remove /container/ part
+                
+                const sasResponse = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.generateSAS}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-functions-key': API_CONFIG.functionKey
+                    },
+                    body: JSON.stringify({
+                        containerName: API_CONFIG.blobStorage.containerName,
+                        fileName: fileName
+                    })
+                });
+                
+                if (sasResponse.ok) {
+                    const sasData = await sasResponse.json();
+                    const authenticatedUrl = sasData.blobUrl || sasData.url || url;
+                    
+                    // Build iframe with authenticated URL
+                    content.innerHTML = '';
+                    const iframe = document.createElement('iframe');
+                    iframe.className = 'preview-iframe';
+                    iframe.src = authenticatedUrl;
+                    content.appendChild(iframe);
+                    
+                    console.log('Using authenticated URL for preview:', authenticatedUrl);
+                } else {
+                    // Fallback to original URL
+                    content.innerHTML = '';
+                    const iframe = document.createElement('iframe');
+                    iframe.className = 'preview-iframe';
+                    iframe.src = url;
+                    content.appendChild(iframe);
+                    
+                    console.warn('Could not get SAS token, using original URL:', url);
+                }
                 
                 if (titleEl) titleEl.textContent = title || 'Document Preview';
-                if (infoEl) infoEl.textContent = url;
+                if (infoEl) infoEl.textContent = 'Loading from blob storage...';
                 
-                modal.style.display = 'flex';
             } catch (e) {
                 console.error('Preview error:', e);
+                // Show error in modal
+                const content = document.getElementById('previewContent');
+                if (content) {
+                    content.innerHTML = `<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #ef4444;">Error loading document: ${e.message}</div>`;
+                }
             }
         }
         
