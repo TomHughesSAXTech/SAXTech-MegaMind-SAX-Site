@@ -1553,48 +1553,26 @@
             lastUpdated.textContent = 'Last updated: --';
             folderGrid.innerHTML = '<div style="text-align: center; padding: 40px; color: #64748b;">Loading documents from blob storage...</div>';
 
-            // Try direct blob storage first, fallback to search index
-            fetchDirectBlobStorage()
+            // Use search index with proper deduplication to show original documents
+            fetchBlobDocuments()
                 .then(data => {
-                    if (data && data.documents && data.documents.length > 0) {
-                        console.log('✅ Using direct blob storage results');
-                        // Update stats
-                        documentCount.textContent = `${data.documents.length} original files in blob storage`;
-                        lastUpdated.textContent = `Files from: Blob Storage`;
-                        
-                        // Store all documents for filtering
-                        window.allBlobDocuments = data.documents;
-                        
-                        // Build simple document list
-                        buildBlobDocumentList(data.documents);
+                    if (!data || !data.documents || data.documents.length === 0) {
+                        showEmptyRepository();
                         return;
                     }
-                    throw new Error('Direct blob fetch returned no results');
-                })
-                .catch(error => {
-                    console.warn('⚠️ Direct blob failed, using search index fallback:', error);
-                    
-                    // Fallback to search index method
-                    return fetchBlobDocuments()
-                        .then(data => {
-                            if (!data || !data.documents || data.documents.length === 0) {
-                                showEmptyRepository();
-                                return;
-                            }
 
-                            // Update stats
-                            documentCount.textContent = `${data.documents.length} documents from search index (deduplicated)`;
-                            lastUpdated.textContent = `Last updated: ${data.lastModified || '--'}`;
-                            
-                            // Store all documents for filtering
-                            window.allBlobDocuments = data.documents;
-                            
-                            // Build simple document list
-                            buildBlobDocumentList(data.documents);
-                        });
+                    // Update stats
+                    documentCount.textContent = `${data.documents.length} original documents (from ${data.totalChunks || 'unknown'} chunks)`;
+                    lastUpdated.textContent = `Last updated: ${data.lastModified || '--'}`;
+                    
+                    // Store all documents for filtering
+                    window.allBlobDocuments = data.documents;
+                    
+                    // Build simple document list
+                    buildBlobDocumentList(data.documents);
                 })
                 .catch(error => {
-                    console.error('Both blob and search methods failed:', error);
+                    console.error('Error loading documents:', error);
                     showEmptyRepository();
                 });
         }
@@ -1696,13 +1674,10 @@
                     console.log('Sample document:', documentList[0]);
                 }
                 
-                // Transform search documents into blob document format
-                const documents = documentList.map(doc => {
-                    // Extract filename from various fields - try more possibilities
+                // Transform search documents into blob document format (chunk-level)
+                const chunkDocs = documentList.map(doc => {
                     const fileName = doc.fileName || doc.metadata_storage_name || doc.title || doc.id || 'Unknown Document';
-                    const displayName = fileName.split('/').pop(); // Get just the filename
-                    
-                    // Extract department from path or document metadata
+                    const displayName = fileName.split('/').pop();
                     let department = 'General';
                     if (doc.metadata_storage_path) {
                         const pathParts = doc.metadata_storage_path.split('/');
@@ -1712,13 +1687,9 @@
                     } else if (fileName.includes('/')) {
                         department = fileName.split('/')[0];
                     }
-                    
-                    // Extract size with fallbacks
                     const size = doc.metadata_storage_size || doc.fileSize || doc.size || 0;
-                    
-                    // Extract last modified with multiple fallbacks
                     const lastMod = doc.metadata_storage_last_modified || doc.lastModified || doc.modifiedDate || doc.uploadDate || doc.createdDate;
-                    
+                    const pathFromMeta = doc.metadata_storage_path || `${department}/${displayName}`;
                     return {
                         id: doc.id || fileName,
                         title: doc.title || displayName,
@@ -1727,25 +1698,41 @@
                         lastModified: lastMod,
                         contentType: doc.metadata_storage_content_type || doc.contentType || 'application/pdf',
                         department: department,
-                        // Create blob URL from metadata
-                        url: doc.metadata_storage_path ? 
-                            `${API_CONFIG.blobStorage.baseUrl}/${API_CONFIG.blobStorage.containerName}/${doc.metadata_storage_path}` :
-                            `${API_CONFIG.blobStorage.baseUrl}/${API_CONFIG.blobStorage.containerName}/${fileName}`,
-                        // Add search-specific metadata
+                        url: `${API_CONFIG.blobStorage.baseUrl}/${API_CONFIG.blobStorage.containerName}/${pathFromMeta}`,
                         indexed: true,
-                        searchScore: doc['@search.score'],
-                        // Add raw document for debugging
-                        _raw: doc
+                        searchScore: doc['@search.score']
                     };
                 });
-                
+
+                // Deduplicate chunks back to original files by department + filename
+                const uniqueMap = new Map();
+                chunkDocs.forEach(d => {
+                    const key = `${d.department}/${d.fileName}`;
+                    const existing = uniqueMap.get(key);
+                    if (!existing) {
+                        uniqueMap.set(key, { ...d });
+                    } else {
+                        // Keep the most recent modified time
+                        const existingTime = existing.lastModified ? new Date(existing.lastModified).getTime() : 0;
+                        const currentTime = d.lastModified ? new Date(d.lastModified).getTime() : 0;
+                        if (currentTime > existingTime) {
+                            existing.lastModified = d.lastModified;
+                            existing.url = d.url;
+                        }
+                        // Prefer non-zero size if any
+                        if (!existing.size && d.size) existing.size = d.size;
+                    }
+                });
+                const documents = Array.from(uniqueMap.values());
+
                 const endTime = performance.now();
-                console.log(`🏁 Blob document processing completed in ${(endTime - startTime).toFixed(2)}ms (${documents.length} documents)`);
+                console.log(`🏁 Blob document processing completed in ${(endTime - startTime).toFixed(2)}ms (${documents.length} documents from ${documentList.length} chunks)`);
                 
                 return {
                     documents: documents,
+                    totalChunks: documentList.length,
                     lastModified: documents.length > 0 ? 
-                        formatDateToEST(Math.max(...documents.map(d => new Date(d.lastModified).getTime()))) : '--'
+                        formatDateToEST(Math.max(...documents.filter(x => x.lastModified).map(d => new Date(d.lastModified).getTime()))) : '--'
                 };
                 
             } catch (error) {
@@ -1850,15 +1837,25 @@
                 const sasData = await sasResponse.json();
                 console.log('SAS response:', sasData);
                 
-                // Extract SAS token from URL
+                // Extract SAS token - try different fields
                 let sasToken = '';
-                if (sasData.url && sasData.url.includes('?')) {
-                    sasToken = sasData.url.split('?')[1];
+                if (sasData.sasToken) {
+                    sasToken = sasData.sasToken;  // Direct token
+                } else if (sasData.blobUrl && sasData.blobUrl.includes('?')) {
+                    sasToken = sasData.blobUrl.split('?')[1];  // From blobUrl
+                } else if (sasData.url && sasData.url.includes('?')) {
+                    sasToken = sasData.url.split('?')[1];  // From url field
                 }
+                
+                if (!sasToken) {
+                    throw new Error('Could not extract SAS token from response');
+                }
+                
+                console.log('Extracted SAS token:', sasToken.substring(0, 50) + '...');
                 
                 // Call Azure Storage REST API directly to list blobs
                 const blobListUrl = `${API_CONFIG.blobStorage.baseUrl}/${API_CONFIG.blobStorage.containerName}?restype=container&comp=list&${sasToken}`;
-                console.log('Calling blob list URL...');
+                console.log('Calling blob list URL:', blobListUrl.split('?')[0] + '?[SAS_TOKEN]');
                 
                 const blobResponse = await fetch(blobListUrl);
                 if (!blobResponse.ok) {
