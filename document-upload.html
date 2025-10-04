@@ -3479,7 +3479,7 @@ try {
                     department: department || '',  // Direct department field
                     documentType: sopType || '',  // Direct documentType field
                     page: 1,
-                    pageSize: 50,
+                    pageSize: 100,  // Increase to get more chunks for grouping
                     useVectorSearch: false  // Explicitly disable vector search
                 };
                 
@@ -3506,15 +3506,37 @@ try {
                 const data = await response.json();
                 console.log('📊 Raw API response data:', data);
                 
-                // Azure AI Search returns results in 'value' array
-                const results = data.value ? data.value.map(doc => ({
-                    id: doc.id,
-                    title: doc.title || doc.fileName,
-                    lastModified: doc.uploadDate ? new Date(doc.uploadDate).toLocaleDateString() : 'Unknown'
-                })) : [];
+                if (!data.value || data.value.length === 0) {
+                    console.log('📭 No chunks found in search results');
+                    return [];
+                }
                 
-                console.log('✅ Mapped SOP results:', results);
-                return results;
+                // Group chunks by document ID (remove chunk suffix like _chunk_0, _chunk_1, etc.)
+                const documentsMap = new Map();
+                
+                data.value.forEach(chunk => {
+                    // Extract base document ID by removing chunk suffix
+                    const baseDocId = chunk.id ? chunk.id.replace(/_chunk_\d+$/, '') : null;
+                    
+                    if (baseDocId && !documentsMap.has(baseDocId)) {
+                        documentsMap.set(baseDocId, {
+                            id: baseDocId,
+                            title: chunk.title || chunk.fileName || 'Untitled Document',
+                            description: chunk.description || 'No description available',
+                            keywords: chunk.keywords || 'No keywords',
+                            documentType: chunk.documentType || chunk.sopType || sopType,
+                            department: chunk.department || department,
+                            lastModified: chunk.uploadDate ? new Date(chunk.uploadDate).toLocaleDateString() : 'Unknown',
+                            fileName: chunk.fileName || 'Unknown file'
+                        });
+                    }
+                });
+                
+                const uniqueDocuments = Array.from(documentsMap.values());
+                console.log(`📋 Found ${data.value.length} chunks grouped into ${uniqueDocuments.length} unique documents`);
+                console.log('✅ Unique document results:', uniqueDocuments);
+                
+                return uniqueDocuments;
             } catch (error) {
                 console.error('❌ Document search failed:', error);
                 return [];
@@ -3542,15 +3564,55 @@ try {
             sops.forEach((sop, index) => {
                 const sopItem = document.createElement('div');
                 sopItem.className = 'sop-item';
+                sopItem.style.cssText = 'padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s;';
+                
+                // Truncate description for display
+                const shortDescription = sop.description && sop.description.length > 100 
+                    ? sop.description.substring(0, 100) + '...' 
+                    : sop.description || 'No description available';
+                
+                // Truncate keywords for display
+                const shortKeywords = sop.keywords && sop.keywords.length > 60
+                    ? sop.keywords.substring(0, 60) + '...'
+                    : sop.keywords || 'No keywords';
+                
                 sopItem.innerHTML = `
-                    <div style="font-weight: 500; margin-bottom: 2px;">${sop.title || 'Untitled Document'}</div>
-                    <div style="font-size: 11px; color: #64748b; margin-bottom: 2px;">Modified: ${sop.lastModified || 'Unknown'}</div>
-                    <div style="font-size: 10px; color: #94a3b8; font-family: monospace;">${sop.id}</div>
+                    <div style="font-weight: 600; margin-bottom: 6px; color: #1f2937; font-size: 14px;">${sop.title || 'Untitled Document'}</div>
+                    <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px; line-height: 1.3;">
+                        <strong>Description:</strong> ${shortDescription}
+                    </div>
+                    <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px; line-height: 1.3;">
+                        <strong>Keywords:</strong> ${shortKeywords}
+                    </div>
+                    <div style="font-size: 10px; color: #9ca3af; margin-bottom: 4px; display: flex; justify-content: space-between;">
+                        <span><strong>Type:</strong> ${sop.documentType || 'Unknown'}</span>
+                        <span><strong>Modified:</strong> ${sop.lastModified || 'Unknown'}</span>
+                    </div>
+                    <div style="font-size: 9px; color: #d1d5db; font-family: monospace; text-align: right;">${sop.id}</div>
                 `;
+                
+                // Add hover effect
+                sopItem.addEventListener('mouseenter', () => {
+                    sopItem.style.backgroundColor = '#f9fafb';
+                    sopItem.style.borderColor = '#3b82f6';
+                    sopItem.style.transform = 'translateY(-1px)';
+                    sopItem.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                });
+                
+                sopItem.addEventListener('mouseleave', () => {
+                    if (!sopItem.classList.contains('selected')) {
+                        sopItem.style.backgroundColor = 'white';
+                        sopItem.style.borderColor = '#e5e7eb';
+                        sopItem.style.transform = 'translateY(0)';
+                        sopItem.style.boxShadow = 'none';
+                    }
+                });
+                
                 sopItem.addEventListener('click', () => {
                     console.log('📌 Selected SOP:', sop);
                     selectSOP(sop, sopItem);
                 });
+                
                 sopList.appendChild(sopItem);
             });
             
@@ -3558,19 +3620,46 @@ try {
         }
 
         function selectSOP(sop, element) {
-            // Remove selection from other items
-            document.querySelectorAll('.sop-item').forEach(item => item.classList.remove('selected'));
-            // Select current item
+            console.log('🎯 Selecting document:', sop);
+            
+            // Remove selection styling from other items
+            document.querySelectorAll('.sop-item').forEach(item => {
+                item.classList.remove('selected');
+                // Reset styling to unselected state
+                item.style.backgroundColor = 'white';
+                item.style.borderColor = '#e5e7eb';
+                item.style.transform = 'translateY(0)';
+                item.style.boxShadow = 'none';
+            });
+            
+            // Apply selection styling to current item
             element.classList.add('selected');
+            element.style.backgroundColor = '#eff6ff';
+            element.style.borderColor = '#2563eb';
+            element.style.transform = 'translateY(-2px)';
+            element.style.boxShadow = '0 4px 8px rgba(37, 99, 235, 0.15)';
+            
             // Store selected document ID
             selectedSOPIdInput.value = sop.id;
+            
             // Show additional info section now that document is selected
             additionalInfoDiv.style.display = 'block';
             additionalInfoDiv.classList.remove('additional-info');
-            // Pre-fill title with selected document title
-            document.getElementById('sopTitle').value = sop.title;
+            
+            // Pre-fill form fields with selected document data
+            document.getElementById('sopTitle').value = sop.title || '';
+            document.getElementById('sopDescription').value = sop.description || '';
+            document.getElementById('keywords').value = sop.keywords || '';
+            
             // Title not required since we're updating existing
             document.getElementById('sopTitle').required = false;
+            
+            console.log('✅ Document selected, form fields populated:', {
+                id: sop.id,
+                title: sop.title,
+                description: sop.description ? sop.description.substring(0, 50) + '...' : 'None',
+                keywords: sop.keywords
+            });
         }
 
         function handleDragOver(e) {
