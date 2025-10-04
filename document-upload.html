@@ -1604,33 +1604,35 @@
                 });
         }
 
-        // FAST DOCUMENT FETCH - Direct to Azure Search
+        // DOCUMENT FETCH using optimized search endpoint
         async function fetchBlobDocuments(department = null) {
             const startTime = performance.now();
-            console.log('⚡ Starting FAST direct search...');
+            console.log('⚡ Starting optimized document fetch...');
             
             try {
-                // Direct Azure Search API call
-                const searchUrl = `${API_CONFIG.azureSearch.endpoint}/indexes/${API_CONFIG.azureSearch.indexName}/docs/search?api-version=${API_CONFIG.azureSearch.apiVersion}`;
-                
-                const response = await fetch(searchUrl, {
+                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}?code=${API_CONFIG.functionKey}`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'api-key': API_CONFIG.azureSearch.apiKey
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        search: '*',
-                        top: 100,
-                        select: 'title,fileName,department,blobUrl,lastModified,contentLength'
+                        query: '*',
+                        top: 20,  // Reduced to minimum needed
+                        select: 'title,fileName,department,blobUrl,lastModified,contentLength',
+                        searchMode: 'any',
+                        enableVector: false,
+                        enableAI: false,  
+                        skipAnswer: true,
+                        documentsOnly: true,
+                        scoringParameter: 'document-boost'
                     })
                 });
                 
                 const endTime = performance.now();
-                console.log(`⚡ Direct search completed in ${(endTime - startTime).toFixed(2)}ms`);
+                console.log(`⚡ Optimized search completed in ${(endTime - startTime).toFixed(2)}ms`);
 
                 if (!response.ok) {
-                    throw new Error(`Azure Search HTTP ${response.status}: ${response.statusText}`);
+                    throw new Error(`Search HTTP ${response.status}: ${response.statusText}`);
                 }
 
                 const searchData = await response.json();
