@@ -2729,12 +2729,9 @@
             } else if (tab === 'system') {
                 updateSystemInfo();
             } else if (tab === 'index') {
-                // Load departments and refresh stats when switching to index tab
-                loadDepartments();
+                // Initialize index tab components
                 initIndexSelector();
                 refreshStats();
-                // Also refresh indexer status for automated indexes
-                refreshIndexerStatus();
             } else if (tab === 'sessions') {
                 // Load conversation data for the new enhanced sessions tab
                 loadConversations();
@@ -3814,6 +3811,12 @@
         function displayDepartments() {
             const listDiv = document.getElementById('departmentList');
             
+            // Check if the element exists (it was removed in the redesigned index tab)
+            if (!listDiv) {
+                console.log('departmentList element not found - skipping department display');
+                return;
+            }
+            
             if (departments.length === 0) {
                 listDiv.innerHTML = '<p style="color: #666; text-align: center;">No departments configured</p>';
                 return;
@@ -3832,6 +3835,13 @@
         
         function addDepartment() {
             const input = document.getElementById('newDepartmentName');
+            
+            // Check if the element exists (it was removed in the redesigned index tab)
+            if (!input) {
+                console.log('newDepartmentName element not found - skipping add department');
+                return;
+            }
+            
             const name = input.value.trim();
             
             if (!name) {
