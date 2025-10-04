@@ -1618,15 +1618,10 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        query: '*',
+                        search: '*',  // Enhanced search uses 'search' not 'query'
                         top: 20,  // Reduced to minimum needed
-                        select: 'title,fileName,department,blobUrl,lastModified,contentLength',
-                        searchMode: 'any',
-                        enableVector: false,
-                        enableAI: false,  
-                        skipAnswer: true,
-                        documentsOnly: true,
-                        scoringParameter: 'document-boost'
+                        department: department || undefined,  // Add department filter if specified
+                        orderBy: 'lastModified desc'
                     })
                 });
                 
@@ -1638,11 +1633,13 @@
                 }
 
                 const searchData = await response.json();
-                const documentList = searchData.value || [];
+                // Enhanced search returns Value array containing documents
+                const documentList = searchData.Value || [];
                 
                 // Process and deduplicate results
                 const documentMap = new Map();
-                documentList.forEach(doc => {
+                documentList.forEach(item => {
+                    const doc = item.Document || item; // Enhanced format has Document nested
                     const fileName = doc.fileName || doc.title || 'Unknown';
                     const displayName = fileName.split('/').pop();
                     const dept = doc.department || 'General';
@@ -1654,7 +1651,7 @@
                             title: doc.title || displayName,
                             fileName: fileName,
                             displayName: displayName,
-                            size: parseInt(doc.contentLength) || 0,
+                            size: parseInt(doc.fileSize || doc.contentLength) || 0,
                             lastModified: doc.lastModified,
                             department: dept,
                             url: doc.blobUrl,
@@ -3477,12 +3474,10 @@ try {
             
             try {
                 const requestBody = {
-                    query: '*',  // Use 'query' not 'search'
-                    department: department || '',  // Direct department field
-                    documentType: sopType || '',  // Direct documentType field
-                    page: 1,
-                    pageSize: 100,  // Increase to get more chunks for grouping
-                    useVectorSearch: false  // Explicitly disable vector search
+                    search: '*',  // Enhanced search uses 'search' not 'query'
+                    department: department || undefined,  // Direct department field
+                    documentType: sopType || undefined,  // Direct documentType field
+                    top: 100  // Increase to get more chunks for grouping
                 };
                 
                 console.log('📤 Request body:', requestBody);
@@ -3508,7 +3503,7 @@ try {
                 const data = await response.json();
                 console.log('📊 Raw API response data:', data);
                 
-                if (!data.value || data.value.length === 0) {
+                if (!data.Value || data.Value.length === 0) {
                     console.log('📭 No chunks found in search results');
                     return [];
                 }
@@ -3516,7 +3511,8 @@ try {
                 // Group chunks by document ID (remove chunk suffix like _chunk_0, _chunk_1, etc.)
                 const documentsMap = new Map();
                 
-                data.value.forEach(chunk => {
+                data.Value.forEach(item => {
+                    const chunk = item.Document || item; // Enhanced format has Document nested
                     // Extract base document ID by removing chunk suffix
                     const baseDocId = chunk.id ? chunk.id.replace(/_chunk_\d+$/, '') : null;
                     
@@ -3535,7 +3531,7 @@ try {
                 });
                 
                 const uniqueDocuments = Array.from(documentsMap.values());
-                console.log(`📋 Found ${data.value.length} chunks grouped into ${uniqueDocuments.length} unique documents`);
+                console.log(`📋 Found ${data.Value.length} chunks grouped into ${uniqueDocuments.length} unique documents`);
                 console.log('✅ Unique document results:', uniqueDocuments);
                 
                 return uniqueDocuments;
