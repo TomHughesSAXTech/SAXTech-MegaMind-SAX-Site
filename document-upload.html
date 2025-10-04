@@ -1057,12 +1057,6 @@
                 webhookUrl: 'https://workflows.saxtechnology.com/webhook/sop-document-upload',
                 enabled: true  // Toggle to enable/disable n8n integration
             },
-            // New fast document list endpoint
-            fastDocumentList: {
-                baseUrl: 'https://saxtech-document-list.azurewebsites.net/api',
-                functionKey: 'Eiu7f0PsxmSfslsRuTRdOHVUIiCI__k6p7K4QMnPAg-VAzFuUNpb2A==',
-                endpoint: '/list-documents'
-            }
         };
 
         // DOM elements
@@ -1589,7 +1583,7 @@
             lastUpdated.textContent = 'Last updated: --';
             folderGrid.innerHTML = `<div style="text-align: center; padding: 40px; color: #64748b;">Loading ${department} documents...</div>`;
             
-            // Use fast endpoint with department filter
+            // Use search endpoint with department filter
             fetchBlobDocuments(department)
                 .then(data => {
                     if (!data || !data.documents || data.documents.length === 0) {
@@ -1610,53 +1604,20 @@
                 });
         }
 
-        // OPTIMIZED DOCUMENT FETCH with fallback
+        // DOCUMENT FETCH using search endpoint
         async function fetchBlobDocuments(department = null) {
             const startTime = performance.now();
-            console.log('🚀 Starting FAST document fetch (with fallback)...');
+            console.log('🔍 Starting document fetch...');
             
             try {
-                // Try new fast endpoint first
-                try {
-                    let url = `${API_CONFIG.fastDocumentList.baseUrl}${API_CONFIG.fastDocumentList.endpoint}?code=${API_CONFIG.fastDocumentList.functionKey}&limit=100`;
-                    
-                    if (department && department !== 'all') {
-                        url += `&department=${encodeURIComponent(department)}`;
-                    }
-                    
-                    console.log('📊 Trying fast endpoint...');
-                    const fastResponse = await fetch(url, { 
-                        method: 'GET',
-                        headers: { 'Content-Type': 'application/json' }
-                    });
-                    
-                    if (fastResponse.ok) {
-                        const data = await fastResponse.json();
-                        if (data.success) {
-                            console.log(`✅ Fast endpoint worked! ${data.documents.length} documents in ${data.executionTime}ms`);
-                            return {
-                                documents: data.documents || [],
-                                totalChunks: data.totalChunks || 0,
-                                lastModified: data.lastModified || '--',
-                                executionTime: data.executionTime || 0
-                            };
-                        }
-                    }
-                } catch (fastError) {
-                    console.warn('🔄 Fast endpoint failed, falling back to search endpoint:', fastError.message);
-                }
-                
-                // Fallback to optimized search endpoint
-                console.log('🔍 Using fallback search endpoint with optimizations...');
-                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
+                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}?code=${API_CONFIG.functionKey}`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'x-functions-key': API_CONFIG.functionKey
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         query: '*',
-                        top: 50,  // Reduced for speed
+                        top: 50,
                         enableVector: false,
                         enableAI: false,
                         skipAnswer: true,
@@ -1666,7 +1627,7 @@
                 });
                 
                 const endTime = performance.now();
-                console.log(`⚡ Fallback search completed in ${(endTime - startTime).toFixed(2)}ms`);
+                console.log(`⚡ Search completed in ${(endTime - startTime).toFixed(2)}ms`);
 
                 if (!response.ok) {
                     throw new Error(`Search HTTP ${response.status}: ${response.statusText}`);
