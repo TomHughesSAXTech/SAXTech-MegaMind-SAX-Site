@@ -1771,28 +1771,24 @@
                 // Get SAS token for the file
                 console.log('Getting SAS token for preview:', url);
                 
-                // Use provided fileName or extract from title/URL
-                if (!fileName) {
-                    if (title && (title.includes('.') || title.includes('/'))) {
-                        fileName = title;
-                    } else {
-                        // Fallback: try to extract from URL
-                        try {
-                            const urlObj = new URL(url);
-                            let pathParts = urlObj.pathname.split('/').filter(p => p);
-                            if (pathParts.length > 1) {
-                                const filePath = pathParts.slice(1).join('/');
-                                fileName = filePath.includes('%') ? decodeURIComponent(filePath) : filePath;
-                            } else {
-                                fileName = title.includes('.') ? title : `${title}.pdf`;
-                            }
-                        } catch (e) {
-                            fileName = title.includes('.') ? title : `${title}.pdf`;
+                // Extract the correct blob path from the URL
+                let blobPath = fileName || title;
+                
+                if (url && url.includes('blob.core.windows.net')) {
+                    try {
+                        const urlObj = new URL(url);
+                        let pathParts = urlObj.pathname.split('/').filter(p => p);
+                        if (pathParts.length > 1) {
+                            // Remove container name, keep department/filename path
+                            const fullPath = pathParts.slice(1).join('/');
+                            blobPath = fullPath.includes('%') ? decodeURIComponent(fullPath) : fullPath;
                         }
+                    } catch (e) {
+                        console.warn('Could not parse blob URL:', e);
                     }
                 }
                 
-                console.log('Using fileName for SAS:', fileName);
+                console.log('Using blob path for SAS:', blobPath);
                 
                 const sasResponse = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.generateSAS}`, {
                     method: 'POST',
@@ -1802,7 +1798,7 @@
                     },
                     body: JSON.stringify({
                         containerName: API_CONFIG.blobStorage.containerName,
-                        fileName: fileName
+                        fileName: blobPath
                     })
                 });
                 
