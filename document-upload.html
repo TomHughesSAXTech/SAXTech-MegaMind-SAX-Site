@@ -3402,17 +3402,30 @@ try {
             const updateType = updateTypeSelect.value;
             
             if (updateType === 'update') {
+                // Show existing documents list
                 existingSOPsDiv.classList.remove('hidden');
-                additionalInfoDiv.classList.add('additional-info');
+                // Hide additional info until user selects a document
+                additionalInfoDiv.style.display = 'none';
+                additionalInfoDiv.classList.remove('additional-info');
+                // Clear any previously selected document
+                selectedSOPIdInput.value = '';
+                document.querySelectorAll('.sop-item').forEach(item => item.classList.remove('selected'));
+                // Load existing documents
                 loadExistingSOPs();
             } else if (updateType === 'new') {
+                // Hide existing documents list
                 existingSOPsDiv.classList.add('hidden');
-                additionalInfoDiv.classList.remove('additional-info');
+                // Show additional info immediately for new documents
                 additionalInfoDiv.style.display = 'block';
+                additionalInfoDiv.classList.remove('additional-info');
                 document.getElementById('sopTitle').required = true;
+                // Clear form fields for new document
+                document.getElementById('sopTitle').value = '';
             } else {
+                // Hide both sections if no action type selected
                 existingSOPsDiv.classList.add('hidden');
                 additionalInfoDiv.style.display = 'none';
+                additionalInfoDiv.classList.remove('additional-info');
                 document.getElementById('sopTitle').required = false;
             }
         }
@@ -3421,22 +3434,57 @@ try {
             const dept = departmentSelect.value;
             const sopType = sopTypeSelect.value;
             const updateType = updateTypeSelect.value;
+            
+            console.log('🔄 Loading existing SOPs:', { dept, sopType, updateType });
 
             if (updateType === 'update' && dept && sopType) {
+                // Show loading state
+                sopList.innerHTML = `
+                    <div class="sop-item" style="color: #64748b; text-align: center; padding: 20px;">
+                        <div style="font-size: 16px; margin-bottom: 8px;">🔄</div>
+                        <div style="font-weight: 500; margin-bottom: 4px;">Loading existing documents...</div>
+                        <div style="font-size: 11px; color: #94a3b8;">Searching ${sopType} documents in ${dept} department</div>
+                    </div>
+                `;
+                
                 // Call Azure Function to get existing SOPs for this department/type
                 fetchExistingSOPs(dept, sopType)
                     .then(sops => {
+                        console.log('✅ Successfully loaded SOPs:', sops);
                         displaySOPs(sops);
                     })
                     .catch(error => {
-                        console.error('Error loading existing SOPs:', error);
-                        displaySOPs([]);
+                        console.error('❌ Error loading existing SOPs:', error);
+                        sopList.innerHTML = `
+                            <div class="sop-item" style="color: #ef4444; text-align: center; padding: 20px;">
+                                <div style="font-size: 16px; margin-bottom: 8px;">⚠️</div>
+                                <div style="font-weight: 500; margin-bottom: 4px;">Failed to load documents</div>
+                                <div style="font-size: 11px; color: #94a3b8;">${error.message}</div>
+                            </div>
+                        `;
                     });
+            } else {
+                console.log('⚠️ Not loading SOPs - conditions not met');
+                displaySOPs([]);
             }
         }
 
         async function fetchExistingSOPs(department, sopType) {
+            console.log('🔍 Fetching existing SOPs:', { department, sopType });
+            console.log('🔧 Using API config:', API_CONFIG);
+            
             try {
+                const requestBody = {
+                    query: '*',  // Use 'query' not 'search'
+                    department: department || '',  // Direct department field
+                    documentType: sopType || '',  // Direct documentType field
+                    page: 1,
+                    pageSize: 50,
+                    useVectorSearch: false  // Explicitly disable vector search
+                };
+                
+                console.log('📤 Request body:', requestBody);
+                
                 // Query documents using Azure Function with correct format
                 const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
                     method: 'POST',
@@ -3444,60 +3492,84 @@ try {
                         'Content-Type': 'application/json',
                         'x-functions-key': API_CONFIG.functionKey
                     },
-                    body: JSON.stringify({
-                        query: '*',  // Use 'query' not 'search'
-                        department: department || '',  // Direct department field
-                        documentType: sopType || '',  // Direct documentType field
-                        page: 1,
-                        pageSize: 50,
-                        useVectorSearch: false  // Explicitly disable vector search
-                    })
+                    body: JSON.stringify(requestBody)
                 });
 
+                console.log('📥 Response status:', response.status);
+                
                 if (!response.ok) {
-                    throw new Error(`Search API HTTP ${response.status}: ${response.statusText}`);
+                    const errorText = await response.text();
+                    console.error('❌ API Error response:', errorText);
+                    throw new Error(`Search API HTTP ${response.status}: ${response.statusText} - ${errorText}`);
                 }
 
                 const data = await response.json();
+                console.log('📊 Raw API response data:', data);
+                
                 // Azure AI Search returns results in 'value' array
-                return data.value ? data.value.map(doc => ({
+                const results = data.value ? data.value.map(doc => ({
                     id: doc.id,
                     title: doc.title || doc.fileName,
                     lastModified: doc.uploadDate ? new Date(doc.uploadDate).toLocaleDateString() : 'Unknown'
                 })) : [];
+                
+                console.log('✅ Mapped SOP results:', results);
+                return results;
             } catch (error) {
-                console.error('Document search failed:', error);
+                console.error('❌ Document search failed:', error);
                 return [];
             }
         }
 
         function displaySOPs(sops) {
+            console.log('📋 Displaying SOPs:', sops);
             sopList.innerHTML = '';
             
             if (!sops || sops.length === 0) {
-                sopList.innerHTML = '<div class="sop-item" style="color: #64748b;">No existing documents found</div>';
+                const dept = departmentSelect.value;
+                const sopType = sopTypeSelect.value;
+                sopList.innerHTML = `
+                    <div class="sop-item" style="color: #64748b; text-align: center; padding: 20px;">
+                        <div style="font-size: 16px; margin-bottom: 8px;">📄</div>
+                        <div style="font-weight: 500; margin-bottom: 4px;">No existing documents found</div>
+                        <div style="font-size: 11px; color: #94a3b8;">No ${sopType} documents found in ${dept} department</div>
+                    </div>
+                `;
                 return;
             }
 
-            sops.forEach(sop => {
+            console.log('📝 Creating SOP items for', sops.length, 'documents');
+            sops.forEach((sop, index) => {
                 const sopItem = document.createElement('div');
                 sopItem.className = 'sop-item';
                 sopItem.innerHTML = `
-                    <div style="font-weight: 500;">${sop.title}</div>
-                    <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Modified: ${sop.lastModified || 'Unknown'}</div>
+                    <div style="font-weight: 500; margin-bottom: 2px;">${sop.title || 'Untitled Document'}</div>
+                    <div style="font-size: 11px; color: #64748b; margin-bottom: 2px;">Modified: ${sop.lastModified || 'Unknown'}</div>
+                    <div style="font-size: 10px; color: #94a3b8; font-family: monospace;">${sop.id}</div>
                 `;
-                sopItem.addEventListener('click', () => selectSOP(sop, sopItem));
+                sopItem.addEventListener('click', () => {
+                    console.log('📌 Selected SOP:', sop);
+                    selectSOP(sop, sopItem);
+                });
                 sopList.appendChild(sopItem);
             });
+            
+            console.log('✅ Displayed', sops.length, 'existing documents');
         }
 
         function selectSOP(sop, element) {
+            // Remove selection from other items
             document.querySelectorAll('.sop-item').forEach(item => item.classList.remove('selected'));
+            // Select current item
             element.classList.add('selected');
+            // Store selected document ID
             selectedSOPIdInput.value = sop.id;
+            // Show additional info section now that document is selected
             additionalInfoDiv.style.display = 'block';
             additionalInfoDiv.classList.remove('additional-info');
+            // Pre-fill title with selected document title
             document.getElementById('sopTitle').value = sop.title;
+            // Title not required since we're updating existing
             document.getElementById('sopTitle').required = false;
         }
 
