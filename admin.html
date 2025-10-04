@@ -3473,8 +3473,13 @@
             const filter = document.getElementById('searchFilter').value;
             const selEl = document.getElementById('indexSelector');
             const currentIndex = (selEl && selEl.value) ? selEl.value : INDEX_CONFIG.indexName;
+            
+            // Debug: Log the selected index
+            console.log('QueryIndex - Selected index from dropdown:', selEl ? selEl.value : 'null');
+            console.log('QueryIndex - Current index being used:', currentIndex);
+            console.log('QueryIndex - INDEX_CONFIG.indexName:', INDEX_CONFIG.indexName);
+            
             INDEX_CONFIG.indexName = currentIndex; // ensure in sync
-            // Fetch all results with paging (1000/page)
             
             document.getElementById('resultsContainer').style.display = 'block';
             document.getElementById('loading').classList.add('show');
@@ -3488,6 +3493,9 @@
                     indexName: currentIndex,
                     select: 'id,title,fileName,department,documentType,uploadDate,createdDate,lastModified,metadata_storage_last_modified,author,fileSize,status,contentHash,contentLength,content,ocrText,conversionMethod,isVectorized,chunks,chunkCount'
                 };
+                
+                // Debug: Log the search body being sent
+                console.log('QueryIndex - Search body being sent to Function App:', JSON.stringify(searchBody, null, 2));
                 
                 // Add filter if provided
                 if (filter && filter.trim()) {
@@ -3510,18 +3518,29 @@
                 
                 const data = await response.json();
                 const documents = data.value || data.results || [];
+                
+                // Debug: Log response details
+                console.log('QueryIndex - Function App response:', {
+                    totalCount: data['@odata.count'],
+                    documentsReturned: documents.length,
+                    indexUsed: currentIndex,
+                    queryUsed: query,
+                    filterUsed: filter
+                });
                     
-                    // Debug: Log first document to see structure
-                    if (documents.length > 0) {
-                        console.log('Sample document structure:', documents[0]);
-                        console.log('Document keys:', Object.keys(documents[0]));
-                        if (documents[0].metadata) {
-                            console.log('Metadata structure:', documents[0].metadata);
-                        }
-                        if (documents[0].chunks) {
-                            console.log('Chunks structure:', documents[0].chunks);
-                        }
+                // Debug: Log first document to see structure
+                if (documents.length > 0) {
+                    console.log('QueryIndex - Sample document structure:', documents[0]);
+                    console.log('QueryIndex - Document keys:', Object.keys(documents[0]));
+                    // Log document IDs to verify which index we're getting results from
+                    console.log('QueryIndex - First 5 document IDs:', documents.slice(0, 5).map(d => d.id));
+                    if (documents[0].metadata) {
+                        console.log('QueryIndex - Metadata structure:', documents[0].metadata);
                     }
+                    if (documents[0].chunks) {
+                        console.log('QueryIndex - Chunks structure:', documents[0].chunks);
+                    }
+                }
                     
                     displayResults(documents);
                     showIndexAlert('success', `Found ${documents.length} documents in ${currentIndex}`);
