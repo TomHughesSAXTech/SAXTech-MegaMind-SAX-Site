@@ -1648,11 +1648,11 @@
                 
                 // Fallback to optimized search endpoint
                 console.log('🔍 Using fallback search endpoint with optimizations...');
-                const response = await fetch(`${API_CONFIG.baseUrl}/documents-search`, {
+                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-functions-key': 'TJxj5L-Pxe7sswFNEODHcBQILf7eQa-jd4hPCOPQwM9XAzFuvmx8aQ=='
+                        'x-functions-key': API_CONFIG.functionKey
                     },
                     body: JSON.stringify({
                         query: '*',
