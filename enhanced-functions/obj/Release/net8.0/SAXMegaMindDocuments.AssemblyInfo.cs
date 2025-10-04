@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SAXMegaMindDocuments")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2dd593b8e1109d8b0e2915b597129de96ce472d5")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cf6ded2c33a0aaefde252e41d325b121f8ef9464")]
 [assembly: System.Reflection.AssemblyProductAttribute("SAXMegaMindDocuments")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SAXMegaMindDocuments")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -1,0 +1,39 @@
+<step title="BackgroundTrace" date="2025-10-04T15:51:18.222" instance="390109" url="/api/zipdeploy" method="POST" >
+  <step title="Updating shutdown sentinel last write time" date="2025-10-04T15:51:18.268" SemaphoreCount="7" /><!-- duration: 16ms -->
+  <step title="LockFile &apos;C:\home\site\locks\deployments.lock&apos; acquired" date="2025-10-04T15:51:18.315" /><!-- duration: 16ms -->
+  <step title="Creating temporary deployment" date="2025-10-04T15:51:18.346" /><!-- duration: 203ms -->
+  <step title="Performing fetch based deployment" date="2025-10-04T15:51:18.581" >
+    <step title="Fetching changes." date="2025-10-04T15:51:18.800" /><!-- duration: 16ms -->
+    <step title="Starting LocalZipHandler" date="2025-10-04T15:51:18.862" /><!-- duration: 16ms -->
+    <step title="Starting ExtractTriggers" date="2025-10-04T15:51:18.909" /><!-- duration: 16ms -->
+    <step title="Before sending BuildRequestReceived status to /api/updatedeploystatus" date="2025-10-04T15:51:19.050" /><!-- duration: 16ms -->
+    <step title="DeploymentManager.Deploy(id:d5802b847aef4bbf99b9d87051147d7d)" date="2025-10-04T15:51:19.097" >
+      <step title="Collecting changeset information" date="2025-10-04T15:51:19.143" /><!-- duration: 172ms -->
+      <step title="Updating submodules" date="2025-10-04T15:51:19.331" >
+        <step title="Updating submodules." date="2025-10-04T15:51:19.503" /><!-- duration: 31ms -->
+      </step><!-- duration: 219ms -->
+      <step title="Preparing deployment for commit id &apos;d5802b847a&apos;." date="2025-10-04T15:51:19.753" /><!-- duration: 16ms -->
+      <step title="Determining deployment builder" date="2025-10-04T15:51:19.956" >
+        <step title="Builder is RunFromZipSiteBuilder" date="2025-10-04T15:51:19.987" /><!-- duration: 16ms -->
+      </step><!-- duration: 78ms -->
+      <step title="Copying SSH keys" date="2025-10-04T15:51:20.112" /><!-- duration: 31ms -->
+      <step title="Building" date="2025-10-04T15:51:20.175" >
+        <step title="Skipping build. Project type: Run-From-Zip" date="2025-10-04T15:51:20.347" /><!-- duration: 16ms -->
+        <step title="Skipping post build. Project type: Run-From-Zip" date="2025-10-04T15:51:20.550" /><!-- duration: 31ms -->
+        <step title="Triggering recycle (preview mode disabled)." date="2025-10-04T15:51:20.784" /><!-- duration: 16ms -->
+        <step title="Ignoring FS watcher based recycle request as this is a classic Windows app." date="2025-10-04T15:51:20.815" /><!-- duration: 16ms -->
+        <step title="Deployment successful. DEPLOYMENTINFO: deploymentPath = Functions App ZipDeploy. Run from package., deployer = az_cli_functions, os = windows, sku = PremiumV3, language = dotnet-isolated, siteName = saxtechmegamindfunctions, slotName = Production, siteHostName = saxtechmegamindfunctions.azurewebsites.net, deploymentStatus = Success" date="2025-10-04T15:51:21.034" /><!-- duration: 31ms -->
+        <step title="Purge deployment items" date="2025-10-04T15:51:21.565" >
+          <step title="Remove 22a94adc8, Success, received at 10/4/2025 3:58:46 AM" date="2025-10-04T15:51:21.815" /><!-- duration: 16ms -->
+        </step><!-- duration: 297ms -->
+      </step><!-- duration: 1766ms -->
+    </step><!-- duration: 2859ms -->
+    <step title="Cleaning up temp files" date="2025-10-04T15:51:21.987" /><!-- duration: 16ms -->
+    <step title="Updating C:\home\data\SitePackages\packagename.txt with deployment 20251004155116.zip" date="2025-10-04T15:51:22.034" /><!-- duration: 47ms -->
+    <step title="Begin HttpPost https://saxtechmegamindfunctions.scm.azurewebsites.net/operations/settriggers, x-ms-request-id: f0c74d46-a139-11f0-9c16-cee493d8ca00" date="2025-10-04T15:51:22.159" /><!-- duration: 16ms -->
+    <step title="End HttpPost, status: OK" date="2025-10-04T15:51:22.643" /><!-- duration: 16ms -->
+    <step title="Scheduling background sync triggers after delay" date="2025-10-04T15:51:22.675" /><!-- duration: 16ms -->
+  </step><!-- duration: 4344ms -->
+  <step title="LockFile &apos;C:\home\site\locks\deployments.lock&apos; released" date="2025-10-04T15:51:22.956" /><!-- duration: 16ms -->
+  <step title="Deleting shutdown sentinel file" date="2025-10-04T15:51:23.003" SemaphoreCount="8" /><!-- duration: 31ms -->
+</step><!-- duration: 4828ms -->

@@ -6,6 +6,7 @@ using Azure.Search.Documents.Models;
 using System.Net;
 using System.Text.Json;
 using Newtonsoft.Json;
+using Azure.AI.OpenAI;
 
 namespace SAXMegaMindDocuments
 {
@@ -13,11 +14,13 @@ namespace SAXMegaMindDocuments
     {
         private readonly ILogger<DocumentSearchEnhanced> _logger;
         private readonly SearchClient _searchClient;
+        private readonly OpenAIClient _openAIClient;
 
-        public DocumentSearchEnhanced(ILogger<DocumentSearchEnhanced> logger, SearchClient searchClient)
+        public DocumentSearchEnhanced(ILogger<DocumentSearchEnhanced> logger, SearchClient searchClient, OpenAIClient openAIClient)
         {
             _logger = logger;
             _searchClient = searchClient;
+            _openAIClient = openAIClient;
         }
 
         [Function("documents-search-enhanced")]
@@ -40,7 +43,24 @@ namespace SAXMegaMindDocuments
                     return badResponse;
                 }
 
-                // Enhanced search options
+                // Generate embeddings for semantic search
+                float[]? queryEmbeddings = null;
+                if (searchRequest.UseSemanticSearch ?? true)
+                {
+                    try
+                    {
+                        var embeddingResponse = await _openAIClient.GetEmbeddingsAsync(
+                            new EmbeddingsOptions("text-embedding-3-large", new[] { searchRequest.Search })
+                        );
+                        queryEmbeddings = embeddingResponse.Value.Data[0].Embedding.ToArray();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning($"Failed to generate query embeddings: {ex.Message}");
+                    }
+                }
+
+                // Enhanced search options with hybrid search
                 var searchOptions = new SearchOptions
                 {
                     IncludeTotalCount = true,
@@ -48,12 +68,28 @@ namespace SAXMegaMindDocuments
                     Skip = searchRequest.Skip ?? 0,
                     QueryType = SearchQueryType.Full
                 };
+                
+                // Add vector search if embeddings are available
+                if (queryEmbeddings != null)
+                {
+                    searchOptions.VectorSearch = new()
+                    {
+                        Queries = {
+                            new VectorizedQuery(queryEmbeddings)
+                            {
+                                KNearestNeighborsCount = searchRequest.Top ?? 50,
+                                Fields = { "contentVector" }
+                            }
+                        }
+                    };
+                }
 
                 // Add enhanced faceting
                 searchOptions.Facets.Add("department,count:10");
                 searchOptions.Facets.Add("documentType,count:10");
                 searchOptions.Facets.Add("author,count:10");
                 searchOptions.Facets.Add("fileType,count:5");
+                searchOptions.Facets.Add("chunkNumber,count:10");
 
                 // Enhanced highlighting
                 searchOptions.HighlightFields.Add("content");
@@ -61,17 +97,26 @@ namespace SAXMegaMindDocuments
                 searchOptions.HighlightFields.Add("description");
 
                 // Enhanced filters
+                var filters = new List<string>();
+                
                 if (!string.IsNullOrEmpty(searchRequest.Department))
                 {
-                    searchOptions.Filter = $"department eq '{searchRequest.Department}'";
+                    filters.Add($"department eq '{searchRequest.Department}'");
                 }
 
                 if (!string.IsNullOrEmpty(searchRequest.DocumentType))
                 {
-                    var filter = string.IsNullOrEmpty(searchOptions.Filter) 
-                        ? $"documentType eq '{searchRequest.DocumentType}'"
-                        : $"{searchOptions.Filter} and documentType eq '{searchRequest.DocumentType}'";
-                    searchOptions.Filter = filter;
+                    filters.Add($"documentType eq '{searchRequest.DocumentType}'");
+                }
+                
+                if (searchRequest.OnlyOriginalDocuments ?? false)
+                {
+                    filters.Add("chunkNumber eq null");
+                }
+                
+                if (filters.Any())
+                {
+                    searchOptions.Filter = string.Join(" and ", filters);
                 }
 
                 // Enhanced ordering
@@ -93,15 +138,19 @@ namespace SAXMegaMindDocuments
                 {
                     ODataContext = $"https://{_searchClient.Endpoint.Host}/indexes('{_searchClient.IndexName}')/$metadata#docs(*)",
                     ODataCount = searchResults.Value.TotalCount,
+                    SearchType = queryEmbeddings != null ? "Hybrid (Text + Vector)" : "Text Only",
+                    SemanticSearchEnabled = queryEmbeddings != null,
                     SearchFacets = searchResults.Value.Facets?.ToDictionary(
                         f => f.Key, 
                         f => f.Value.Select(v => new { Value = v.Value, Count = v.Count }).ToList()
                     ),
-                    Value = searchResults.Value.GetResults().Select(result => new
+                    Value = searchResults.Value.GetResults().Select((result, index) => new
                     {
+                        Rank = index + 1,
                         SearchScore = result.Score,
                         SearchHighlights = result.Highlights?.ToDictionary(h => h.Key, h => h.Value),
-                        Document = result.Document
+                        Document = result.Document,
+                        IsChunked = result.Document?.chunkNumber != null
                     }).ToList()
                 };
 
@@ -126,5 +175,7 @@ namespace SAXMegaMindDocuments
         public string? Department { get; set; }
         public string? DocumentType { get; set; }
         public string? OrderBy { get; set; }
+        public bool? UseSemanticSearch { get; set; } = true;
+        public bool? OnlyOriginalDocuments { get; set; } = false;
     }
 }

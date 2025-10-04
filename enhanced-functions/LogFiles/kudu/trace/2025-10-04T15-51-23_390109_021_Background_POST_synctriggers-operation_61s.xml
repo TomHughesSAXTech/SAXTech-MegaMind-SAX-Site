@@ -1,0 +1,8 @@
+<step title="BackgroundTrace" date="2025-10-04T15:51:23.112" instance="390109" url="synctriggers-operation" method="POST" >
+  <step title="Updating shutdown sentinel last write time" date="2025-10-04T15:51:23.128" SemaphoreCount="7" /><!-- duration: 16ms -->
+  <step title="Delaying &apos;00:01:00&apos; for Functions site to restart." date="2025-10-04T15:51:23.159" /><!-- duration: 31ms -->
+  <step title="Begin HttpPost https://saxtechmegamindfunctions.azurewebsites.net/admin/host/synctriggers, x-ms-request-id: f0c74d46-a139-11f0-9c16-cee493d8ca00" date="2025-10-04T15:52:23.252" /><!-- duration: 31ms -->
+  <step title="End HttpPost, status: OK" date="2025-10-04T15:52:23.986" /><!-- duration: 16ms -->
+  <step title="Syncing function triggers by calling the functions runtime site successful." date="2025-10-04T15:52:24.033" /><!-- duration: 16ms -->
+  <step title="Deleting shutdown sentinel file" date="2025-10-04T15:52:24.065" SemaphoreCount="8" /><!-- duration: 16ms -->
+</step><!-- duration: 60999ms -->

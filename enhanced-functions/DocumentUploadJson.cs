@@ -262,87 +262,90 @@ namespace SAXMegaMindDocuments
                     extractedText = "";
                 }
 
-                // Generate embeddings
-                float[] embeddings = null;
-                try
-                {
-                    if (!string.IsNullOrWhiteSpace(extractedText))
-                    {
-                        var openAIClient = _openAIClient ?? new OpenAIClient(
-                            new Uri(OPENAI_ENDPOINT),
-                            new AzureKeyCredential(OPENAI_KEY));
-                        
-                        // Use limited text for embedding (even if we extracted full text)
-                        var embeddingText = extractedText.Length > 8000 ? extractedText.Substring(0, 8000) : extractedText;
-                        
-                        var embeddingOptions = new EmbeddingsOptions(
-                            EMBEDDING_DEPLOYMENT,
-                            new[] { embeddingText });
-
-                        var embeddingResponse = await openAIClient.GetEmbeddingsAsync(embeddingOptions);
-                        embeddings = embeddingResponse.Value.Data[0].Embedding.ToArray();
-                        _logger.LogInformation($"Generated embeddings for document with {embeddings.Length} dimensions");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, $"Embedding generation failed: {ex.Message}");
-                    // Continue without embeddings
-                }
-
-                // Create search document with all fields
+                // Chunk the document for better RAG performance
                 var fullContent = string.IsNullOrWhiteSpace(extractedText) ? ocrText : extractedText;
+                var chunks = ChunkText(fullContent, CHUNK_SIZE, CHUNK_OVERLAP);
+                var searchDocuments = new List<Dictionary<string, object>>();
                 
-                var searchDocument = new Dictionary<string, object>
+                _logger.LogInformation($"Created {chunks.Count} chunks from document content");
+                
+                // Generate embeddings and create documents for each chunk
+                var openAIClient = _openAIClient ?? new OpenAIClient(
+                    new Uri(OPENAI_ENDPOINT),
+                    new AzureKeyCredential(OPENAI_KEY));
+                    
+                for (int i = 0; i < chunks.Count; i++)
                 {
-                    ["id"] = documentId,
-                    ["title"] = Path.GetFileNameWithoutExtension(uploadRequest.FileName),
-                    ["content"] = fullContent,
-                    ["contentVector"] = embeddings,
-                    ["contentHash"] = contentHash,
-                    ["department"] = dept,
-                    ["documentType"] = docType,
-                    ["description"] = uploadRequest.Description ?? "",
-                    ["keywords"] = uploadRequest.Keywords?.ToArray() ?? Array.Empty<string>(),
-                    ["version"] = uploadRequest.Version ?? "1.0",
-                    ["author"] = "System",
-                    ["lastModified"] = DateTimeOffset.UtcNow,
-                    ["fileSize"] = fileContent.Length,
-                    ["fileType"] = Path.GetExtension(uploadRequest.FileName).TrimStart('.').ToUpper(),
-                    ["fileName"] = uploadRequest.FileName,
-                    ["blobUrl"] = blobUrl,
-                    ["blobName"] = uploadRequest.FileName,
-                    ["containerName"] = "saxdocuments",
-                    ["extractedText"] = extractedText,
-                    ["ocrText"] = ocrText,
-                    ["status"] = "Active",
-                    ["createdDate"] = isDuplicate ? (object)await GetOriginalCreatedDate(documentId) : DateTimeOffset.UtcNow,
-                    ["uploadedBy"] = "System",
-                    ["tags"] = new List<string> { dept, docType }
-                };
+                    var chunk = chunks[i];
+                    var chunkId = chunks.Count == 1 ? documentId : $"{documentId}-chunk-{i + 1}";
+                    
+                    // Generate embeddings for this chunk
+                    float[] embeddings = null;
+                    try
+                    {
+                        if (!string.IsNullOrWhiteSpace(chunk))
+                        {
+                            // Use limited text for embedding
+                            var embeddingText = chunk.Length > 8000 ? chunk.Substring(0, 8000) : chunk;
+                            
+                            var embeddingOptions = new EmbeddingsOptions(
+                                EMBEDDING_DEPLOYMENT,
+                                new[] { embeddingText });
 
-                // Index document in Azure AI Search with retry
+                            var embeddingResponse = await openAIClient.GetEmbeddingsAsync(embeddingOptions);
+                            embeddings = embeddingResponse.Value.Data[0].Embedding.ToArray();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, $"Embedding generation failed for chunk {i + 1}: {ex.Message}");
+                        // Continue without embeddings for this chunk
+                    }
+                    
+                    // Create search document for this chunk
+                    var searchDocument = new Dictionary<string, object>
+                    {
+                        ["id"] = chunkId,
+                        ["title"] = Path.GetFileNameWithoutExtension(uploadRequest.FileName),
+                        ["content"] = chunk,
+                        ["contentVector"] = embeddings,
+                        ["contentHash"] = contentHash,
+                        ["department"] = dept,
+                        ["documentType"] = docType,
+                        ["description"] = uploadRequest.Description ?? "",
+                        ["keywords"] = uploadRequest.Keywords?.ToArray() ?? Array.Empty<string>(),
+                        ["version"] = uploadRequest.Version ?? "1.0",
+                        ["author"] = "System",
+                        ["lastModified"] = DateTimeOffset.UtcNow,
+                        ["fileSize"] = fileContent.Length,
+                        ["fileType"] = Path.GetExtension(uploadRequest.FileName).TrimStart('.').ToUpper(),
+                        ["fileName"] = uploadRequest.FileName,
+                        ["blobUrl"] = blobUrl,
+                        ["blobName"] = uploadRequest.FileName,
+                        ["containerName"] = "saxdocuments",
+                        ["extractedText"] = extractedText,
+                        ["ocrText"] = ocrText,
+                        ["status"] = "Active",
+                        ["createdDate"] = isDuplicate ? (object)await GetOriginalCreatedDate(documentId) : DateTimeOffset.UtcNow,
+                        ["uploadedBy"] = "System",
+                        ["tags"] = new List<string> { dept, docType },
+                        ["chunkNumber"] = chunks.Count == 1 ? (object?)null : i + 1,
+                        ["totalChunks"] = chunks.Count == 1 ? (object?)null : chunks.Count,
+                        ["originalDocumentId"] = chunks.Count == 1 ? (object?)null : documentId
+                    };
+                    
+                    searchDocuments.Add(searchDocument);
+                }
+
+                // Index all document chunks in Azure AI Search using batch processing to avoid 413 errors
                 try
                 {
-                    var batch = isDuplicate 
-                        ? IndexDocumentsBatch.Merge(new[] { searchDocument })
-                        : IndexDocumentsBatch.Upload(new[] { searchDocument });
-                        
-                    var indexResult = await _searchClient.IndexDocumentsAsync(batch);
-
-                    if (indexResult.Value.Results.First().Succeeded)
-                    {
-                        _logger.LogInformation($"Document indexed successfully: {documentId}");
-                    }
-                    else
-                    {
-                        _logger.LogError($"Indexing failed for document {documentId}: {indexResult.Value.Results.First().ErrorMessage}");
-                        throw new Exception($"Indexing failed: {indexResult.Value.Results.First().ErrorMessage}");
-                    }
+                    await ProcessIndexDocumentsInBatches(searchDocuments, isDuplicate);
+                    _logger.LogInformation($"All {searchDocuments.Count} document chunks indexed successfully for: {documentId}");
                 }
                 catch (Exception indexEx)
                 {
-                    _logger.LogError(indexEx, $"Failed to index document {documentId}: {indexEx.Message}");
+                    _logger.LogError(indexEx, $"Failed to index document chunks {documentId}: {indexEx.Message}");
                     
                     // Still return partial success since blob upload worked
                     var partialResponse = req.CreateResponse(HttpStatusCode.PartialContent);
@@ -351,13 +354,13 @@ namespace SAXMegaMindDocuments
                         success = false,
                         documentId = documentId,
                         blobUrl = blobUrl,
-                        message = $"Document uploaded to blob storage but indexing failed: {indexEx.Message}",
+                        message = $"Document uploaded to blob storage but chunk indexing failed: {indexEx.Message}",
                         requiresManualIndexing = true
                     });
                     return partialResponse;
                 }
 
-                // Return success response
+                // Return success response with chunking info
                 var response = req.CreateResponse(HttpStatusCode.OK);
                 await response.WriteAsJsonAsync(new
                 {
@@ -369,13 +372,16 @@ namespace SAXMegaMindDocuments
                     isLargePdf = isLargePdf,
                     fullTextExtraction = requestFullTextExtraction,
                     department = dept,
+                    chunksCreated = chunks.Count,
+                    chunkSize = CHUNK_SIZE,
+                    chunkOverlap = CHUNK_OVERLAP,
                     message = isDuplicate 
-                        ? "Duplicate document updated successfully" 
+                        ? $"Duplicate document updated successfully with {chunks.Count} chunks" 
                         : isLargePdf 
                             ? requestFullTextExtraction
-                                ? "Large PDF uploaded and indexed with FULL text extraction"
-                                : "Large PDF uploaded and indexed with limited text extraction"
-                            : "Document uploaded and indexed successfully"
+                                ? $"Large PDF uploaded and indexed with FULL text extraction ({chunks.Count} chunks)"
+                                : $"Large PDF uploaded and indexed with limited text extraction ({chunks.Count} chunks)"
+                            : $"Document uploaded and indexed successfully ({chunks.Count} chunks)"
                 });
 
                 return response;
@@ -540,6 +546,62 @@ namespace SAXMegaMindDocuments
             }
             
             return chunks;
+        }
+
+        private async Task ProcessIndexDocumentsInBatches(List<Dictionary<string, object>> searchDocuments, bool isDuplicate)
+        {
+            const int batchSize = 10; // Process in smaller batches to avoid request size limits
+            
+            for (int i = 0; i < searchDocuments.Count; i += batchSize)
+            {
+                var batch = searchDocuments.Skip(i).Take(batchSize).ToList();
+                
+                try
+                {
+                    var indexBatch = isDuplicate 
+                        ? IndexDocumentsBatch.Merge(batch)
+                        : IndexDocumentsBatch.Upload(batch);
+                        
+                    var indexResult = await _searchClient.IndexDocumentsAsync(indexBatch);
+                    
+                    var successCount = indexResult.Value.Results.Count(r => r.Succeeded);
+                    var failureCount = indexResult.Value.Results.Count(r => !r.Succeeded);
+                    
+                    _logger.LogInformation($"Batch {i/batchSize + 1} indexed: {successCount} successes, {failureCount} failures");
+                    
+                    // Log any failures
+                    foreach (var failure in indexResult.Value.Results.Where(r => !r.Succeeded))
+                    {
+                        _logger.LogError($"Chunk indexing failed: {failure.ErrorMessage}");
+                    }
+                    
+                    // Add small delay between batches to avoid throttling
+                    if (i + batchSize < searchDocuments.Count)
+                    {
+                        await Task.Delay(100);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Failed to index batch {i/batchSize + 1}: {ex.Message}");
+                    
+                    // Try to index documents individually if batch fails
+                    foreach (var doc in batch)
+                    {
+                        try
+                        {
+                            var singleBatch = isDuplicate 
+                                ? IndexDocumentsBatch.Merge(new[] { doc })
+                                : IndexDocumentsBatch.Upload(new[] { doc });
+                            await _searchClient.IndexDocumentsAsync(singleBatch);
+                        }
+                        catch (Exception docEx)
+                        {
+                            _logger.LogError($"Failed to index individual document {doc["id"]}: {docEx.Message}");
+                        }
+                    }
+                }
+            }
         }
 
         private string GetContentType(string fileName)

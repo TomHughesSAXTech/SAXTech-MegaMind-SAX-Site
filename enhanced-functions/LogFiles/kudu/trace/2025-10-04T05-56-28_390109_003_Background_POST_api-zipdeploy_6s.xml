@@ -1,0 +1,38 @@
+<step title="BackgroundTrace" date="2025-10-04T05:56:28.066" instance="390109" url="/api/zipdeploy" method="POST" >
+  <step title="Updating shutdown sentinel last write time" date="2025-10-04T05:56:28.144" SemaphoreCount="7" /><!-- duration: 16ms -->
+  <step title="LockFile &apos;C:\home\site\locks\deployments.lock&apos; acquired" date="2025-10-04T05:56:28.175" /><!-- duration: 31ms -->
+  <step title="Creating temporary deployment" date="2025-10-04T05:56:28.222" /><!-- duration: 203ms -->
+  <step title="Performing fetch based deployment" date="2025-10-04T05:56:28.440" >
+    <step title="Fetching changes." date="2025-10-04T05:56:28.706" /><!-- duration: 31ms -->
+    <step title="Starting LocalZipHandler" date="2025-10-04T05:56:28.753" /><!-- duration: 31ms -->
+    <step title="Starting ExtractTriggers" date="2025-10-04T05:56:28.816" /><!-- duration: 16ms -->
+    <step title="Before sending BuildRequestReceived status to /api/updatedeploystatus" date="2025-10-04T05:56:28.956" /><!-- duration: 31ms -->
+    <step title="DeploymentManager.Deploy(id:412fdb7d21ba4c22b57d452947327d62)" date="2025-10-04T05:56:29.003" >
+      <step title="Collecting changeset information" date="2025-10-04T05:56:29.050" /><!-- duration: 156ms -->
+      <step title="Updating submodules" date="2025-10-04T05:56:29.237" >
+        <step title="Updating submodules." date="2025-10-04T05:56:29.409" /><!-- duration: 31ms -->
+      </step><!-- duration: 219ms -->
+      <step title="Preparing deployment for commit id &apos;412fdb7d21&apos;." date="2025-10-04T05:56:29.659" /><!-- duration: 31ms -->
+      <step title="Determining deployment builder" date="2025-10-04T05:56:29.862" >
+        <step title="Builder is RunFromZipSiteBuilder" date="2025-10-04T05:56:29.878" /><!-- duration: 16ms -->
+      </step><!-- duration: 63ms -->
+      <step title="Copying SSH keys" date="2025-10-04T05:56:30.003" /><!-- duration: 47ms -->
+      <step title="Building" date="2025-10-04T05:56:30.081" >
+        <step title="Skipping build. Project type: Run-From-Zip" date="2025-10-04T05:56:30.284" /><!-- duration: 31ms -->
+        <step title="Skipping post build. Project type: Run-From-Zip" date="2025-10-04T05:56:30.534" /><!-- duration: 15ms -->
+        <step title="Triggering recycle (preview mode disabled)." date="2025-10-04T05:56:30.816" /><!-- duration: 31ms -->
+        <step title="Ignoring FS watcher based recycle request as this is a classic Windows app." date="2025-10-04T05:56:30.862" /><!-- duration: 31ms -->
+        <step title="Deployment successful. DEPLOYMENTINFO: deploymentPath = Functions App ZipDeploy. Run from package., deployer = az_cli_functions, os = windows, sku = PremiumV3, language = dotnet-isolated, siteName = saxtechmegamindfunctions, slotName = Production, siteHostName = saxtechmegamindfunctions.azurewebsites.net, deploymentStatus = Success" date="2025-10-04T05:56:31.112" /><!-- duration: 16ms -->
+        <step title="Purge deployment items" date="2025-10-04T05:56:31.831" >
+          <step title="Remove 908a6d3eb, Success, received at 10/4/2025 3:56:37 AM" date="2025-10-04T05:56:32.112" /><!-- duration: 16ms -->
+        </step><!-- duration: 313ms -->
+      </step><!-- duration: 2156ms -->
+    </step><!-- duration: 3266ms -->
+    <step title="Cleaning up temp files" date="2025-10-04T05:56:32.284" /><!-- duration: 16ms -->
+    <step title="Updating C:\home\data\SitePackages\packagename.txt with deployment 20251004055626.zip" date="2025-10-04T05:56:32.331" /><!-- duration: 375ms -->
+    <step title="Begin HttpPost https://saxtechmegamindfunctions.scm.azurewebsites.net/operations/settriggers, x-ms-request-id: d824372a-a0e6-11f0-8b5a-cee493d8ca00" date="2025-10-04T05:56:32.784" /><!-- duration: 31ms -->
+    <step title="End HttpPost, status: OK" date="2025-10-04T05:56:33.300" /><!-- duration: 16ms -->
+    <step title="Scheduling background sync triggers after delay" date="2025-10-04T05:56:33.347" /><!-- duration: 16ms -->
+  </step><!-- duration: 5156ms -->
+  <step title="LockFile &apos;C:\home\site\locks\deployments.lock&apos; released" date="2025-10-04T05:56:33.628" /><!-- duration: 31ms -->
+</step><!-- duration: 5641ms -->

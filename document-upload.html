@@ -1029,9 +1029,9 @@
     <script>
         // API Configuration - Azure Function endpoints and n8n webhook
         const API_CONFIG = {
-            // Use enhanced app for all operations since CORS is configured
-            baseUrl: 'https://saxtechmegamindfunctions-enhanced.azurewebsites.net/api',
-            enhancedBaseUrl: 'https://saxtechmegamindfunctions-enhanced.azurewebsites.net/api',
+            // Use correct function app for all operations since CORS is configured
+            baseUrl: 'https://saxtechmegamindfunctions.azurewebsites.net/api',
+            enhancedBaseUrl: 'https://saxtechmegamindfunctions.azurewebsites.net/api',
             functionKey: 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw==', // Function key for authentication
             endpoints: {
                 listDocuments: '/documents/list',
