@@ -1029,18 +1029,20 @@
     <script>
         // API Configuration - Azure Function endpoints and n8n webhook
         const API_CONFIG = {
-            baseUrl: 'https://saxtechmegamindfunctions-enhanced.azurewebsites.net/api',
+            // Use main app for most operations, enhanced app only for uploads
+            baseUrl: 'https://saxtechmegamindfunctions.azurewebsites.net/api',
+            enhancedBaseUrl: 'https://saxtechmegamindfunctions-enhanced.azurewebsites.net/api',
             functionKey: 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw==', // Function key for authentication
             endpoints: {
                 listDocuments: '/documents/list',
-                uploadDocument: '/documents-upload-json',  // Enhanced app uses standard endpoint name
+                uploadDocument: '/documents-upload-json',  // This will use enhancedBaseUrl
                 deleteDocument: '/documents-delete',  // Correct: no slash after documents
                 downloadDocument: '/documents/download',
                 previewDocument: '/documents/view',
-                search: '/documents-search',  // Correct: no slash after documents
+                search: '/documents-search',  // Use main app for search
                 findByFile: '/documents/find-by-file',  // New find by filename endpoint
                 generateSAS: '/GenerateSASToken',
-                process: '/documents-upload-json',  // Enhanced app uses standard endpoint name
+                process: '/documents-upload-json',  // This will use enhancedBaseUrl
                 indexMaintenance: '/index-maintenance'  // Correct: no slash after index
             },
             blobStorage: {
@@ -3819,7 +3821,7 @@ try {
                 }
                 
                 // Upload to enhanced Azure Function endpoint
-                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.uploadDocument}`, {
+                const response = await fetch(`${API_CONFIG.enhancedBaseUrl}${API_CONFIG.endpoints.uploadDocument}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
