@@ -1604,33 +1604,33 @@
                 });
         }
 
-        // DOCUMENT FETCH using search endpoint
+        // FAST DOCUMENT FETCH - Direct to Azure Search
         async function fetchBlobDocuments(department = null) {
             const startTime = performance.now();
-            console.log('🔍 Starting document fetch...');
+            console.log('⚡ Starting FAST direct search...');
             
             try {
-                const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.search}?code=${API_CONFIG.functionKey}`, {
+                // Direct Azure Search API call
+                const searchUrl = `${API_CONFIG.azureSearch.endpoint}/indexes/${API_CONFIG.azureSearch.indexName}/docs/search?api-version=${API_CONFIG.azureSearch.apiVersion}`;
+                
+                const response = await fetch(searchUrl, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'api-key': API_CONFIG.azureSearch.apiKey
                     },
                     body: JSON.stringify({
-                        query: '*',
-                        top: 50,
-                        enableVector: false,
-                        enableAI: false,
-                        skipAnswer: true,
-                        documentsOnly: true,
-                        scoringParameter: 'document-boost'
+                        search: '*',
+                        top: 100,
+                        select: 'title,fileName,department,blobUrl,lastModified,contentLength'
                     })
                 });
                 
                 const endTime = performance.now();
-                console.log(`⚡ Search completed in ${(endTime - startTime).toFixed(2)}ms`);
+                console.log(`⚡ Direct search completed in ${(endTime - startTime).toFixed(2)}ms`);
 
                 if (!response.ok) {
-                    throw new Error(`Search HTTP ${response.status}: ${response.statusText}`);
+                    throw new Error(`Azure Search HTTP ${response.status}: ${response.statusText}`);
                 }
 
                 const searchData = await response.json();
@@ -1650,8 +1650,8 @@
                             title: doc.title || displayName,
                             fileName: fileName,
                             displayName: displayName,
-                            size: parseInt(doc.metadata_storage_size) || 0,
-                            lastModified: doc.metadata_storage_last_modified,
+                            size: parseInt(doc.contentLength) || 0,
+                            lastModified: doc.lastModified,
                             department: dept,
                             url: doc.blobUrl,
                             indexed: true
