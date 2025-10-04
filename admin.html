@@ -3510,11 +3510,6 @@
                 
                 console.log('🔍 QueryIndex - Searching with:', searchBody);
                 
-                // Add filter if provided
-                if (filter && filter.trim()) {
-                    searchBody.filter = filter;
-                }
-                
                 const response = await fetch(`${INDEX_CONFIG.functionUrl}/documents/search`, {
                     method: 'POST',
                     headers: {
