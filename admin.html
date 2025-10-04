@@ -3155,16 +3155,23 @@
                 if (idx.name === INDEX_CONFIG.indexName) opt.selected = true;
                 sel.appendChild(opt);
             });
-            sel.addEventListener('change', () => {
-                INDEX_CONFIG.indexName = sel.value;
-                localStorage.setItem('megamind_selected_index', sel.value);
+            // Remove any existing event listeners to prevent duplicates
+            const newSel = sel.cloneNode(true);
+            sel.parentNode.replaceChild(newSel, sel);
+            
+            newSel.addEventListener('change', () => {
+                console.log('🔄 Index dropdown changed from', INDEX_CONFIG.indexName, 'to', newSel.value);
+                INDEX_CONFIG.indexName = newSel.value;
+                localStorage.setItem('megamind_selected_index', newSel.value);
                 
                 // Update the selected index display
                 const selectedIndexEl = document.getElementById('selectedIndex');
                 if (selectedIndexEl) {
-                    selectedIndexEl.textContent = sel.value || 'None';
+                    selectedIndexEl.textContent = newSel.value || 'None';
+                    console.log('📊 Updated selected index display to:', newSel.value);
                 }
                 
+                console.log('🔄 Calling refreshStats for index:', newSel.value);
                 refreshStats();
             });
         }
@@ -3228,39 +3235,51 @@
         }
 
         async function refreshStats() {
+            console.log('📊 refreshStats() called');
+            
             // Show loading placeholders if present
             const totalDocsEl = document.getElementById('totalDocs');
             const indexSizeEl = document.getElementById('indexSize');
             if (totalDocsEl) totalDocsEl.textContent = '...';
             if (indexSizeEl) indexSizeEl.textContent = '...';
+            
             try {
                 const selEl = document.getElementById('indexSelector');
                 const currentIndex = (selEl && selEl.value) ? selEl.value : INDEX_CONFIG.indexName;
                 INDEX_CONFIG.indexName = currentIndex; // keep in sync
 
-                console.log('Refreshing stats for index:', currentIndex);
+                console.log('📊 refreshStats - Selected element value:', selEl ? selEl.value : 'null');
+                console.log('📊 refreshStats - INDEX_CONFIG.indexName:', INDEX_CONFIG.indexName);
+                console.log('📊 refreshStats - currentIndex being used:', currentIndex);
                 
                 // Use Function App endpoint to avoid CORS issues
                 let totalDocs = 0;
                 
                 try {
+                    const searchBody = {
+                        search: '*',
+                        top: 0,  // We only need the count, not actual documents
+                        count: true,
+                        indexName: currentIndex
+                    };
+                    
+                    console.log('🔍 refreshStats - API call body:', JSON.stringify(searchBody, null, 2));
+                    
                     const response = await fetch(`${INDEX_CONFIG.functionUrl}/documents/search`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'x-functions-key': INDEX_CONFIG.functionKey
                         },
-                        body: JSON.stringify({
-                            search: '*',
-                            top: 0,  // We only need the count, not actual documents
-                            count: true,
-                            indexName: currentIndex
-                        })
+                        body: JSON.stringify(searchBody)
                     });
+                    
+                    console.log('🔍 refreshStats - API response status:', response.status);
                     
                     if (response.ok) {
                         const data = await response.json();
                         totalDocs = data['@odata.count'] || 0;
+                        console.log('✅ refreshStats - Got document count:', totalDocs, 'for index:', currentIndex);
                     } else {
                         const errorText = await response.text();
                         console.error('Function App search failed:', response.status, errorText);
@@ -3271,11 +3290,21 @@
                     throw e;
                 }
                 
-                document.getElementById('totalDocs').textContent = totalDocs.toLocaleString();
+                const totalDocsElement = document.getElementById('totalDocs');
+                const indexSizeElement = document.getElementById('indexSize');
+                
+                if (totalDocsElement) {
+                    totalDocsElement.textContent = totalDocs.toLocaleString();
+                    console.log('📊 Updated totalDocs display to:', totalDocs.toLocaleString());
+                }
+                
                 const sizeInMB = (totalDocs * 50 / 1024).toFixed(1);
-                document.getElementById('indexSize').textContent = `${sizeInMB} MB`;
+                if (indexSizeElement) {
+                    indexSizeElement.textContent = `${sizeInMB} MB`;
+                    console.log('📊 Updated indexSize display to:', `${sizeInMB} MB`);
+                }
 
-                showIndexAlert('success', 'Statistics refreshed successfully');
+                showIndexAlert('success', `Statistics updated for ${currentIndex}: ${totalDocs} documents`);
             } catch (error) {
                 console.error('refreshStats error:', error);
                 showIndexAlert('error', 'Error fetching statistics: ' + error.message);
