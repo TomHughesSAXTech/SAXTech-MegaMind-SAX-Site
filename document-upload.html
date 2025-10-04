@@ -1029,18 +1029,18 @@
     <script>
         // API Configuration - Azure Function endpoints and n8n webhook
         const API_CONFIG = {
-            baseUrl: 'https://saxtechmegamindfunctions.azurewebsites.net/api',
+            baseUrl: 'https://saxtechmegamindfunctions-enhanced.azurewebsites.net/api',
             functionKey: 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw==', // Function key for authentication
             endpoints: {
                 listDocuments: '/documents/list',
-                uploadDocument: '/documents-upload-json-enhanced',  // Correct: no slash after documents
+                uploadDocument: '/documents-upload-json',  // Enhanced app uses standard endpoint name
                 deleteDocument: '/documents-delete',  // Correct: no slash after documents
                 downloadDocument: '/documents/download',
                 previewDocument: '/documents/view',
                 search: '/documents-search',  // Correct: no slash after documents
                 findByFile: '/documents/find-by-file',  // New find by filename endpoint
                 generateSAS: '/GenerateSASToken',
-                process: '/documents-upload-json-enhanced',  // Correct: no slash after documents
+                process: '/documents-upload-json',  // Enhanced app uses standard endpoint name
                 indexMaintenance: '/index-maintenance'  // Correct: no slash after index
             },
             blobStorage: {
