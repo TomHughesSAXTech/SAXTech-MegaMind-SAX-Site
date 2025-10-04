@@ -1033,15 +1033,15 @@
             functionKey: 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw==', // Function key for authentication
             endpoints: {
                 listDocuments: '/documents/list',
-                uploadDocument: '/documents/upload-json-enhanced',  // Enhanced endpoint with chunking
-                deleteDocument: '/documents/delete',  // Fixed route with slash
+                uploadDocument: '/documents-upload-json-enhanced',  // Correct: no slash after documents
+                deleteDocument: '/documents-delete',  // Correct: no slash after documents
                 downloadDocument: '/documents/download',
                 previewDocument: '/documents/view',
-                search: '/documents/search',  // Correct route with slash
+                search: '/documents-search',  // Correct: no slash after documents
                 findByFile: '/documents/find-by-file',  // New find by filename endpoint
                 generateSAS: '/GenerateSASToken',
-                process: '/documents/upload-json-enhanced',  // Enhanced endpoint with chunking
-                indexMaintenance: '/index/maintenance'  // Correct route with slash
+                process: '/documents-upload-json-enhanced',  // Correct: no slash after documents
+                indexMaintenance: '/index-maintenance'  // Correct: no slash after index
             },
             blobStorage: {
                 containerName: 'saxdocuments',
