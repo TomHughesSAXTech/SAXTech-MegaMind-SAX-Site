@@ -3804,7 +3804,7 @@ try {
                     updateType: (formData.get('updateType') || 'new').charAt(0).toUpperCase() + (formData.get('updateType') || 'new').slice(1),
                     title: formData.get('title') || file.name.split('.')[0],
                     description: formData.get('description') || '',
-                    keywords: formData.get('keywords') || '',
+                    keywords: (formData.get('keywords') || '').split(',').map(k => k.trim()).filter(k => k.length > 0),
                     version: formData.get('version') || '1.0',
                     existingDocId: formData.get('existingDocId') || ''
                 };

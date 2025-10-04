@@ -1,0 +1,273 @@
+[
+  {
+    "name": "DeleteBlob",
+    "scriptFile": "SAXMegaMindDocuments.dll",
+    "entryPoint": "SAXMegaMindDocuments.DeleteBlobFunction.Run",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "req",
+        "direction": "In",
+        "type": "httpTrigger",
+        "authLevel": "Function",
+        "methods": [
+          "post",
+          "delete"
+        ],
+        "properties": {}
+      },
+      {
+        "name": "$return",
+        "type": "http",
+        "direction": "Out"
+      }
+    ]
+  },
+  {
+    "name": "documents-delete",
+    "scriptFile": "SAXMegaMindDocuments.dll",
+    "entryPoint": "SAXMegaMindDocuments.DeleteDocument.Delete",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "req",
+        "direction": "In",
+        "type": "httpTrigger",
+        "authLevel": "Anonymous",
+        "methods": [
+          "delete"
+        ],
+        "route": "documents/delete/{documentId}",
+        "properties": {}
+      },
+      {
+        "name": "$return",
+        "type": "http",
+        "direction": "Out"
+      }
+    ]
+  },
+  {
+    "name": "documents-delete-batch",
+    "scriptFile": "SAXMegaMindDocuments.dll",
+    "entryPoint": "SAXMegaMindDocuments.DeleteDocument.DeleteBatch",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "req",
+        "direction": "In",
+        "type": "httpTrigger",
+        "authLevel": "Anonymous",
+        "methods": [
+          "post"
+        ],
+        "route": "documents/delete",
+        "properties": {}
+      },
+      {
+        "name": "$return",
+        "type": "http",
+        "direction": "Out"
+      }
+    ]
+  },
+  {
+    "name": "documents-search",
+    "scriptFile": "SAXMegaMindDocuments.dll",
+    "entryPoint": "SAXMegaMindDocuments.DocumentSearch.Search",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "req",
+        "direction": "In",
+        "type": "httpTrigger",
+        "authLevel": "Anonymous",
+        "methods": [
+          "post"
+        ],
+        "route": "documents/search",
+        "properties": {}
+      },
+      {
+        "name": "$return",
+        "type": "http",
+        "direction": "Out"
+      }
+    ]
+  },
+  {
+    "name": "documents-search-enhanced",
+    "scriptFile": "SAXMegaMindDocuments.dll",
+    "entryPoint": "SAXMegaMindDocuments.DocumentSearchEnhanced.EnhancedSearch",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "req",
+        "direction": "In",
+        "type": "httpTrigger",
+        "authLevel": "Anonymous",
+        "methods": [
+          "post"
+        ],
+        "route": "documents/search-enhanced",
+        "properties": {}
+      },
+      {
+        "name": "$return",
+        "type": "http",
+        "direction": "Out"
+      }
+    ]
+  },
+  {
+    "name": "documents-upload-json",
+    "scriptFile": "SAXMegaMindDocuments.dll",
+    "entryPoint": "SAXMegaMindDocuments.DocumentUploadJson.UploadDocumentJson",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "req",
+        "direction": "In",
+        "type": "httpTrigger",
+        "authLevel": "Anonymous",
+        "methods": [
+          "post"
+        ],
+        "route": "documents/upload-json",
+        "properties": {}
+      },
+      {
+        "name": "$return",
+        "type": "http",
+        "direction": "Out"
+      }
+    ]
+  },
+  {
+    "name": "documents-upload-json-enhanced",
+    "scriptFile": "SAXMegaMindDocuments.dll",
+    "entryPoint": "SAXMegaMindDocuments.DocumentUploadJsonEnhanced.UploadDocumentJsonEnhanced",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "req",
+        "direction": "In",
+        "type": "httpTrigger",
+        "authLevel": "Anonymous",
+        "methods": [
+          "post"
+        ],
+        "route": "documents/upload-json-enhanced",
+        "properties": {}
+      },
+      {
+        "name": "$return",
+        "type": "http",
+        "direction": "Out"
+      }
+    ]
+  },
+  {
+    "name": "GenerateSASToken",
+    "scriptFile": "SAXMegaMindDocuments.dll",
+    "entryPoint": "SAXMegaMindDocuments.GenerateSASToken.Run",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "req",
+        "direction": "In",
+        "type": "httpTrigger",
+        "authLevel": "Anonymous",
+        "methods": [
+          "get",
+          "post"
+        ],
+        "route": "GenerateSASToken",
+        "properties": {}
+      },
+      {
+        "name": "$return",
+        "type": "http",
+        "direction": "Out"
+      }
+    ]
+  },
+  {
+    "name": "index-maintenance",
+    "scriptFile": "SAXMegaMindDocuments.dll",
+    "entryPoint": "SAXMegaMindDocuments.IndexMaintenance.Run",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "req",
+        "direction": "In",
+        "type": "httpTrigger",
+        "authLevel": "Anonymous",
+        "methods": [
+          "post"
+        ],
+        "route": "index/maintenance",
+        "properties": {}
+      },
+      {
+        "name": "$return",
+        "type": "http",
+        "direction": "Out"
+      }
+    ]
+  },
+  {
+    "name": "ManageVoiceConfig",
+    "scriptFile": "SAXMegaMindDocuments.dll",
+    "entryPoint": "SAXMegaMindDocuments.ManageVoiceConfig.Run",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "req",
+        "direction": "In",
+        "type": "httpTrigger",
+        "authLevel": "Anonymous",
+        "methods": [
+          "get",
+          "post"
+        ],
+        "properties": {}
+      },
+      {
+        "name": "$return",
+        "type": "http",
+        "direction": "Out"
+      }
+    ]
+  }
+]

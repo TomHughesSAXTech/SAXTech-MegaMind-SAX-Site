@@ -1,0 +1,22 @@
+{
+  "name": "saxmegamind-document-functions",
+  "version": "1.0.0",
+  "description": "Azure Functions for SAXTech MegaMind document processing",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@azure/storage-blob": "^12.18.0",
+    "@azure/search-documents": "^12.0.0",
+    "@azure/openai": "^1.0.0-beta.12",
+    "crypto": "^1.0.1",
+    "pdf-parse": "^1.1.1",
+    "mammoth": "^1.6.0",
+    "xlsx": "^0.18.5",
+    "sharp": "^0.32.6"
+  },
+  "devDependencies": {
+    "@azure/functions": "^4.0.0"
+  }
+}

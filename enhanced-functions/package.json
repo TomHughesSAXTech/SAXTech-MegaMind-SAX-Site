@@ -1,0 +1,18 @@
+{
+  "name": "saxmegaminddocuments",
+  "version": "1.0.0",
+  "description": "The SAXMegaMind Documents Functions provide a comprehensive document management system for the MegaMind portal. This system enables departments to upload, search, view, download, update, and manage documents with full metadata support and security controls.",
+  "main": "megamind-advanced-processor.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@azure/functions": "^4.8.0",
+    "@azure/search-documents": "^12.1.0",
+    "@azure/storage-blob": "^12.28.0"
+  }
+}
