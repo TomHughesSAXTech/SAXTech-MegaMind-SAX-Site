@@ -10,6 +10,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
         :root {
             /* Colors */
             --primary-50: #eff6ff;
@@ -1810,130 +1815,98 @@
 
         <!-- Search Index Tab -->
         <div id="index-tab" class="tab-content">
-            <div class="alert alert-success" id="indexSuccessAlert"></div>
-            <div class="alert alert-danger" id="indexErrorAlert"></div>
-            <div class="alert alert-warning" id="indexWarningAlert"></div>
+            <div class="alert alert-success" id="indexSuccessAlert" style="display: none; margin-bottom: 20px; padding: 12px; background: #d4edda; border: 1px solid #c3e6cb; color: #155724; border-radius: 8px;"></div>
+            <div class="alert alert-danger" id="indexErrorAlert" style="display: none; margin-bottom: 20px; padding: 12px; background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; border-radius: 8px;"></div>
+            <div class="alert alert-warning" id="indexWarningAlert" style="display: none; margin-bottom: 20px; padding: 12px; background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; border-radius: 8px;"></div>
 
-            <div class="admin-grid">
-                <!-- Index Statistics -->
-                <div class="admin-card">
-                    <h2>📊 Index Statistics</h2>
-                    <div class="stats-grid">
-                        <div class="stat-item">
-                            <div class="value" id="totalDocs">-</div>
-                            <div class="label">Total Documents</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="value" id="indexSize">-</div>
-                            <div class="label">Index Size</div>
-                        </div>
-                    </div>
-                    <button class="btn btn-primary" onclick="refreshStats()">Refresh Stats</button>
-                </div>
-                
-                <!-- Indexer Status (USC/CFR Tax Code & Audit) -->
-                <div class="admin-card">
-                    <h2>🤖 Indexer Status</h2>
-                    <p style="color: #666; font-size: 13px; margin-bottom: 15px;">
-                        Last run times and document counts for automated Azure indexers.
-                    </p>
-                    <div class="stats-grid">
-                        <div class="stat-item">
-                            <div class="value" id="uscIndexerUpdate">--</div>
-                            <div class="label">USC Tax Code<br><small id="uscLastRun" style="font-size: 11px; color: #999;">--</small></div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="value" id="cfrIndexerUpdate">--</div>
-                            <div class="label">CFR Tax Regulations<br><small id="cfrLastRun" style="font-size: 11px; color: #999;">--</small></div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="value" id="auditIndexerUpdate">--</div>
-                            <div class="label">Audit Documents<br><small id="auditLastRun" style="font-size: 11px; color: #999;">--</small></div>
-                        </div>
-                    </div>
-                    <button class="btn btn-primary" onclick="refreshIndexerStatus()">Refresh Indexer Status</button>
-                </div>
-
-                <!-- Query Index -->
-                <div class="admin-card">
-                    <h2>🔍 Query Index</h2>
-                    <div class="form-group">
-                        <label>Select Index</label>
-                        <select id="indexSelector"></select>
-                    </div>
-                    <div class="form-group">
-                        <label>Search Query</label>
-                        <input type="text" id="searchQuery" placeholder="Enter search terms or * for all">
-                    </div>
-                    <div class="form-group">
-                        <label>Filter (OData)</label>
-                        <input type="text" id="searchFilter" placeholder="e.g., department eq 'IT'">
-                    </div>
-                    <button class="btn btn-primary" onclick="queryIndex()">Search</button>
-                </div>
-
-                <!-- Delete Document -->
-                <div class="admin-card">
-                    <h2>🗑️ Delete Document</h2>
-                    <div class="form-group">
-                        <label>Document ID</label>
-                        <input type="text" id="deleteDocId" placeholder="Enter document ID to delete">
-                    </div>
-                    <button class="btn btn-danger" onclick="deleteDocument()">Delete Document</button>
-                </div>
-
-                <!-- Bulk Delete -->
-                <div class="admin-card">
-                    <h2>🗑️ Bulk Delete</h2>
-                    <div class="form-group">
-                        <label>Document IDs (one per line)</label>
-                        <textarea id="bulkDeleteIds" placeholder="Enter document IDs, one per line"></textarea>
-                    </div>
-                    <button class="btn btn-danger" onclick="bulkDelete()">Delete Selected</button>
-                </div>
-
-                <!-- Clear Index -->
-                <div class="admin-card">
-                    <h2>⚠️ Clear Index</h2>
-                    <p style="color: #dc3545; font-size: 13px; margin-bottom: 15px;">
-                        Warning: This will delete ALL documents from the index. This action cannot be undone.
-                    </p>
-                    <div class="form-group">
-                        <label>Type "CONFIRM" to proceed</label>
-                        <input type="text" id="clearConfirm" placeholder="Type CONFIRM">
-                    </div>
-                    <button class="btn btn-danger" onclick="clearIndex()">Clear All Documents</button>
-                </div>
-
-                <!-- Reindex Documents -->
-                <div class="admin-card">
-                    <h2>🔄 Reindex Documents</h2>
-                    <p style="color: #666; font-size: 13px; margin-bottom: 15px;">
-                        Trigger a full reindex of all documents from blob storage.
-                    </p>
-                    <button class="btn btn-warning" onclick="reindexDocuments()">Start Reindexing</button>
-                </div>
-                
-                <!-- Department Management -->
-                <div class="admin-card" style="grid-column: span 2;">
-                    <h2>🏢 Department Management</h2>
-                    <p style="color: #666; font-size: 13px; margin-bottom: 15px;">
-                        Manage departments available for document categorization.
-                    </p>
+            <!-- Main Content -->
+            <div style="max-width: 1200px; margin: 0 auto;">
+                <!-- Index Selector and Search -->
+                <div style="background: white; padding: 24px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 24px;">
+                    <h2 style="margin: 0 0 20px 0; color: #1f2937; font-size: 24px; font-weight: 600;">🔍 Search Index</h2>
                     
-                    <!-- Add New Department -->
-                    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                        <input type="text" id="newDepartmentName" placeholder="Enter new department name" 
-                               style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
-                        <button class="btn btn-primary" onclick="addDepartment()">Add Department</button>
+                    <div style="display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 16px; margin-bottom: 20px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #374151;">Select Index</label>
+                            <select id="indexSelector" style="width: 100%; padding: 10px; border: 2px solid #d1d5db; border-radius: 8px; font-size: 14px; background: white;">
+                                <option value="">Loading...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #374151;">Search Query</label>
+                            <input type="text" id="searchQuery" placeholder="Enter search terms or * for all documents" 
+                                   style="width: 100%; padding: 10px; border: 2px solid #d1d5db; border-radius: 8px; font-size: 14px;">
+                        </div>
+                        <div style="display: flex; align-items: end;">
+                            <button class="btn btn-primary" onclick="queryIndex()" style="padding: 10px 24px; font-size: 16px; font-weight: 600;">Search</button>
+                        </div>
                     </div>
                     
-                    <!-- Department List -->
-                    <div id="departmentList" style="max-height: 300px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; padding: 10px;">
-                        <div class="loading" id="deptLoading">
-                            <div class="spinner"></div>
-                            <p style="margin-top: 10px; color: #666;">Loading departments...</p>
+                    <!-- Index Stats -->
+                    <div id="indexStats" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 16px; background: #f9fafb; border-radius: 8px;">
+                        <div style="text-align: center;">
+                            <div id="totalDocs" style="font-size: 24px; font-weight: 700; color: #1f2937;">-</div>
+                            <div style="font-size: 12px; color: #6b7280; font-weight: 500;">TOTAL DOCUMENTS</div>
                         </div>
+                        <div style="text-align: center;">
+                            <div id="indexSize" style="font-size: 24px; font-weight: 700; color: #1f2937;">-</div>
+                            <div style="font-size: 12px; color: #6b7280; font-weight: 500;">INDEX SIZE</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div id="selectedIndex" style="font-size: 24px; font-weight: 700; color: #3b82f6;">sop-documents</div>
+                            <div style="font-size: 12px; color: #6b7280; font-weight: 500;">SELECTED INDEX</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Container -->
+                <div id="resultsContainer" style="display: none; background: white; padding: 24px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="margin: 0; color: #1f2937; font-size: 20px; font-weight: 600;">📋 Query Results</h3>
+                        <div class="loading" id="loading" style="display: none;">
+                            <div style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #3b82f6; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                            <span style="margin-left: 8px; color: #6b7280;">Searching...</span>
+                        </div>
+                    </div>
+                    <div id="results"></div>
+                </div>
+
+                <!-- Management Tools -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                    <!-- Delete Document -->
+                    <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <h3 style="margin: 0 0 16px 0; color: #dc2626; font-size: 18px; font-weight: 600;">🗑️ Delete Document</h3>
+                        <div style="margin-bottom: 16px;">
+                            <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #374151;">Document ID</label>
+                            <input type="text" id="deleteDocId" placeholder="Enter document ID to delete" 
+                                   style="width: 100%; padding: 8px; border: 2px solid #d1d5db; border-radius: 6px; font-size: 14px;">
+                        </div>
+                        <button class="btn btn-danger" onclick="deleteDocument()" style="width: 100%; padding: 10px; font-weight: 600;">Delete Document</button>
+                    </div>
+
+                    <!-- Bulk Delete -->
+                    <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <h3 style="margin: 0 0 16px 0; color: #dc2626; font-size: 18px; font-weight: 600;">🗑️ Bulk Delete</h3>
+                        <div style="margin-bottom: 16px;">
+                            <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #374151;">Document IDs (one per line)</label>
+                            <textarea id="bulkDeleteIds" placeholder="Enter document IDs, one per line" rows="4" 
+                                      style="width: 100%; padding: 8px; border: 2px solid #d1d5db; border-radius: 6px; font-size: 14px; resize: vertical;"></textarea>
+                        </div>
+                        <button class="btn btn-danger" onclick="bulkDelete()" style="width: 100%; padding: 10px; font-weight: 600;">Delete Selected</button>
+                    </div>
+
+                    <!-- Clear Index -->
+                    <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <h3 style="margin: 0 0 16px 0; color: #dc2626; font-size: 18px; font-weight: 600;">⚠️ Clear Index</h3>
+                        <p style="color: #dc2626; font-size: 13px; margin-bottom: 16px; font-weight: 500;">
+                            ⚠️ This will delete ALL documents from the selected index. This action cannot be undone.
+                        </p>
+                        <div style="margin-bottom: 16px;">
+                            <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #374151;">Type "CONFIRM" to proceed</label>
+                            <input type="text" id="clearConfirm" placeholder="Type CONFIRM" 
+                                   style="width: 100%; padding: 8px; border: 2px solid #d1d5db; border-radius: 6px; font-size: 14px;">
+                        </div>
+                        <button class="btn btn-danger" onclick="clearIndex()" style="width: 100%; padding: 10px; font-weight: 600;">Clear All Documents</button>
                     </div>
                 </div>
             </div>
@@ -3188,6 +3161,13 @@
             sel.addEventListener('change', () => {
                 INDEX_CONFIG.indexName = sel.value;
                 localStorage.setItem('megamind_selected_index', sel.value);
+                
+                // Update the selected index display
+                const selectedIndexEl = document.getElementById('selectedIndex');
+                if (selectedIndexEl) {
+                    selectedIndexEl.textContent = sel.value || 'None';
+                }
+                
                 refreshStats();
             });
         }
@@ -3202,7 +3182,9 @@
             // Hide all alerts
             Object.values(alertMap).forEach(id => {
                 const elem = document.getElementById(id);
-                if (elem) elem.classList.remove('show');
+                if (elem) {
+                    elem.style.display = 'none';
+                }
             });
             
             // Show the specific alert
@@ -3210,9 +3192,9 @@
             const alert = document.getElementById(alertId);
             if (alert) {
                 alert.textContent = message;
-                alert.classList.add('show');
+                alert.style.display = 'block';
                 setTimeout(() => {
-                    alert.classList.remove('show');
+                    alert.style.display = 'none';
                 }, 5000);
             }
         }
@@ -3469,33 +3451,38 @@
         }
 
         async function queryIndex() {
-            const query = document.getElementById('searchQuery').value || '*';
-            const filter = document.getElementById('searchFilter').value;
+            const query = document.getElementById('searchQuery').value.trim() || '*';
             const selEl = document.getElementById('indexSelector');
-            const currentIndex = (selEl && selEl.value) ? selEl.value : INDEX_CONFIG.indexName;
+            const currentIndex = (selEl && selEl.value && selEl.value !== '') ? selEl.value : INDEX_CONFIG.indexName;
             
-            // Debug: Log the selected index
-            console.log('QueryIndex - Selected index from dropdown:', selEl ? selEl.value : 'null');
-            console.log('QueryIndex - Current index being used:', currentIndex);
-            console.log('QueryIndex - INDEX_CONFIG.indexName:', INDEX_CONFIG.indexName);
+            if (!currentIndex || currentIndex === '') {
+                showIndexAlert('warning', 'Please select an index first');
+                return;
+            }
             
-            INDEX_CONFIG.indexName = currentIndex; // ensure in sync
+            console.log('🔍 QueryIndex - Using index:', currentIndex);
+            console.log('🔍 QueryIndex - Search query:', query);
             
+            // Update the selected index display
+            const selectedIndexEl = document.getElementById('selectedIndex');
+            if (selectedIndexEl) {
+                selectedIndexEl.textContent = currentIndex;
+            }
+            
+            // Show results container and loading state
             document.getElementById('resultsContainer').style.display = 'block';
-            document.getElementById('loading').classList.add('show');
+            document.getElementById('loading').style.display = 'flex';
             document.getElementById('results').innerHTML = '';
             
             try {
-                // Use Function App endpoint to avoid CORS issues
                 const searchBody = {
                     search: query,
-                    top: 1000,
+                    top: 100, // Reduced for faster loading
                     indexName: currentIndex,
-                    select: 'id,title,fileName,department,documentType,uploadDate,createdDate,lastModified,metadata_storage_last_modified,author,fileSize,status,contentHash,contentLength,content,ocrText,conversionMethod,isVectorized,chunks,chunkCount'
+                    select: 'id,title,fileName,department,documentType,uploadDate,fileSize,status,contentHash'
                 };
                 
-                // Debug: Log the search body being sent
-                console.log('QueryIndex - Search body being sent to Function App:', JSON.stringify(searchBody, null, 2));
+                console.log('🔍 QueryIndex - Searching with:', searchBody);
                 
                 // Add filter if provided
                 if (filter && filter.trim()) {
@@ -3518,321 +3505,109 @@
                 
                 const data = await response.json();
                 const documents = data.value || data.results || [];
+                const totalCount = data['@odata.count'] || documents.length;
                 
-                // Debug: Log response details
-                console.log('QueryIndex - Function App response:', {
-                    totalCount: data['@odata.count'],
-                    documentsReturned: documents.length,
-                    indexUsed: currentIndex,
-                    queryUsed: query,
-                    filterUsed: filter
-                });
-                    
-                // Debug: Log first document to see structure
+                console.log('✅ QueryIndex - Found', documents.length, 'documents in index:', currentIndex);
                 if (documents.length > 0) {
-                    console.log('QueryIndex - Sample document structure:', documents[0]);
-                    console.log('QueryIndex - Document keys:', Object.keys(documents[0]));
-                    // Log document IDs to verify which index we're getting results from
-                    console.log('QueryIndex - First 5 document IDs:', documents.slice(0, 5).map(d => d.id));
-                    if (documents[0].metadata) {
-                        console.log('QueryIndex - Metadata structure:', documents[0].metadata);
-                    }
-                    if (documents[0].chunks) {
-                        console.log('QueryIndex - Chunks structure:', documents[0].chunks);
-                    }
+                    console.log('📝 QueryIndex - First 3 document IDs:', documents.slice(0, 3).map(d => d.id));
                 }
-                    
-                    displayResults(documents);
-                    showIndexAlert('success', `Found ${documents.length} documents in ${currentIndex}`);
+                
+                displayResults(documents, currentIndex, totalCount);
+                showIndexAlert('success', `Found ${documents.length} documents in ${currentIndex}`);
             } catch (error) {
+                console.error('❌ QueryIndex error:', error);
                 showIndexAlert('error', 'Search error: ' + error.message);
             } finally {
-                document.getElementById('loading').classList.remove('show');
+                document.getElementById('loading').style.display = 'none';
             }
         }
 
-        function displayResults(documents) {
+        function displayResults(documents, indexName, totalCount) {
             const resultsDiv = document.getElementById('results');
             
             if (!documents || documents.length === 0) {
-                resultsDiv.innerHTML = '<p style="color: #666;">No documents found</p>';
+                resultsDiv.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #6b7280;">
+                        <div style="font-size: 48px; margin-bottom: 16px;">📄</div>
+                        <h3 style="margin: 0 0 8px 0; font-weight: 600;">No documents found</h3>
+                        <p style="margin: 0;">Try a different search term or check another index</p>
+                    </div>
+                `;
                 return;
             }
             
-            // Create a detailed table display
+            // Format file size helper
+            const formatSize = (bytes) => {
+                if (!bytes || bytes === 0) return '-';
+                const k = 1024;
+                const sizes = ['B', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+            };
+            
+            // Format date helper
+            const formatDate = (dateStr) => {
+                if (!dateStr) return 'N/A';
+                try {
+                    const date = new Date(dateStr);
+                    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                } catch (e) {
+                    return 'N/A';
+                }
+            };
+            
+            // Create clean results table
             resultsDiv.innerHTML = `
-                <table style="width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px;">
-                    <thead>
-                        <tr style="background: #f5f5f5; border-bottom: 2px solid #ddd;">
-                            <th style="padding: 10px; text-align: left;">Title/File</th>
-                            <th style="padding: 10px; text-align: left;">Department</th>
-                            <th style="padding: 10px; text-align: left;">Type</th>
-                            <th style="padding: 10px; text-align: left;">Index Method</th>
-                            <th style="padding: 10px; text-align: center;">Size</th>
-                            <th style="padding: 10px; text-align: center;">Vectorized</th>
-                            <th style="padding: 10px; text-align: left;">Upload Date</th>
-                            <th style="padding: 10px; text-align: center;">Chunk #</th>
-                            <th style="padding: 10px; text-align: center;">Chunk Size</th>
-                            <th style="padding: 10px; text-align: center;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${documents.map(doc => {
-                            // Format file size
-                            const formatSize = (bytes) => {
-                                if (!bytes || bytes === 0) return '-';
-                                const k = 1024;
-                                const sizes = ['B', 'KB', 'MB', 'GB'];
-                                const i = Math.floor(Math.log(bytes) / Math.log(k));
-                                return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-                            };
-                            
-                            // Format date to EST
-                            const formatDate = (dateStr) => {
-                                if (!dateStr) return 'N/A';
-                                try {
-                                    const date = new Date(dateStr);
-                                    const options = {
-                                        timeZone: 'America/New_York',
-                                        year: 'numeric',
-                                        month: '2-digit',
-                                        day: '2-digit',
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                        hour12: true
-                                    };
-                                    return new Intl.DateTimeFormat('en-US', options).format(date);
-                                } catch (e) {
-                                    return dateStr;
-                                }
-                            };
-                            
-                            // Determine indexing method
-                            let indexMethod = 'Standard';
-                            
-                            // First check if there's OCR text indicating OCR processing
-                            if (doc.ocrText && doc.ocrText.trim().length > 0) {
-                                indexMethod = 'OCR';
-                            } else if (doc.conversionMethod) {
-                                indexMethod = doc.conversionMethod;
-                            } else if (doc.fileName) {
-                                // Infer method from file extension
-                                const ext = doc.fileName.toLowerCase().split('.').pop();
-                                if (['jpg', 'jpeg', 'png', 'gif', 'bmp'].includes(ext)) {
-                                    indexMethod = 'OCR';
-                                } else if (['xlsx', 'xls', 'csv'].includes(ext)) {
-                                    indexMethod = 'Excel';
-                                } else if (['pdf'].includes(ext)) {
-                                    indexMethod = 'PDF Extract';
-                                } else if (['docx', 'doc'].includes(ext)) {
-                                    indexMethod = 'Word Extract';
-                                } else if (['txt', 'md'].includes(ext)) {
-                                    indexMethod = 'Text';
-                                }
-                            }
-                            
-                            // Status override for Active documents
-                            if (doc.status === 'Active' || doc.status === 'indexed') {
-                                if (indexMethod === 'Standard') {
-                                    indexMethod = 'Indexed';
-                                }
-                            }
-                            
-                            const methodColor = indexMethod === 'OCR' ? '#9333ea' : 
-                                              indexMethod === 'Excel' ? '#16a34a' : 
-                                              indexMethod === 'PDF Extract' ? '#0891b2' :
-                                              indexMethod === 'Word Extract' ? '#0369a1' :
-                                              indexMethod === 'Text' ? '#059669' :
-                                              indexMethod === 'Indexed' ? '#3b82f6' :
-                                              indexMethod === 'Active' ? '#3b82f6' : '#6b7280';
-                            
-                            // Check if this is a chunk (ID contains _chunk_)
-                            const isChunk = doc.id && doc.id.includes('_chunk_');
-                            let chunkNumber = '-';
-                            let documentId = doc.id;
-                            
-                            if (isChunk) {
-                                const parts = doc.id.split('_chunk_');
-                                documentId = parts[0];
-                                chunkNumber = parts[1] ? parseInt(parts[1]) : '-';
-                            }
-                            
-                            return `
-                            <tr style="border-bottom: 1px solid #eee;">
-                                <td style="padding: 10px;">
-                                    <strong>${doc.title || doc.fileName || 'Untitled'}</strong>
-                                    <br>
-                                    <small style="color: #666;">${doc.fileName || ''}</small>
-                                    <br>
-                                    <small style="color: #999; font-size: 11px;">ID: ${doc.id}</small>
-                                    ${isChunk ? `<br><small style="color: #667eea; font-size: 11px;">📄 Document Chunk</small>` : ''}
-                                </td>
-                                <td style="padding: 10px;">${doc.department || 'N/A'}</td>
-                                <td style="padding: 10px;">${doc.documentType || 'N/A'}</td>
-                                <td style="padding: 10px;">
-                                    <span style="padding: 2px 8px; background: ${methodColor}; color: white; border-radius: 4px; font-size: 11px;">
-                                        ${indexMethod}
-                                    </span>
-                                </td>
-                                <td style="padding: 10px; text-align: center;">${formatSize(doc.fileSize)}</td>
-                                <td style="padding: 10px; text-align: center;">
-                                    ${(() => {
-                                        // Determine vectorized status
-                                        let vectorized = 'Unknown';
-                                        if (doc.isVectorized !== undefined) {
-                                            vectorized = doc.isVectorized ? 'Yes' : 'No';
-                                        } else if (doc.vectorized !== undefined) {
-                                            vectorized = doc.vectorized ? 'Yes' : 'No';
-                                        } else if (doc.status === 'indexed' || doc.status === 'Active') {
-                                            vectorized = 'Yes';
-                                        } else if (doc.contentHash || (doc.content && doc.content.length > 0)) {
-                                            vectorized = 'Likely';
-                                        } else {
-                                            vectorized = 'No';
-                                        }
-                                        
-                                        const color = vectorized === 'Yes' ? '#16a34a' : 
-                                                     vectorized === 'Likely' ? '#eab308' : 
-                                                     vectorized === 'No' ? '#dc2626' : '#6b7280';
-                                        
-                                        return `<span style="color: ${color}; font-weight: bold;">${vectorized === 'Yes' ? '✓' : vectorized === 'No' ? '✗' : '?'}</span> 
-                                               <span style="color: ${color}; font-size: 11px;">${vectorized}</span>`;
-                                    })()}
-                                </td>
-                                <td style="padding: 10px; font-size: 11px;">${formatDate(doc.uploadDate || doc.createdDate)}</td>
-                                <td style="padding: 10px; text-align: center;">
-                                    ${isChunk && chunkNumber !== '-' ? 
-                                        `<span style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold;">#${chunkNumber}</span>` : 
-                                        (() => {
-                                            // For non-chunk documents, show chunk count if available
-                                            let chunkCount = 0;
-                                            if (doc.chunkCount) {
-                                                chunkCount = doc.chunkCount;
-                                            } else if (doc.chunks && Array.isArray(doc.chunks)) {
-                                                chunkCount = doc.chunks.length;
-                                            } else if (doc.chunks && typeof doc.chunks === 'number') {
-                                                chunkCount = doc.chunks;
-                                            } else if (doc.metadata && doc.metadata.chunks) {
-                                                chunkCount = doc.metadata.chunks;
-                                            }
-                                            
-                                            return chunkCount > 0 ? 
-                                                `<span style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${chunkCount} chunks</span>` : 
-                                                '<span style="color: #999;">-</span>';
-                                        })()}
-                                </td>
-                                <td style="padding: 10px; text-align: center;">
-                                    ${(() => {
-                                        // Calculate total character count from various sources
-                                        let charCount = 0;
-                                        
-                                        // Debug log for first few documents
-                                        if (documents.indexOf(doc) < 2) {
-                                            console.log(`Document ${doc.id || doc.fileName}:`, {
-                                                contentLength: doc.contentLength,
-                                                totalCharacters: doc.totalCharacters,
-                                                contentType: doc.content ? typeof doc.content : 'no content',
-                                                contentSize: doc.content ? (typeof doc.content === 'string' ? doc.content.length : 'not string') : 'none',
-                                                chunksType: doc.chunks ? typeof doc.chunks : 'no chunks',
-                                                metadata: doc.metadata
-                                            });
-                                        }
-                                        
-                                        // For chunks, always use the actual content length
-                                        if (isChunk && doc.content && typeof doc.content === 'string') {
-                                            charCount = doc.content.length;
-                                        }
-                                        // Priority order for character count sources (non-chunks)
-                                        else if (doc.totalCharacters && doc.totalCharacters > 0) {
-                                            charCount = doc.totalCharacters;
-                                        }
-                                        else if (doc.contentLength && doc.contentLength > 0) {
-                                            charCount = doc.contentLength;
-                                        }
-                                        else if (doc.metadata) {
-                                            if (doc.metadata.totalCharacters && doc.metadata.totalCharacters > 0) {
-                                                charCount = doc.metadata.totalCharacters;
-                                            } else if (doc.metadata.contentLength && doc.metadata.contentLength > 0) {
-                                                charCount = doc.metadata.contentLength;
-                                            } else if (doc.metadata.characterCount && doc.metadata.characterCount > 0) {
-                                                charCount = doc.metadata.characterCount;
-                                            } else if (doc.metadata.totalChars && doc.metadata.totalChars > 0) {
-                                                charCount = doc.metadata.totalChars;
-                                            }
-                                        }
-                                        // Check if we have content field (non-chunk documents)
-                                        else if (doc.content && !isChunk) {
-                                            if (typeof doc.content === 'string') {
-                                                charCount = doc.content.length;
-                                            } else if (Array.isArray(doc.content)) {
-                                                charCount = doc.content.reduce((total, item) => {
-                                                    if (typeof item === 'string') {
-                                                        return total + item.length;
-                                                    } else if (item && item.content) {
-                                                        return total + item.content.length;
-                                                    } else if (item && item.text) {
-                                                        return total + item.text.length;
-                                                    }
-                                                    return total;
-                                                }, 0);
-                                            }
-                                        }
-                                        // Check if chunks contain the actual content
-                                        else if (doc.chunks) {
-                                            // Chunks might be a number (count) or array
-                                            if (typeof doc.chunks === 'number' && doc.fileSize) {
-                                                // Estimate based on file size if chunks is just a count
-                                                // Rough estimate: assume average of 1000 chars per chunk
-                                                charCount = doc.chunks * 1000;
-                                            } else if (Array.isArray(doc.chunks) && doc.chunks.length > 0) {
-                                                // Try to extract content from chunks
-                                                charCount = doc.chunks.reduce((total, chunk) => {
-                                                    if (typeof chunk === 'string') {
-                                                        return total + chunk.length;
-                                                    } else if (chunk && chunk.content) {
-                                                        return total + chunk.content.length;
-                                                    } else if (chunk && chunk.text) {
-                                                        return total + chunk.text.length;
-                                                    }
-                                                    return total;
-                                                }, 0);
-                                            }
-                                        }
-                                        
-                                        // If still no character count but we have fileSize, estimate
-                                        if (charCount === 0 && doc.fileSize && doc.fileSize > 0) {
-                                            // Very rough estimate: text files are about 1 byte per character
-                                            // PDFs and other formats have overhead, so divide by factor
-                                            const ext = (doc.fileName || '').toLowerCase().split('.').pop();
-                                            if (ext === 'txt' || ext === 'md') {
-                                                charCount = doc.fileSize;
-                                            } else if (ext === 'pdf') {
-                                                charCount = Math.floor(doc.fileSize * 0.7); // PDFs have ~30% overhead
-                                            } else if (ext === 'docx' || ext === 'doc') {
-                                                charCount = Math.floor(doc.fileSize * 0.5); // Word docs have more overhead
-                                            } else {
-                                                charCount = Math.floor(doc.fileSize * 0.6); // Default estimate
-                                            }
-                                        }
-                                        
-                                        return charCount > 0 ? 
-                                            `<span style="background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${charCount.toLocaleString()}</span>` :
-                                            '<span style="color: #999;">-</span>';
-                                    })()}
-                                </td>
-                                <td style="padding: 10px; text-align: center;">
-                                    <button class="btn btn-danger" style="padding: 4px 10px; font-size: 11px;" 
-                                            onclick="deleteDocumentById('${doc.id}')">Delete</button>
-                                </td>
+                <div style="margin-bottom: 16px; padding: 12px; background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; color: #0c4a6e;">
+                    📋 <strong>Search Results:</strong> ${documents.length} documents found in <strong>${indexName}</strong>
+                    ${totalCount && totalCount > documents.length ? ` (showing first ${documents.length} of ${totalCount})` : ''}
+                </div>
+                
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <thead>
+                            <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
+                                <th style="padding: 12px; text-align: left; font-weight: 600; color: #1e293b;">Document</th>
+                                <th style="padding: 12px; text-align: left; font-weight: 600; color: #1e293b;">Department</th>
+                                <th style="padding: 12px; text-align: center; font-weight: 600; color: #1e293b;">Size</th>
+                                <th style="padding: 12px; text-align: center; font-weight: 600; color: #1e293b;">Status</th>
+                                <th style="padding: 12px; text-align: left; font-weight: 600; color: #1e293b;">Upload Date</th>
+                                <th style="padding: 12px; text-align: center; font-weight: 600; color: #1e293b;">Actions</th>
                             </tr>
-                            `;
-                        }).join('')}
-                    </tbody>
-                </table>
-                <div style="margin-top: 20px; padding: 10px; background: #f9f9f9; border-radius: 4px;">
-                    <strong>Total Results:</strong> ${documents.length} ${documents.some(d => d.id && d.id.includes('_chunk_')) ? 'chunks' : 'documents'}
-                    ${documents.some(d => d.id && d.id.includes('_chunk_')) ? 
-                        `<br><small style="color: #666;">💡 Tip: These are individual document chunks. Each chunk is approximately 3,000 characters for optimal vector search.</small>` : ''}
+                        </thead>
+                        <tbody>
+                            ${documents.map((doc, index) => {
+                                const isChunk = doc.id && doc.id.includes('_chunk_');
+                                const statusColor = doc.status === 'Active' ? '#10b981' : doc.status === 'indexed' ? '#3b82f6' : '#6b7280';
+                                
+                                return `
+                                <tr style="border-bottom: 1px solid #f1f5f9; ${index % 2 === 0 ? 'background: #fefefe;' : 'background: white;'}">
+                                    <td style="padding: 12px; max-width: 300px;">
+                                        <div style="font-weight: 600; color: #1e293b; margin-bottom: 4px;">${doc.title || doc.fileName || 'Untitled'}</div>
+                                        <div style="font-size: 12px; color: #64748b; font-family: monospace; word-break: break-all;">${doc.id}</div>
+                                        ${isChunk ? '<div style="font-size: 11px; color: #7c3aed; font-weight: 500; margin-top: 2px;">📄 Document Chunk</div>' : ''}
+                                    </td>
+                                    <td style="padding: 12px; color: #475569;">${doc.department || 'N/A'}</td>
+                                    <td style="padding: 12px; text-align: center; color: #475569;">${formatSize(doc.fileSize)}</td>
+                                    <td style="padding: 12px; text-align: center;">
+                                        <span style="padding: 4px 8px; background: ${statusColor}; color: white; border-radius: 12px; font-size: 11px; font-weight: 500;">
+                                            ${doc.status || 'Unknown'}
+                                        </span>
+                                    </td>
+                                    <td style="padding: 12px; color: #475569; font-size: 13px;">${formatDate(doc.uploadDate)}</td>
+                                    <td style="padding: 12px; text-align: center;">
+                                        <button onclick="deleteDocumentById('${doc.id}')" 
+                                                style="padding: 6px 12px; background: #dc2626; color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer;"
+                                                onmouseover="this.style.background='#b91c1c'" 
+                                                onmouseout="this.style.background='#dc2626'">
+                                            Delete
+                                        </button>
+                                    </td>
+                                </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
                 </div>
             `;
         }
