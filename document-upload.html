@@ -1036,14 +1036,14 @@
             endpoints: {
                 listDocuments: '/documents/list',
                 uploadDocument: '/documents/upload-json',  // Use correct route format
-                deleteDocument: '/documents-delete',  // Correct: no slash after documents
+                deleteDocument: '/documents/delete',  // Fixed: proper delete endpoint
                 downloadDocument: '/documents/download',
                 previewDocument: '/documents/view',
-                search: '/documents/search-enhanced',  // Use enhanced search with proper route
+                search: '/documents/search',  // Fixed: use correct search endpoint
                 findByFile: '/documents/find-by-file',  // New find by filename endpoint
                 generateSAS: '/GenerateSASToken',
                 process: '/documents/upload-json',  // Use correct route format
-                indexMaintenance: '/index-maintenance'  // Correct: no slash after index
+                indexMaintenance: '/index/maintenance'  // Fixed: proper maintenance endpoint
             },
             blobStorage: {
                 containerName: 'saxdocuments',
@@ -1057,7 +1057,7 @@
             },
             n8n: {
                 webhookUrl: 'https://workflows.saxtechnology.com/webhook/sop-document-upload',
-                enabled: true  // Toggle to enable/disable n8n integration
+                enabled: false  // Toggle to enable/disable n8n integration - DISABLED for SOP functions
             },
         };
 
