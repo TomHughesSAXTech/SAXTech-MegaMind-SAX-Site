@@ -271,8 +271,8 @@ window.deleteSingleSession = async function(sessionId) {
     try {
         showStatus('Deleting session...', 'info');
         
-        // Use SaveConversationLog API with delete action
-        const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`, {
+        // Use saveconversationlog API with delete action
+        const response = await fetch(`https://saxtech-megamind.azurewebsites.net/api/saveconversationlog?`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -314,8 +314,8 @@ window.deleteSelectedSessions = async function() {
     try {
         showStatus(`Deleting ${selectedSessions.size} sessions...`, 'info');
         
-        // Use POST with delete action for SaveConversationLog Azure function
-        const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`, {
+        // Use POST with delete action for saveconversationlog Azure function
+        const response = await fetch(`https://saxtech-megamind.azurewebsites.net/api/saveconversationlog?`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -367,8 +367,8 @@ window.deleteAllUserSessions = async function() {
     try {
         showStatus(`Deleting all sessions for ${userEmail}...`, 'info');
         
-        // Use POST with delete action for SaveConversationLog Azure function
-        const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`, {
+        // Use POST with delete action for saveconversationlog Azure function
+        const response = await fetch(`https://saxtech-megamind.azurewebsites.net/api/saveconversationlog?`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -413,8 +413,8 @@ window.confirmDeleteAllSessions = async function() {
     try {
         showStatus('Deleting ALL sessions...', 'info');
         
-        // Use POST with delete action for SaveConversationLog Azure function
-        const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`, {
+        // Use POST with delete action for saveconversationlog Azure function
+        const response = await fetch(`https://saxtech-megamind.azurewebsites.net/api/saveconversationlog?`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -488,7 +488,7 @@ window.loadUserSessions = async function() {
     if (loading) loading.style.display = 'block';
     
     try {
-        const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=get&email=${encodeURIComponent(userEmail)}&range=${range}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
+        const url = `https://saxtech-megamind.azurewebsites.net/api/saveconversationlog?action=get&email=${encodeURIComponent(userEmail)}&range=${range}&`;
         console.log('Loading user sessions from:', url);
         
         const response = await fetch(url, {
@@ -500,7 +500,7 @@ window.loadUserSessions = async function() {
         const data = await response.json();
         console.log('User sessions data:', data);
         
-        // Handle the response format from SaveConversationLog - try multiple formats
+        // Handle the response format from saveconversationlog - try multiple formats
         let sessions = [];
         if (Array.isArray(data)) {
             sessions = data;
@@ -547,7 +547,7 @@ window.loadAllRecentSessions = async function() {
     
     try {
         // Use admin-list endpoint to fetch recent sessions across all users
-        const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
+        const url = `https://saxtech-megamind.azurewebsites.net/api/saveconversationlog?`;
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -565,7 +565,7 @@ window.loadAllRecentSessions = async function() {
                 const data = await response.json();
                 console.log('Recent sessions data:', data);
                 
-                // Handle the response format from SaveConversationLog - try multiple formats
+                // Handle the response format from saveconversationlog - try multiple formats
                 if (Array.isArray(data)) {
                     sessions = data;
                 } else if (data.sessions) {
@@ -610,7 +610,7 @@ window.loadAllRecentSessions = async function() {
             // Fetch sessions for each known user
             for (const email of knownUsers) {
                 try {
-                    const userUrl = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=get&email=${encodeURIComponent(email)}&range=${range}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
+                    const userUrl = `https://saxtech-megamind.azurewebsites.net/api/saveconversationlog?action=get&email=${encodeURIComponent(email)}&range=${range}`;
                     console.log(`Loading sessions for ${email}`);
                     
                     const userResponse = await fetch(userUrl);
@@ -698,7 +698,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             teamOpt.textContent = 'All Team Conversations';
             dd.insertBefore(teamOpt, dd.firstChild.nextSibling); // after "All Users"
             // Fetch recent sessions to build user list
-            const url = 'https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=recent&limit=200&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==';
+            const url = 'https://saxtech-megamind.azurewebsites.net/api/saveconversationlog?action=recent&limit=200';
             const r = await fetch(url);
             if (r.ok) {
                 const data = await r.json();
