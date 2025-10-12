@@ -1,1 +1,105 @@
-REPLACE_ME_WITH_UPDATED_CONTENT
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Document Upload</title>
+  <style>body{font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;margin:0;padding:24px;background:#f8fafc;color:#0f172a} .card{max-width:820px;margin:0 auto;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,.08)} .row{display:flex;gap:12px;align-items:center;margin:8px 0} .row label{width:140px;font-weight:600} .row input,.row select{flex:1;padding:10px;border:1px solid #cbd5e1;border-radius:8px} .btn{background:#2563eb;color:#fff;border:0;padding:10px 14px;border-radius:8px;cursor:pointer;font-weight:600} .btn:disabled{background:#93c5fd;cursor:not-allowed} .status{margin-top:12px;font-size:13px} .ok{color:#16a34a} .err{color:#dc2626} .muted{color:#64748b}</style>
+</head>
+<body>
+  <div class="card">
+    <h2 style="margin:0 0 16px">Upload Document (Enhanced)</h2>
+    <div class="row">
+      <label for="dept">Department</label>
+      <select id="dept">
+        <option value="">Select…</option>
+        <option value="HR">Human Resources</option>
+        <option value="Tax">Tax Services</option>
+        <option value="Operations">Operations</option>
+        <option value="Finance">Finance</option>
+      </select>
+    </div>
+    <div class="row">
+      <label for="doctype">Document Type</label>
+      <input id="doctype" placeholder="e.g., Handbook" />
+    </div>
+    <div class="row">
+      <label for="title">Title</label>
+      <input id="title" placeholder="Optional title" />
+    </div>
+    <div class="row">
+      <label for="file">File</label>
+      <input id="file" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.csv" />
+    </div>
+    <div class="row">
+      <button id="submit" class="btn">Upload</button>
+      <span id="spinner" class="muted" style="display:none">Processing…</span>
+    </div>
+    <div id="status" class="status muted"></div>
+  </div>
+
+  <script>
+  (function(){
+    const API = {
+      baseUrl: 'https://saxtech-megamind.azurewebsites.net/api',
+      key: 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw==',
+      upload: '/documents/upload-json-enhanced'
+    };
+
+    const $ = id => document.getElementById(id);
+    const btn = $('submit');
+    const statusEl = $('status');
+    const spinner = $('spinner');
+
+    function setStatus(msg, cls = 'muted'){ statusEl.className = 'status ' + cls; statusEl.textContent = msg; }
+    function toBase64(file){ return new Promise((res, rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(file); }); }
+
+    btn.addEventListener('click', async () => {
+      try {
+        const dept = $('dept').value.trim();
+        const doctype = $('doctype').value.trim() || 'General';
+        const title = $('title').value.trim();
+        const file = $('file').files[0];
+        if(!dept){ setStatus('Department is required', 'err'); return; }
+        if(!file){ setStatus('Please select a file', 'err'); return; }
+        btn.disabled = true; spinner.style.display='inline'; setStatus('Reading file…');
+
+        const b64 = await toBase64(file);
+        setStatus('Uploading to function…');
+
+        const payload = {
+          FileName: file.name,
+          FileContent: b64,
+          Department: dept,
+          Title: title || file.name,
+          DocumentType: doctype,
+          FullTextExtraction: false
+        };
+
+        const resp = await fetch(API.baseUrl + API.upload, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-functions-key': API.key },
+          body: JSON.stringify(payload)
+        });
+
+        if(!resp.ok){
+          const t = await resp.text();
+          throw new Error('HTTP ' + resp.status + ': ' + t);
+        }
+        const json = await resp.json();
+        if(json.success){
+          setStatus('✓ Uploaded: ' + (json.chunksCreated ? (json.chunksCreated + ' chunks') : '1 doc') + ' | Dept: ' + (json.department || dept), 'ok');
+        } else {
+          setStatus('Partial/Failed: ' + (json.message || 'Unknown'), 'err');
+        }
+      } catch(e){
+        console.error(e);
+        setStatus('Error: ' + (e.message || e), 'err');
+      } finally {
+        btn.disabled = false; spinner.style.display='none';
+      }
+    });
+  })();
+  </script>
+</body>
+</html>
