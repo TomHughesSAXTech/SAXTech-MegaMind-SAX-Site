@@ -2654,25 +2654,25 @@
         // Additional export functions for new buttons
         function exportExecutiveSummary() {
             const { userEmail, range, format } = getExportFilters();
-            const url = `https://saxtech-megamind.azurewebsites.net/api/saveconversationlog?action=exportExecutiveSummary&format=${format}&adminKey=sax-admin-2024&range=${encodeURIComponent(range)}`;
+            const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=exportExecutiveSummary&format=${format}&adminKey=sax-admin-2024&range=${encodeURIComponent(range)}`;
             window.open(url, '_blank');
         }
         
         function exportDepartmentAnalysis() {
             const { userEmail, range, format } = getExportFilters();
-            const url = `https://saxtech-megamind.azurewebsites.net/api/saveconversationlog?action=exportDepartmentAnalysis&format=${format}&adminKey=sax-admin-2024&range=${encodeURIComponent(range)}`;
+            const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=exportDepartmentAnalysis&format=${format}&adminKey=sax-admin-2024&range=${encodeURIComponent(range)}`;
             window.open(url, '_blank');
         }
         
         function exportUserEngagement() {
             const { userEmail, range, format } = getExportFilters();
-            const url = `https://saxtech-megamind.azurewebsites.net/api/saveconversationlog?action=exportUserEngagement&format=${format}&adminKey=sax-admin-2024&range=${encodeURIComponent(range)}`;
+            const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=exportUserEngagement&format=${format}&adminKey=sax-admin-2024&range=${encodeURIComponent(range)}`;
             window.open(url, '_blank');
         }
         
         function exportSystemHealth() {
             const { userEmail, range, format } = getExportFilters();
-            const url = `https://saxtech-megamind.azurewebsites.net/api/saveconversationlog?action=exportSystemHealth&format=${format}&adminKey=sax-admin-2024&range=${encodeURIComponent(range)}`;
+            const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=exportSystemHealth&format=${format}&adminKey=sax-admin-2024&range=${encodeURIComponent(range)}`;
             window.open(url, '_blank');
         }
         // Fixed userProfile reference and merged all index management features
@@ -3968,7 +3968,7 @@
         async function loadSessionStats() {
             try {
                 // Use wildcard fetch to compute stats client-side (avoids server aggregate limitations)
-                const response = await fetch('https://saxtech-megamind.azurewebsites.net/api/saveconversationlog?action=get&email=*&range=month&limit=500');
+                const response = await fetch('https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=get&email=*&range=month&limit=500');
                 if (!response.ok) throw new Error('stats fetch failed');
                 const data = await response.json();
                 const sessions = data.sessions || [];
@@ -4054,7 +4054,7 @@
             document.getElementById('sessionResults').style.display = 'none';
 
             try {
-                const response = await fetch(`https://saxtech-megamind.azurewebsites.net/api/saveconversationlog?action=get&email=${encodeURIComponent(userEmail)}&range=${dateRange}`, {
+                const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=get&email=${encodeURIComponent(userEmail)}&range=${dateRange}`, {
                     headers: {
                     }
                 });
@@ -4450,7 +4450,7 @@
             document.getElementById('searchResults').innerHTML = '<p>Searching...</p>';
 
             try {
-                const response = await fetch(`https://saxtech-megamind.azurewebsites.net/api/saveconversationlog?action=search&query=${encodeURIComponent(searchTerm)}`, {
+                const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=search&query=${encodeURIComponent(searchTerm)}`, {
                     headers: {
                     }
                 });
@@ -4494,7 +4494,7 @@
         // Load overview statistics
         async function loadOverviewData() {
             try {
-                const response = await fetch('https://saxtech-megamind.azurewebsites.net/api/saveconversationlog?action=get&email=*&range=month&limit=1000');
+                const response = await fetch('https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=get&email=*&range=month&limit=1000');
                 const data = await response.json();
                 const sessions = data.sessions || [];
                 
