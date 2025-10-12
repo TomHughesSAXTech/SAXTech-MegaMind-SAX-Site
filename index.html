@@ -1276,8 +1276,8 @@
                     </div>
                     <div class="character-details">
                         <div class="big-personality-name">MegaMind TECH</div>
-                        <div class="big-personality-role">Technology & IT Assistant</div>
-                        <div class="big-personality-description">Expert in IT systems, infrastructure, DevOps, and technical troubleshooting to support your technology needs.</div>
+                        <div class="big-personality-role">SAX Technology IT Assistant</div>
+                        <div class="big-personality-description">Expert in SAX IT application, network, and systems administration and troubleshooting.</div>
                     </div>
                 </div>
             </div>
@@ -1538,9 +1538,9 @@
                 name: 'MegaMind TECH',
                 webhook: 'megamind-it-chat',
                 avatar: '🤖',
-                description: 'Technology and IT assistant for systems, infrastructure, DevOps, and development.',
+                description: 'Expert in SAX IT application, network, and systems administration and troubleshooting.',
                 robotImage: 'robotit.png',
-                role: 'Technology & IT Assistant'
+                role: 'SAX Technology IT Assistant'
             },
             sage: {
                 name: 'SAX MegaMind',
@@ -2249,6 +2249,19 @@ function loadConversationFromSnapshot(conv){
         });
 
         // 3D Carousel functionality
+        function updateCardTransforms(frontIndexOverride) {
+            const cards = document.querySelectorAll('.big-personality-card');
+            const total = cards.length;
+            const step = 360 / total;
+            const frontIndex = typeof frontIndexOverride === 'number' ? frontIndexOverride : 0;
+            cards.forEach((card, index) => {
+                let extra = 0;
+                if (index === (frontIndex + 1) % total) extra = -12;      // right side: tilt toward camera
+                else if (index === (frontIndex + total - 1) % total) extra = 12; // left side: tilt toward camera
+                card.style.transform = `rotateY(${index * step}deg) translateZ(450px) rotateY(${extra}deg)`;
+            });
+        }
+
         function rotateCarousel(direction) {
             currentCarouselRotation += direction * 72; // 360/5 = 72 degrees per personality
             document.getElementById('carousel3d').style.transform = `rotateY(${currentCarouselRotation}deg)`;
@@ -2274,7 +2287,13 @@ function loadConversationFromSnapshot(conv){
                     card.classList.add('back-hidden'); // Back - hidden
                 }
             });
+            
+            // Slightly face side cards toward the camera
+            updateCardTransforms(frontIndex);
         }
+
+        // Initial layout
+        updateCardTransforms(0);
 
         // Personality selector functionality
         document.getElementById('personalitySelector').addEventListener('click', (e) => {
