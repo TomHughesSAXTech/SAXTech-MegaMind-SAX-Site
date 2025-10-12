@@ -589,13 +589,16 @@
             transform: rotateY(0deg) translateZ(450px); 
         }
         .big-personality-card:nth-child(2) { 
-            transform: rotateY(90deg) translateZ(450px); 
+            transform: rotateY(72deg) translateZ(450px); 
         }
         .big-personality-card:nth-child(3) { 
-            transform: rotateY(180deg) translateZ(450px); 
+            transform: rotateY(144deg) translateZ(450px); 
         }
         .big-personality-card:nth-child(4) { 
-            transform: rotateY(270deg) translateZ(450px); 
+            transform: rotateY(216deg) translateZ(450px); 
+        }
+        .big-personality-card:nth-child(5) { 
+            transform: rotateY(288deg) translateZ(450px); 
         }
         
         /* Hide cards when they're in the back */
@@ -1267,6 +1270,16 @@
                         <div class="big-personality-description">Focused on audit procedures, compliance requirements, and risk assessment protocols. Expert in audit standards and regulatory compliance.</div>
                     </div>
                 </div>
+                <div class="big-personality-card" data-personality="tech">
+                    <div class="floating-character">
+                        <img src="robotit.png" alt="MegaMind TECH" onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=emoji-fallback>🤖</div>';">
+                    </div>
+                    <div class="character-details">
+                        <div class="big-personality-name">MegaMind TECH</div>
+                        <div class="big-personality-role">Technology & IT Assistant</div>
+                        <div class="big-personality-description">Expert in IT systems, infrastructure, DevOps, and technical troubleshooting to support your technology needs.</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1520,6 +1533,14 @@
                 description: 'Audit and compliance expert',
                 robotImage: 'robot-auditor.png',
                 role: 'Audit & Compliance Expert'
+            },
+            tech: {
+                name: 'MegaMind TECH',
+                webhook: 'megamind-it-chat',
+                avatar: '🤖',
+                description: 'Technology and IT assistant for systems, infrastructure, DevOps, and development.',
+                robotImage: 'robotit.png',
+                role: 'Technology & IT Assistant'
             },
             sage: {
                 name: 'SAX MegaMind',
@@ -2229,24 +2250,25 @@ function loadConversationFromSnapshot(conv){
 
         // 3D Carousel functionality
         function rotateCarousel(direction) {
-            currentCarouselRotation += direction * 90; // 360/4 = 90 degrees per personality
+            currentCarouselRotation += direction * 72; // 360/5 = 72 degrees per personality
             document.getElementById('carousel3d').style.transform = `rotateY(${currentCarouselRotation}deg)`;
             
             // Update visibility states
             const cards = document.querySelectorAll('.big-personality-card');
+            const total = cards.length; // support dynamic number of cards
             cards.forEach(card => {
                 card.classList.remove('active', 'side-visible', 'back-hidden');
             });
             
             // Determine which card index should be in front based on rotation
             // Negative rotation means rotating right (next), positive means left (prev)
-            let frontIndex = Math.round(-currentCarouselRotation / 90) % 4;
-            if (frontIndex < 0) frontIndex += 4;
+            let frontIndex = Math.round(-currentCarouselRotation / 72) % total;
+            if (frontIndex < 0) frontIndex += total;
             
             cards.forEach((card, index) => {
                 if (index === frontIndex) {
                     card.classList.add('active'); // Front - fully visible
-                } else if (index === (frontIndex + 1) % 4 || index === (frontIndex + 3) % 4) {
+                } else if (index === (frontIndex + 1) % total || index === (frontIndex + total - 1) % total) {
                     card.classList.add('side-visible'); // Sides - semi-visible
                 } else {
                     card.classList.add('back-hidden'); // Back - hidden
