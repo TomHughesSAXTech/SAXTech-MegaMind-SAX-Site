@@ -6,6 +6,9 @@ let currentSessionsData = [];
 let selectedSessions = new Set();
 let currentUserFilter = '';
 
+// Centralized Conversation Logs API endpoint (conversation logs function app)
+const CONVO_API = 'https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog';
+
 // Helper function to escape HTML and fix invalid images
 function escapeHtmlAndFixImages(text) {
     if (!text) return '';
@@ -271,25 +274,17 @@ window.deleteSingleSession = async function(sessionId) {
     try {
         showStatus('Deleting session...', 'info');
         
-        // Use saveconversationlog API with delete action
-        const response = await fetch(`https://saxtech-megamind.azurewebsites.net/api/saveconversationlog?`, {
+        const response = await fetch(`${CONVO_API}?`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                action: 'delete',
-                sessionId: sessionId
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'delete', sessionId })
         });
-        
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const result = await response.json();
         
         if (result.success) {
             showStatus(`Session deleted successfully`, 'success');
-            // Remove from current data
             currentSessionsData = currentSessionsData.filter(s => s.sessionId !== sessionId);
-            // Refresh display
             filterSessionsByUser();
         } else {
             showStatus('Failed to delete session: ' + (result.error || 'Unknown error'), 'error');
@@ -314,26 +309,18 @@ window.deleteSelectedSessions = async function() {
     try {
         showStatus(`Deleting ${selectedSessions.size} sessions...`, 'info');
         
-        // Use POST with delete action for saveconversationlog Azure function
-        const response = await fetch(`https://saxtech-megamind.azurewebsites.net/api/saveconversationlog?`, {
+        const response = await fetch(`${CONVO_API}?`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                action: 'deleteSessions',
-                sessionIds: Array.from(selectedSessions)
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'deleteSessions', sessionIds: Array.from(selectedSessions) })
         });
-        
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const result = await response.json();
         
         if (result.success) {
             showStatus(`${result.deletedCount || selectedSessions.size} sessions deleted successfully`, 'success');
-            // Remove from current data
             currentSessionsData = currentSessionsData.filter(s => !selectedSessions.has(s.sessionId));
             selectedSessions.clear();
-            // Refresh display
             filterSessionsByUser();
         } else {
             showStatus('Failed to delete sessions: ' + (result.error || 'Unknown error'), 'error');
@@ -367,27 +354,18 @@ window.deleteAllUserSessions = async function() {
     try {
         showStatus(`Deleting all sessions for ${userEmail}...`, 'info');
         
-        // Use POST with delete action for saveconversationlog Azure function
-        const response = await fetch(`https://saxtech-megamind.azurewebsites.net/api/saveconversationlog?`, {
+        const response = await fetch(`${CONVO_API}?`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                action: 'deleteUser',
-                userEmail: userEmail
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'deleteUser', userEmail })
         });
-        
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const result = await response.json();
         
         if (result.success) {
             showStatus(`All sessions for ${userEmail} deleted successfully`, 'success');
-            // Remove from current data
             currentSessionsData = currentSessionsData.filter(s => s.userEmail !== userEmail);
-            // Clear selection
             selectedSessions.clear();
-            // Refresh display
             populateUserFilter(currentSessionsData);
             displaySessionsEnhanced(currentSessionsData, true);
         } else {
@@ -413,26 +391,18 @@ window.confirmDeleteAllSessions = async function() {
     try {
         showStatus('Deleting ALL sessions...', 'info');
         
-        // Use POST with delete action for saveconversationlog Azure function
-        const response = await fetch(`https://saxtech-megamind.azurewebsites.net/api/saveconversationlog?`, {
+        const response = await fetch(`${CONVO_API}?`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                action: 'deleteAll',
-                confirmDelete: true
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'deleteAll', confirmDelete: true })
         });
-        
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const result = await response.json();
         
         if (result.success) {
             showStatus('All sessions deleted successfully', 'success');
-            // Clear everything
             currentSessionsData = [];
             selectedSessions.clear();
-            // Refresh display
             document.getElementById('sessionsList').innerHTML = '<p style="color: #999; text-align: center;">No sessions found</p>';
             document.getElementById('userFilterDropdown').innerHTML = '<option value="">All Users</option>';
             updateSessionStats([]);
@@ -488,19 +458,16 @@ window.loadUserSessions = async function() {
     if (loading) loading.style.display = 'block';
     
     try {
-        const url = `https://saxtech-megamind.azurewebsites.net/api/saveconversationlog?action=get&email=${encodeURIComponent(userEmail)}&range=${range}&`;
+        const url = `${CONVO_API}?action=get&email=${encodeURIComponent(userEmail)}&range=${range}`;
         console.log('Loading user sessions from:', url);
         
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: {}
-        });
-        
+        const response = await fetch(url, { method: 'GET' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         console.log('Response status:', response.status);
         const data = await response.json();
         console.log('User sessions data:', data);
         
-        // Handle the response format from saveconversationlog - try multiple formats
+        // Handle the response format from SaveConversationLog - try multiple formats
         let sessions = [];
         if (Array.isArray(data)) {
             sessions = data;
@@ -518,7 +485,6 @@ window.loadUserSessions = async function() {
             populateUserFilter(currentSessionsData);
             displaySessionsEnhanced(sessions, false);
             updateSessionStats(sessions);
-            // Call analytics update if function exists
             if (typeof updateSessionAnalytics === 'function') {
                 updateSessionAnalytics(sessions);
             }
@@ -546,12 +512,11 @@ window.loadAllRecentSessions = async function() {
     if (loading) loading.style.display = 'block';
     
     try {
-        // Use admin-list endpoint to fetch recent sessions across all users
-        const url = `https://saxtech-megamind.azurewebsites.net/api/saveconversationlog?`;
-        const response = await fetch(url, {
+        // Prefer admin-list endpoint to fetch recent sessions across all users
+        const response = await fetch(`${CONVO_API}?`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'admin-list', adminKey: 'sax-admin-2024', range: range, limit: 200 })
+            body: JSON.stringify({ action: 'admin-list', adminKey: 'sax-admin-2024', range, limit: 200 })
         });
         
         console.log('Response status:', response.status);
@@ -559,13 +524,10 @@ window.loadAllRecentSessions = async function() {
         let sessions = [];
         let useAggregation = false;
         
-        // Check if wildcard worked
         if (response.ok) {
             try {
                 const data = await response.json();
                 console.log('Recent sessions data:', data);
-                
-                // Handle the response format from saveconversationlog - try multiple formats
                 if (Array.isArray(data)) {
                     sessions = data;
                 } else if (data.sessions) {
@@ -575,50 +537,38 @@ window.loadAllRecentSessions = async function() {
                 } else if (data.data) {
                     sessions = Array.isArray(data.data) ? data.data : [];
                 }
-                
-                // If we got sessions, use them
-                if (sessions && sessions.length > 0) {
-                    console.log('Wildcard worked, got', sessions.length, 'sessions');
-                } else {
+                if (!sessions || sessions.length === 0) {
                     useAggregation = true;
                 }
             } catch (err) {
-                console.error('Error parsing wildcard response:', err);
+                console.error('Error parsing admin-list response:', err);
                 useAggregation = true;
             }
         } else {
-            console.log('Wildcard failed with status:', response.status);
+            console.log('admin-list failed with status:', response.status);
             useAggregation = true;
         }
         
-        // If wildcard didn't work, aggregate from known users
+        // Fallback: aggregate from known users if admin-list unavailable
         if (useAggregation) {
             console.log('Using aggregation approach for known users');
-            
-            // List of known user emails - expand this list as needed
             const knownUsers = [
                 'tom@saxtechnology.com',
                 'robert@saxadvisorygroup.com',
                 'admin@saxtechnology.com',
                 'support@saxtechnology.com',
                 'info@saxtechnology.com',
-                // Add more users as needed
             ];
             
             sessions = [];
-            
-            // Fetch sessions for each known user
             for (const email of knownUsers) {
                 try {
-                    const userUrl = `https://saxtech-megamind.azurewebsites.net/api/saveconversationlog?action=get&email=${encodeURIComponent(email)}&range=${range}`;
+                    const userUrl = `${CONVO_API}?action=get&email=${encodeURIComponent(email)}&range=${range}`;
                     console.log(`Loading sessions for ${email}`);
-                    
                     const userResponse = await fetch(userUrl);
                     if (userResponse.ok) {
                         const userResult = await userResponse.json();
                         let userSessions = [];
-                        
-                        // Parse different response formats
                         if (Array.isArray(userResult)) {
                             userSessions = userResult;
                         } else if (userResult.sessions) {
@@ -628,14 +578,8 @@ window.loadAllRecentSessions = async function() {
                         } else if (userResult.data) {
                             userSessions = Array.isArray(userResult.data) ? userResult.data : [];
                         }
-                        
                         if (Array.isArray(userSessions) && userSessions.length > 0) {
-                            // Add user email to each session for identification
-                            userSessions.forEach(s => {
-                                if (!s.userEmail && !s.email) {
-                                    s.userEmail = email;
-                                }
-                            });
+                            userSessions.forEach(s => { if (!s.userEmail && !s.email) s.userEmail = email; });
                             sessions = sessions.concat(userSessions);
                             console.log(`Found ${userSessions.length} sessions for ${email}`);
                         }
@@ -645,7 +589,6 @@ window.loadAllRecentSessions = async function() {
                 }
             }
             
-            // Sort all aggregated sessions by timestamp (most recent first)
             if (sessions.length > 0) {
                 sessions.sort((a, b) => {
                     const dateA = new Date(a.timestamp || a.createdAt || a.date || 0);
@@ -663,7 +606,6 @@ window.loadAllRecentSessions = async function() {
             populateUserFilter(currentSessionsData);
             displaySessionsEnhanced(sessions, true);
             updateSessionStats(sessions);
-            // Call analytics update if function exists
             if (typeof updateSessionAnalytics === 'function') {
                 updateSessionAnalytics(sessions);
             }
@@ -684,31 +626,25 @@ window.loadAllRecentSessions = async function() {
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async function() {
-    // Replace the existing displaySessions function with enhanced version
     if (window.displaySessions) {
         window.displaySessions = displaySessionsEnhanced;
     }
-    // Populate dropdown with All Team Conversations and all known users from recent
     try {
         const dd = document.getElementById('userFilterDropdown');
         if (dd) {
-            // Insert special option for team conversations
             const teamOpt = document.createElement('option');
             teamOpt.value = '__ALL_TEAM__';
             teamOpt.textContent = 'All Team Conversations';
-            dd.insertBefore(teamOpt, dd.firstChild.nextSibling); // after "All Users"
-            // Fetch recent sessions to build user list
-            const url = 'https://saxtech-megamind.azurewebsites.net/api/saveconversationlog?action=recent&limit=200';
+            dd.insertBefore(teamOpt, dd.firstChild.nextSibling);
+            const url = `${CONVO_API}?action=recent&limit=200`;
             const r = await fetch(url);
             if (r.ok) {
                 const data = await r.json();
                 const sessions = data.sessions || data || [];
                 if (Array.isArray(sessions) && sessions.length) {
-                    // Reuse populate function to add users derived from sessions
                     window.populateUserFilter(sessions);
                 }
             }
-            // Hook change to trigger team load when selected
             dd.addEventListener('change', ()=>{
                 if (dd.value === '__ALL_TEAM__') {
                     if (typeof window.loadAllRecentSessions === 'function') window.loadAllRecentSessions();
@@ -722,7 +658,6 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 // Helper function to show status messages
 function showStatus(message, type = 'info') {
-    // Create or update status element
     let statusEl = document.getElementById('statusMessage');
     if (!statusEl) {
         statusEl = document.createElement('div');
@@ -738,24 +673,15 @@ function showStatus(message, type = 'info') {
         `;
         document.body.appendChild(statusEl);
     }
-    
-    // Set colors based on type
     const colors = {
         success: '#10b981',
         error: '#ef4444',
         warning: '#f59e0b',
         info: '#3b82f6'
     };
-    
     statusEl.style.background = colors[type] || colors.info;
     statusEl.style.color = 'white';
     statusEl.textContent = message;
     statusEl.style.display = 'block';
-    
-    // Auto-hide after 3 seconds
-    setTimeout(() => {
-        if (statusEl) {
-            statusEl.style.display = 'none';
-        }
-    }, 3000);
+    setTimeout(() => { if (statusEl) statusEl.style.display = 'none'; }, 3000);
 }
