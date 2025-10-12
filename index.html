@@ -1631,19 +1631,28 @@
         const resetBtn = document.getElementById('resetBtn');
         let conversationStopped = false;  // Track if conversation is manually stopped
 
-        // Initialize carousel visibility
+        // Initialize carousel visibility (supports dynamic number of cards)
         function initializeCarousel() {
             const cards = document.querySelectorAll('.big-personality-card');
+            const total = cards.length;
+            const frontIndex = 0;
+            // Reset classes
+            cards.forEach((card) => card.classList.remove('active', 'side-visible', 'back-hidden'));
+            // Apply visibility classes relative to frontIndex
             cards.forEach((card, index) => {
-                card.classList.remove('active', 'side-visible', 'back-hidden');
-                if (index === 0) {
-                    card.classList.add('active'); // First card is active
-                } else if (index === 1 || index === 3) {
-                    card.classList.add('side-visible'); // Side cards
-                } else if (index === 2) {
-                    card.classList.add('back-hidden'); // Back card
+                if (index === frontIndex) {
+                    card.classList.add('active');
+                } else if (index === (frontIndex + 1) % total || index === (frontIndex + total - 1) % total) {
+                    card.classList.add('side-visible');
+                } else {
+                    card.classList.add('back-hidden');
                 }
             });
+            // Ensure transforms and rotation are in a known state
+            currentCarouselRotation = 0;
+            const stage = document.getElementById('carousel3d');
+            if (stage) stage.style.transform = 'rotateY(0deg)';
+            if (typeof updateCardTransforms === 'function') updateCardTransforms(frontIndex);
         }
         
         // Initialize application
