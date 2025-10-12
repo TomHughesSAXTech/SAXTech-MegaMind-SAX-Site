@@ -2360,8 +2360,10 @@ function loadConversationFromSnapshot(conv){
                     // Close carousel
                     document.getElementById('personalityOverlay').classList.remove('show');
                     
-                    // Add message
-                    addMessage('bot', `Switched to ${config.name} mode! ${config.description}. How can I help you?`);
+                    // Add message with clean punctuation after description
+                    const desc = (config.description || '').trim();
+                    const needsDot = /[.!?]$/.test(desc) ? '' : '.';
+                    addMessage('bot', `Switched to ${config.name} mode! ${desc}${needsDot} How can I help you?`);
                 }
             }
         });
