@@ -1563,40 +1563,46 @@
                 const el = document.getElementById('cpaStatusText');
                 if (!el) return;
                 el.textContent = 'Loading latest update…';
+
                 const resp = await fetch(TAX_STATUS_URL, { method: 'GET' });
                 if (!resp.ok) throw new Error('HTTP ' + resp.status);
                 const data = await resp.json();
-                const times = [];
-                if (data.last_usc_index_time) times.push(new Date(data.last_usc_index_time));
-                if (data.last_cfr_index_time) times.push(new Date(data.last_cfr_index_time));
+
+                // Pull timestamps from top-level or nested state fallback
                 const st = data.state || {};
-                if (times.length === 0) {
-                    if (st.last_usc_index_time) times.push(new Date(st.last_usc_index_time));
-                    if (st.last_cfr_index_time) times.push(new Date(st.last_cfr_index_time));
-                }
-                let text = 'No recent tax code updates found';
-                if (times.length > 0) {
-                    const latest = new Date(Math.max.apply(null, times));
-                    // Show UTC date but NY time for clarity
-                    const utcDate = latest.toLocaleDateString('en-US', { 
-                        timeZone: 'UTC',
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
+                const uscRaw = data.last_usc_index_time || st.last_usc_index_time || null;
+                const cfrRaw = data.last_cfr_index_time || st.last_cfr_index_time || null;
+                const usc = uscRaw ? new Date(uscRaw) : null;
+                const cfr = cfrRaw ? new Date(cfrRaw) : null;
+
+                // Helper to format ET string like "Oct 12, 2025 at 6:48 PM ET"
+                const fmtET = (d) => {
+                    if (!d) return '—';
+                    const date = d.toLocaleDateString('en-US', {
+                        timeZone: 'UTC', // show calendar date in UTC
+                        month: 'short', day: 'numeric', year: 'numeric'
                     });
-                    const nyTime = latest.toLocaleTimeString('en-US', { 
-                        timeZone: 'America/New_York',
-                        hour: 'numeric',
-                        minute: '2-digit',
-                        hour12: true
+                    const time = d.toLocaleTimeString('en-US', {
+                        timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true
                     });
-                    text = `Last Tax Code Update: ${utcDate} at ${nyTime} ET`;
+                    return `${date} at ${time} ET`;
+                };
+
+                // Build lines: overall latest + individual sources
+                const candidates = [usc, cfr].filter(Boolean);
+                let header = 'No recent tax code updates found';
+                if (candidates.length) {
+                    const latest = new Date(Math.max.apply(null, candidates));
+                    header = `Last Tax Code Update: ${fmtET(latest)}`;
                 }
-                el.textContent = text;
+
+                const uscLine = `USC: ${fmtET(usc)}`;
+                const cfrLine = `CFR: ${fmtET(cfr)}`;
+
+                el.innerHTML = `${header}<br>${uscLine}<br>${cfrLine}`;
             } catch (e) {
                 const el = document.getElementById('cpaStatusText');
                 if (el) el.textContent = 'Status unavailable right now';
-                // Silent failure for UI; consider console log for debugging
                 try { console.warn('CPA status fetch failed', e); } catch {}
             }
         }
