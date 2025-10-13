@@ -2944,51 +2944,59 @@ const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversat
         
         async function loadIndexStats() {
             try {
-                // Get employee count
-                const employeeResponse = await fetch('https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01', {
+                // Get employee count via proxy
+                const employeeResponse = await fetch('https://saxtech-megamind-entra.azurewebsites.net/api/searchproxy', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        search: '*',
-                        filter: "documentType eq 'employee'",
-                        count: true,
-                        top: 0
+                        action: 'search',
+                        params: {
+                            search: '*',
+                            filter: "documentType eq 'employee'",
+                            count: true,
+                            top: 0
+                        }
                     })
                 });
                 
-                // Get group count
-                const groupResponse = await fetch('https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01', {
+                // Get group count via proxy
+                const groupResponse = await fetch('https://saxtech-megamind-entra.azurewebsites.net/api/searchproxy', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        search: '*',
-                        filter: "documentType eq 'group'",
-                        count: true,
-                        top: 0
+                        action: 'search',
+                        params: {
+                            search: '*',
+                            filter: "documentType eq 'group'",
+                            count: true,
+                            top: 0
+                        }
                     })
                 });
                 
-                // Get total count
-                const totalResponse = await fetch('https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/$count?api-version=2023-11-01', {
+                // Get total count via proxy
+                const totalResponse = await fetch('https://saxtech-megamind-entra.azurewebsites.net/api/searchproxy', {
+                    method: 'POST',
                     headers: {
-                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
-                    }
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'count'
+                    })
                 });
                 
                 if (employeeResponse.ok && groupResponse.ok && totalResponse.ok) {
                     const employeeData = await employeeResponse.json();
                     const groupData = await groupResponse.json();
-                    const totalCount = await totalResponse.text();
+                    const totalData = await totalResponse.json();
                     
                     document.getElementById('totalEmployees').textContent = employeeData['@odata.count'] || '0';
                     document.getElementById('totalGroups').textContent = groupData['@odata.count'] || '0';
-                    document.getElementById('totalDocs').textContent = totalCount || '0';
+                    document.getElementById('totalDocs').textContent = totalData.count || '0';
                     
                     // Photo count would need a different query - estimate for now
                     document.getElementById('photosCount').textContent = '~50';
