@@ -3747,9 +3747,9 @@ const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversat
         // Index Management Functions
 
         // --- Manual Tax Ingestion ---
-        async function runManualIngest() {
-            const url = document.getElementById('ingestUrl').value.trim();
-            const key = document.getElementById('ingestKey').value.trim();
+        async function runManualIngest(urlArg, keyArg) {
+            let url = urlArg || document.getElementById('ingestUrl').value.trim();
+            const key = keyArg || document.getElementById('ingestKey').value.trim();
             const btn = document.getElementById('runIngestBtn');
             const out = document.getElementById('ingestStatus');
             out.textContent = '';
@@ -3778,6 +3778,26 @@ const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversat
             } finally {
                 btn.disabled = false;
             }
+        }
+
+        // quick source-runner; prefers SWA proxy
+        function runManualIngestSource(src){
+            const out = document.getElementById('ingestStatus');
+            function log(line){ const ts=new Date().toLocaleTimeString(); out.textContent += `[${ts}] ${line}\n`; out.scrollTop=out.scrollHeight; }
+            const proxy = `/api/ingest-proxy?src=${encodeURIComponent(src||'cfr')}`;
+            fetch(proxy, { method:'POST' }).then(async r=>{
+                log(`Proxy -> HTTP ${r.status}`);
+                try { const t = await r.text(); if (t) log(t); } catch {}
+                if (!r.ok) throw new Error('proxy failed');
+            }).catch(()=>{
+                const base='https://saxtech-tax-ingestor-premium.azurewebsites.net';
+                let path='/api/ingest'; if(src==='usc') path='/api/ingest_usc'; if(src==='both') path='/api/ingest_all';
+                const key=(document.getElementById('ingestKey').value.trim() || localStorage.getItem('FA_FUNC_KEY') || '');
+                if(!key){ alert('Paste the Function Key first or click Save Key.'); return; }
+                document.getElementById('ingestUrl').value=base+path;
+                document.getElementById('ingestKey').value=key;
+                runManualIngest(base+path, key);
+            });
         }
 
         async function pollStatus(log){
