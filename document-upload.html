@@ -413,6 +413,22 @@
         }
 
         async function fetchConfigDepartments(){
+            // Try blob-based config first
+            try {
+                const sas = await fetch(`${API_BASE_URL}/generatesastoken?blobPath=${encodeURIComponent('megamind-config/departments.json')}`);
+                if (sas.ok) {
+                    const j = await sas.json().catch(()=>({}));
+                    const url = j.blobUrl || j.url || j.sasUrl;
+                    if (url) {
+                        const r = await fetch(url, { cache: 'no-store' });
+                        if (r.ok) {
+                            const jb = await r.json();
+                            return Array.isArray(jb) ? jb : (jb.departments || []);
+                        }
+                    }
+                }
+            } catch {}
+            // Fallback to site file
             try {
                 const res = await fetch('/config/departments.json', { cache: 'no-store' });
                 if (!res.ok) return [];

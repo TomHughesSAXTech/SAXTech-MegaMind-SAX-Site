@@ -10,16 +10,40 @@
 
     function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstChild; }
 
-    async function loadDepartments(){
+    async function getBlobUrlForDepartments(){
         try{
-            const res = await fetch('/config/departments.json?cb=' + Date.now(), { cache: 'no-store' });
-            if(!res.ok){ throw new Error('Failed to load departments.json'); }
-            const j = await res.json();
-            departments = Array.isArray(j) ? j : (j.departments || []);
-        }catch(e){
-            console.warn('Departments load failed:', e);
-            departments = [];
+            const sas = await fetch('/api/generatesastoken?blobPath=' + encodeURIComponent('megamind-config/departments.json'));
+            if (!sas.ok) return null;
+            const j = await sas.json().catch(()=>({}));
+            return j.blobUrl || j.url || j.sasUrl || null;
+        }catch(e){ return null; }
+    }
+
+    async function loadDepartments(){
+        // Prefer blob-based config first
+        try{
+            const blobUrl = await getBlobUrlForDepartments();
+            if (blobUrl) {
+                const r = await fetch(blobUrl, { cache: 'no-store' });
+                if (r.ok) {
+                    const jb = await r.json();
+                    departments = Array.isArray(jb) ? jb : (jb.departments || []);
+                }
+            }
+        }catch(e){ /* ignore and fallback */ }
+        // Fallback to site file
+        if (!Array.isArray(departments) || departments.length === 0) {
+            try{
+                const res = await fetch('/config/departments.json?cb=' + Date.now(), { cache: 'no-store' });
+                if(!res.ok){ throw new Error('Failed to load departments.json'); }
+                const j = await res.json();
+                departments = Array.isArray(j) ? j : (j.departments || []);
+            }catch(e){
+                console.warn('Departments load failed:', e);
+                departments = [];
+            }
         }
+        // Get GitHub sha (for optional GitHub save)
         try{
             const gh = await fetch('https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + DEPTS_PATH + '?ref=' + GH_BRANCH);
             if(gh.ok){ const meta = await gh.json(); currentSha = meta.sha; }
@@ -52,6 +76,7 @@
         const list = document.getElementById('deptList');
         const saveBtn = document.getElementById('saveDeptBtn');
         const tokenInput = document.getElementById('ghTokenInput');
+        const saveBlobBtn = document.getElementById('saveBlobBtn');
 
         addBtn?.addEventListener('click', ()=>{
             const v = (input.value||'').trim();
@@ -109,10 +134,34 @@
                 }
                 const j = await res.json();
                 currentSha = j.content?.sha || currentSha;
-                alert('Departments saved successfully.');
+                alert('Departments saved to GitHub.');
             }catch(e){
                 console.error(e);
                 alert('Failed to save departments: '+ e.message);
+            }
+        });
+
+        saveBlobBtn?.addEventListener('click', async ()=>{
+            try{
+                const body = {
+                    kind: 'departments',
+                    container: 'megamind-config',
+                    path: 'departments.json',
+                    departments: departments
+                };
+                const res = await fetch('/api/managevoiceconfig', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                if(!res.ok){
+                    const t = await res.text();
+                    throw new Error('Blob save failed: ' + res.status + ' - ' + t);
+                }
+                alert('Departments saved to Blob.');
+            }catch(e){
+                console.error(e);
+                alert('Failed to save to Blob: ' + e.message);
             }
         });
     }
@@ -127,19 +176,25 @@
         const tab = document.getElementById('department-editor-tab');
         if(!tab) return;
         tab.innerHTML = '' +
-          '<div class="admin-card full-width">' +
+          '<div class=\"admin-card full-width\">' +
             '<h2>Department Manager</h2>' +
-            '<p style="color:#64748b;margin-bottom:10px;">Add, edit, and remove departments. These are saved to <code>config/departments.json</code> in GitHub and used by the upload page.</p>' +
-            '<div class="form-group">' +
+            '<p style=\"color:#64748b;margin-bottom:10px;\">Add, edit, and remove departments. Save either to Blob (preferred) or to GitHub.</p>' +
+            '<div class=\"form-group\" style=\"display:flex;gap:10px;align-items:center;\">' +
+              '<button class=\"btn btn-success\" id=\"saveBlobBtn\">Save to Blob</button>' +
+              '<span style=\"color:#64748b;font-size:12px;\">Blob: megamind-config/departments.json</span>' +
+            '</div>' +
+            '<div class=\"form-group\">' +
               '<label>GitHub Token (repo scope)</label>' +
-              '<input id="ghTokenInput" type="password" placeholder="ghp_..." class="form-input">' +
+              '<input id=\"ghTokenInput\" type=\"password\" placeholder=\"ghp_...\" class=\"form-input\">' +
+              '<div style=\"margin-top:8px;display:flex;gap:10px;align-items:center;\">' +
+                '<button class=\"btn btn-primary\" id=\"saveDeptBtn\">Save to GitHub</button>' +
+              '</div>' +
             '</div>' +
-            '<div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;">' +
-              '<input id="newDeptInput" class="form-input" placeholder="Add a new department">' +
-              '<button class="btn btn-primary" id="addDeptBtn">Add</button>' +
-              '<button class="btn btn-success" id="saveDeptBtn">Save to GitHub</button>' +
+            '<div style=\"display:flex;gap:10px;align-items:center;margin-bottom:10px;\">' +
+              '<input id=\"newDeptInput\" class=\"form-input\" placeholder=\"Add a new department\">' +
+              '<button class=\"btn btn-secondary\" id=\"addDeptBtn\">Add</button>' +
             '</div>' +
-            '<div id="deptList" class="voice-list"></div>' +
+            '<div id=\"deptList\" class=\"voice-list\"></div>' +
           '</div>';
     }
 
