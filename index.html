@@ -1556,7 +1556,7 @@
         // Allow override via window.TAX_STATUS_URL; default to premium app status endpoint
         const TAX_STATUS_URL = (window.TAX_STATUS_URL && typeof window.TAX_STATUS_URL === 'string')
             ? window.TAX_STATUS_URL
-            : 'https://saxtech-tax-ingestor-premium.azurewebsites.net/api/status';
+            : 'https://saxtech-tax-ingestor-premium.azurewebsites.net/api/status2';
 
         async function updateCPAStatus() {
             try {
