@@ -3200,7 +3200,7 @@ const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversat
                             search: searchTerm,
                             filter: "documentType eq 'employee'",
                             top: 20,
-                            select: 'employeeName,employeeEmail,employeeTitle,employeeDepartment,employeeLocation,employeeCompany,employeePhone,employeeMobile,employeeType,status,employeePhotoBase64,employeeManager,employeeManagerEmail,employeeGroups,employeeDirectReports,employeeDirectReportsCount'
+                            select: 'employeeName,employeeEmail,employeeTitle,employeeDepartment,employeeLocation,employeeCompany,employeePhone,employeeMobile,employeeType,status,employeePhotoBase64,employeeManager'
                         }
                     })
                 });
@@ -3335,24 +3335,6 @@ const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversat
                         </div>
                     ` : ''}
                     
-                    ${employee.employeeDirectReportsCount > 0 ? `
-                        <div style="margin-bottom: 8px; display: flex; align-items: center;">
-                            <i class="fas fa-users" style="width: 16px; color: #94a3b8; margin-right: 8px;"></i>
-                            Direct Reports: ${employee.employeeDirectReportsCount}
-                        </div>
-                    ` : ''}
-                    
-                    ${employee.employeeGroups ? `
-                        <details style="margin-bottom: 8px;">
-                            <summary style="cursor: pointer; color: #64748b; font-size: 12px;">
-                                <i class="fas fa-layer-group" style="width: 16px; color: #94a3b8; margin-right: 8px;"></i>
-                                Groups (click to expand)
-                            </summary>
-                            <div style="margin-left: 24px; margin-top: 5px; font-size: 11px; color: #94a3b8;">
-                                ${employee.employeeGroups}
-                            </div>
-                        </details>
-                    ` : ''}
                     
                     <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-size: 11px; color: #94a3b8;">
