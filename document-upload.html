@@ -73,12 +73,15 @@
         .document-department { font-size: 12px; color: #666; background: #f8f9fa; padding: 2px 8px; border-radius: 12px; }
         .document-description { color: #666; font-size: 14px; line-height: 1.4; margin: 12px 0; }
         .document-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; font-size: 12px; color: #888; }
-        .document-actions { display: flex; gap: 8px; }
-        .action-btn { padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.3s ease; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+        .document-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .action-btn { padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.3s ease; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
         .action-btn.download { background: #17a2b8; color: white; }
         .action-btn.preview { background: #6c757d; color: white; }
-        .action-btn.delete { background: #dc3545; color: white; }
         .action-btn:hover { transform: translateY(-1px); opacity: 0.9; }
+        /* Modal styles */
+        .modal { position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); display: none; }
+        .modal-content { background: #fff; margin: 2% auto; padding: 20px; border-radius: 10px; width: 90%; max-width: 1200px; max-height: 90vh; overflow-y: auto; position: relative; text-align: center; }
+        .loading { text-align: center; padding: 40px; color: #666; }
         .loading { text-align: center; padding: 40px; color: #666; }
         .loading i { font-size: 32px; margin-bottom: 15px; animation: spin 2s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -194,8 +197,8 @@
             </div>
         </div>
     </div>
-    <div id="uploadModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5);">
-        <div class="modal-content" style="background-color: #fefefe; margin: 15% auto; padding: 20px; border-radius: 10px; width: 80%; max-width: 900px; text-align: center;">
+    <div id="uploadModal" class="modal" style="display: none;">
+        <div class="modal-content">
             <div id="modalContent"></div>
             <button onclick="closeModal()" style="margin-top: 20px; padding: 10px 20px; background: #1e3c72; color: white; border: none; border-radius: 5px; cursor: pointer;">Close</button>
         </div>
@@ -223,6 +226,7 @@
         let selectedFile = null;
         let uploadInProgress = false;
         let documentsCache = [];
+        let knownDepartments = [];
 
         function populateDepartmentSelects(depts) {
             if (!depts || depts.length === 0) {
@@ -427,10 +431,25 @@
                 ...(cfgDepts||[]).filter(Boolean)
             ])].sort();
             populateDepartmentSelects(uniqueDepts);
+            knownDepartments = uniqueDepts;
             if (actionType.value==='update') refreshExistingDocOptions(departmentSelect.value);
         }
 
-        function displayDocuments(documents){ if(!documents||documents.length===0){ documentsGrid.innerHTML=`<div class="empty-state"><i class="fas fa-folder-open"></i><h3>No Documents Found</h3><p>No documents have been uploaded yet. Use the sidebar to upload your first document.</p></div>`; return; } const html = documents.map(doc => createDocumentCard(doc)).join(''); documentsGrid.innerHTML = html; filterDocuments(); }
+        function displayDocuments(documents){
+            const allowed = new Set(['pdf','doc','docx','xls','xlsx','ppt','pptx','txt','csv','mp4','mov','avi','mkv','webm']);
+            const filtered = (documents||[]).filter(doc => {
+                const fn = (doc.fileName||'').toLowerCase();
+                const ext = fn.split('.').pop();
+                return fn && allowed.has(ext);
+            });
+            if(!filtered.length){
+                documentsGrid.innerHTML=`<div class=\"empty-state\"><i class=\"fas fa-folder-open\"></i><h3>No Documents Found</h3><p>No supported documents found. Upload PDF, Office, TXT, CSV, or video files.</p></div>`;
+                return;
+            }
+            const html = filtered.map(doc => createDocumentCard(doc)).join('');
+            documentsGrid.innerHTML = html;
+            filterDocuments();
+        }
 
         function createDocumentCard(doc){ const ext = doc.fileName ? doc.fileName.split('.').pop().toLowerCase() : 'default'; const iconClass = getDocumentIconClass(ext); const dateStr = new Date(doc.uploadedAt || Date.now()).toLocaleDateString(); const sizeStr = formatFileSize(doc.fileSize||0); return `
             <div class="document-card">
@@ -485,22 +504,41 @@
             return (documentsCache||[]).find(d => (d.id||d.fileName) === id);
         }
 
+        async function checkBlobExists(url){
+            try { const h = await fetch(url, { method: 'HEAD' }); if (h.ok) return true; } catch(e){}
+            try { const r = await fetch(url, { method: 'GET', headers: { 'Range': 'bytes=0-0' } }); return r.ok; } catch(e){}
+            return false;
+        }
+
         async function tryGetSasUrl(documentId){
-            // Prefer backend GenerateSASToken with blobPath if we can derive it
             const doc = getDocById(documentId);
-            let blobPath = null;
-            if (doc && doc.fileName) {
-                const dept = doc.department || '';
-                if (dept) blobPath = `${dept}/${doc.fileName}`;
-                else blobPath = doc.fileName; // fallback
+            const candidates = [];
+            const fn = (doc?.fileName||'').trim();
+            const dept = (doc?.department||'').trim();
+            if (doc && doc.blobPath) candidates.push(doc.blobPath);
+            if (fn && dept) candidates.push(`${dept}/${fn}`);
+            if (fn) candidates.push(fn);
+            // Try other known departments for this filename
+            (knownDepartments||[]).forEach(d => { if (fn && d && d !== dept) candidates.push(`${d}/${fn}`); });
+            // Deduplicate while preserving order
+            const seen = new Set();
+            const uniq = candidates.filter(p => { if (seen.has(p)) return false; seen.add(p); return true; });
+
+            // Try blobPath candidates first
+            for (const p of uniq) {
+                const safeBlob = encodeURIComponent(p);
+                try{
+                    const res = await fetch(`${API_BASE_URL}/generatesastoken?blobPath=${safeBlob}`);
+                    if(!res.ok) continue;
+                    const data = await res.json().catch(()=>({}));
+                    const blobUrl = data.blobUrl || data.sasUrl || data.url;
+                    if(blobUrl && await checkBlobExists(blobUrl)) return blobUrl;
+                }catch(e){ /* try next */ }
             }
 
+            // Fallback attempts using documentId and legacy routes
             const safeId = encodeURIComponent(documentId);
-            const safeBlob = blobPath ? encodeURIComponent(blobPath) : null;
-
             const attempts = [
-                ...(safeBlob ? [{ m:'GET',  u:`${API_BASE_URL}/generatesastoken?blobPath=${safeBlob}` }] : []),
-                ...(safeBlob ? [{ m:'POST', u:`${API_BASE_URL}/generatesastoken`,     body:{ blobPath } }] : []),
                 { m:'GET',  u:`${API_BASE_URL}/generatesastoken?documentId=${safeId}` },
                 { m:'POST', u:`${API_BASE_URL}/generatesastoken`,     body:{ documentId } },
                 { m:'POST', u:`${API_BASE_URL}/GenerateSASToken`,     body:{ documentId } },
@@ -509,7 +547,7 @@
                 { m:'POST', u:`${API_BASE_URL}/sas/generate`,         body:{ documentId } },
                 { m:'GET',  u:`${API_BASE_URL}/documents/preview/${safeId}` }
             ];
-            for(const a of attempts){
+            for (const a of attempts) {
                 try{
                     let res;
                     if(a.m==='POST'){
@@ -519,8 +557,8 @@
                     }
                     if(!res.ok) continue;
                     const data = await res.json().catch(()=>({}));
-                    const url = data.sasUrl || data.url || data.blobUrl || data.signedUrl || data.previewUrl || data.downloadUrl;
-                    if(url) return url;
+                    const blobUrl = data.blobUrl || data.sasUrl || data.url || data.previewUrl || data.downloadUrl;
+                    if(blobUrl && await checkBlobExists(blobUrl)) return blobUrl;
                 }catch(e){ /* continue */ }
             }
             return null;
