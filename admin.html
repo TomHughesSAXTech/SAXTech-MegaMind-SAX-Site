@@ -7211,9 +7211,23 @@ Provide insights about conversation quality and satisfaction in JSON format:
         
         // Drill-down functionality
         function showConversationDrilldown() {
+            // Normalize conversation which may arrive as an array or a JSON string
+            const normalizeConversation = (conv) => {
+                if (Array.isArray(conv)) return conv;
+                if (typeof conv === 'string') {
+                    try {
+                        const parsed = JSON.parse(conv);
+                        if (Array.isArray(parsed)) return parsed;
+                        if (parsed && Array.isArray(parsed.messages)) return parsed.messages;
+                    } catch (_) { /* ignore */ }
+                }
+                if (conv && Array.isArray(conv.messages)) return conv.messages;
+                return [];
+            };
+
             // Calculate real metrics from actual conversation data
             const totalConversations = conversationData.length;
-            const totalMessages = conversationData.reduce((sum, s) => sum + ((s.conversation || []).length), 0);
+            const totalMessages = conversationData.reduce((sum, s) => sum + normalizeConversation(s.conversation).length, 0);
             const avgMessagesPerSession = totalConversations > 0 ? (totalMessages / totalConversations).toFixed(1) : 0;
             
             // Calculate average duration from real session data
@@ -7225,15 +7239,15 @@ Provide insights about conversation quality and satisfaction in JSON format:
             
             // Calculate completion rate (sessions with responses)
             const completedSessions = conversationData.filter(s => {
-                const conv = s.conversation || [];
-                return conv.some(msg => msg.role === 'assistant');
+                const conv = normalizeConversation(s.conversation);
+                return conv.some(msg => msg && msg.role === 'assistant');
             }).length;
             const completionRate = totalConversations > 0 ? ((completedSessions / totalConversations) * 100).toFixed(1) : 0;
             
             // Analyze conversation topics from first user message
             const topics = {};
             conversationData.forEach(session => {
-                const firstUserMsg = (session.conversation || []).find(msg => msg.role === 'user');
+                const firstUserMsg = normalizeConversation(session.conversation).find(msg => msg && msg.role === 'user');
                 if (firstUserMsg && firstUserMsg.content) {
                     const content = firstUserMsg.content.toLowerCase();
                     if (content.includes('tax') || content.includes('code')) {
