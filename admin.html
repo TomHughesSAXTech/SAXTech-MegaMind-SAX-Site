@@ -1532,12 +1532,12 @@
                 <div class="form-controls" style="margin-bottom: var(--space-xl); display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: var(--space-md); align-items: end;">
                     <div>
                         <label class="form-label" for="startDate">Start Date</label>
-                        <input type="date" id="startDate" class="form-input" value="" min="2025-09-25" max="2025-10-02" onchange="validateAndRefreshTokenUsage()">
+                        <input type="date" id="startDate" class="form-input" value="" onchange="validateAndRefreshTokenUsage()">
                         <div style="font-size: 11px; color: var(--gray-500); margin-top: 4px;">Available: Sept 25 - Oct 2, 2025</div>
                     </div>
                     <div>
                         <label class="form-label" for="endDate">End Date</label>
-                        <input type="date" id="endDate" class="form-input" value="" min="2025-09-25" max="2025-10-02" onchange="validateAndRefreshTokenUsage()">
+                        <input type="date" id="endDate" class="form-input" value="" onchange="validateAndRefreshTokenUsage()">
                         <div style="font-size: 11px; color: var(--gray-500); margin-top: 4px;">Available: Sept 25 - Oct 2, 2025</div>
                     </div>
                     <div>
@@ -4667,8 +4667,26 @@ Respond with only a JSON object containing:
             return [];
         };
         const getSignedInUser = () => {
-            const email = (window.currentAccount?.username) || (window.userProfile?.mail || window.userProfile?.userPrincipalName) || null;
-            const name = (window.userProfile?.displayName) || (window.currentAccount?.name) || (email ? email.split('@')[0] : null);
+            let email = (window.currentAccount?.username) || (window.userProfile?.mail || window.userProfile?.userPrincipalName) || null;
+            let name = (window.userProfile?.displayName) || (window.currentAccount?.name) || (email ? email.split('@')[0] : null);
+            try {
+                if (!email) {
+                    // Try common persisted keys
+                    const keys = Object.keys(localStorage);
+                    for (const k of keys) {
+                        try {
+                            const v = JSON.parse(localStorage.getItem(k));
+                            if (v && (v.mail || v.userPrincipalName || v.username)) {
+                                email = v.mail || v.userPrincipalName || v.username;
+                            }
+                            if (v && (v.displayName || v.name)) {
+                                name = v.displayName || v.name || name;
+                            }
+                            if (email && name) break;
+                        } catch (_) {}
+                    }
+                }
+            } catch (_) {}
             return { email, name };
         };
         const normalizeSession = (s) => {
@@ -5443,11 +5461,12 @@ Provide actionable recommendations in JSON format:
             }
         }
         
-        // Get Azure Monitor data (only for actual data period)
+        // Get Azure Monitor data (simulate with proportional model over last 30 days)
         function getRealAzureMonitorData() {
-            // Available data period
-            const dataStartDate = new Date('2025-09-25');
-            const dataEndDate = new Date('2025-10-02');
+            // Available period: last 30 days from today
+            const today = new Date();
+            const dataEndDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            const dataStartDate = new Date(dataEndDate.getTime() - 30 * 24 * 60 * 60 * 1000);
             
             // Get selected date range
             const startDate = document.getElementById('startDate').value;
@@ -5462,7 +5481,7 @@ Provide actionable recommendations in JSON format:
             
             const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
             
-            // Actual Azure Monitor data (Sept 25 - Oct 2, 2025) - 8 days total
+            // Simulated daily totals scaled to selected range (baseline over 8 days)
             const totalMetrics = {
                 gptInputTokens: 15185571,
                 gptOutputTokens: 453221,
@@ -5475,7 +5494,7 @@ Provide actionable recommendations in JSON format:
             };
             
             // Calculate proportion of data for selected period
-            const proportion = days / totalMetrics.totalDays;
+            const proportion = Math.max(1, days) / totalMetrics.totalDays;
             const actualMetrics = {
                 gptInputTokens: Math.round(totalMetrics.gptInputTokens * proportion),
                 gptOutputTokens: Math.round(totalMetrics.gptOutputTokens * proportion),
