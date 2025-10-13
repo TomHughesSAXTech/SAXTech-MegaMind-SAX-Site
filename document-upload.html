@@ -223,53 +223,65 @@
         let uploadInProgress = false;
         let documentsCache = [];
 
-        async function loadDepartments() {
-            // Try to get departments from admin page localStorage first
+        function readDepartmentsFromAdminStorage() {
             try {
-                const adminDepts = localStorage.getItem('adminDepartments');
-                if (adminDepts) {
-                    const depts = JSON.parse(adminDepts);
-                    if (depts && depts.length > 0) {
-                        populateDepartmentSelects(depts);
-                        return;
+                // Preferred key used by admin page (keep stable)
+                const exact = localStorage.getItem('adminDepartments');
+                if (exact) {
+                    const arr = JSON.parse(exact);
+                    if (Array.isArray(arr) && arr.length) return arr;
+                }
+                // Heuristic scan for any localStorage value that looks like a departments array
+                const keys = Object.keys(localStorage);
+                for (const k of keys) {
+                    if (/dept|department/i.test(k)) {
+                        try {
+                            const v = JSON.parse(localStorage.getItem(k));
+                            if (Array.isArray(v) && v.every(x => typeof x === 'string')) return v;
+                            if (v && Array.isArray(v.departments)) return v.departments;
+                        } catch { /* skip */ }
                     }
                 }
-            } catch (e) {
-                console.warn('Could not load departments from localStorage:', e);
-            }
+            } catch { /* ignore */ }
+            return null;
+        }
 
-            // Build from unique departments in documents
+        async function loadDepartments() {
+            // 1) Admin-provided departments (no fallback to hardcoded)
+            const adminDepts = readDepartmentsFromAdminStorage();
+            if (adminDepts && adminDepts.length) {
+                populateDepartmentSelects(adminDepts);
+                return;
+            }
+            // 2) Derive from existing documents list (works without changing backend)
             try {
-                const r = await fetch(`${API_BASE_URL}/documents/get-all`, {method:'GET',headers:{'Content-Type':'application/json'}});
+                const r = await fetch(`${API_BASE_URL}/documents/list`, { method:'GET', headers:{ 'Content-Type':'application/json' } });
                 if (r.ok) {
                     const docs = await r.json();
                     const docArray = Array.isArray(docs) ? docs : (docs.documents || []);
                     const uniqueDepts = [...new Set(docArray.map(d => d.department).filter(Boolean))].sort();
-                    if (uniqueDepts.length > 0) {
-                        populateDepartmentSelects(uniqueDepts);
-                        return;
-                    }
+                    populateDepartmentSelects(uniqueDepts);
+                    // Cache for later to speed up loads
+                    localStorage.setItem('adminDepartments', JSON.stringify(uniqueDepts));
+                    return;
                 }
             } catch (e) {
-                console.warn('Could not load departments from documents:', e);
+                console.warn('Could not load departments from /documents/list:', e);
             }
-
-            // If no departments found, show empty options with message
+            // 3) No departments available
             populateDepartmentSelects([]);
         }
 
         function populateDepartmentSelects(depts) {
-            if (depts.length === 0) {
+            if (!depts || depts.length === 0) {
                 departmentSelect.innerHTML = '<option value="">No departments available</option>';
                 departmentFilter.innerHTML = '<option value="">All Departments</option>';
                 return;
             }
-            
             const deptOptions = ['<option value="">Select Department</option>'].concat(
                 depts.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`)
             ).join('');
             departmentSelect.innerHTML = deptOptions;
-            
             const filterOpts = ['<option value="">All Departments</option>'].concat(
                 depts.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`)
             ).join('');
@@ -394,7 +406,7 @@
         function showAlert(type,message){ const d=document.createElement('div'); d.className=`alert alert-${type}`; d.innerHTML=`<i class="fas fa-${type==='success'?'check-circle':type==='error'?'exclamation-circle':'info-circle'}"></i> ${message}`; uploadStatus.appendChild(d); setTimeout(()=>{ if(d.parentNode) d.parentNode.removeChild(d); },5000);}
         function clearUploadStatus(){ uploadStatus.innerHTML=''; }
 
-        async function loadDocuments(){ documentsGrid.innerHTML=`<div class="loading"><i class="fas fa-spinner"></i><p>Loading documents...</p></div>`; try{ const r=await fetch(`${API_BASE_URL}/documents/get-all`,{method:'GET',headers:{'Content-Type':'application/json'}}); if(!r.ok){ throw new Error('Failed to load documents'); } const docs=await r.json(); documentsCache = Array.isArray(docs) ? docs : (docs.documents || []); displayDocuments(documentsCache); if (actionType.value==='update') refreshExistingDocOptions(departmentSelect.value); } catch(e){ console.error('Failed to load documents:',e); documentsGrid.innerHTML=`<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><h3>Unable to Load Documents</h3><p>There was an error loading the document repository. Please try again later.</p></div>`; } }
+        async function loadDocuments(){ documentsGrid.innerHTML=`<div class="loading"><i class="fas fa-spinner"></i><p>Loading documents...</p></div>`; try{ const r=await fetch(`${API_BASE_URL}/documents/list`,{method:'GET',headers:{'Content-Type':'application/json'}}); if(!r.ok){ throw new Error('Failed to load documents'); } const docs=await r.json(); documentsCache = Array.isArray(docs) ? docs : (docs.documents || []); displayDocuments(documentsCache); if (actionType.value==='update') refreshExistingDocOptions(departmentSelect.value); } catch(e){ console.error('Failed to load documents:',e); documentsGrid.innerHTML=`<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><h3>Unable to Load Documents</h3><p>There was an error loading the document repository. Please try again later.</p></div>`; } }
 
         function displayDocuments(documents){ if(!documents||documents.length===0){ documentsGrid.innerHTML=`<div class="empty-state"><i class="fas fa-folder-open"></i><h3>No Documents Found</h3><p>No documents have been uploaded yet. Use the sidebar to upload your first document.</p></div>`; return; } const html = documents.map(doc => createDocumentCard(doc)).join(''); documentsGrid.innerHTML = html; filterDocuments(); }
 
