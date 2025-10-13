@@ -187,7 +187,7 @@
                     <select class="department-filter" id="departmentFilter">
                         <option value="">All Departments</option>
                     </select>
-                    <button class="refresh-btn" id="refreshBtn" onclick="loadDocuments()"><i class="fas fa-sync-alt"></i> Refresh</button>
+                    <button class="refresh-btn" id="refreshBtn" onclick="loadAll()"><i class="fas fa-sync-alt"></i> Refresh</button>
                 </div>
                 <div class="documents-grid" id="documentsGrid"></div>
             </div>
@@ -223,55 +223,6 @@
         let uploadInProgress = false;
         let documentsCache = [];
 
-        function readDepartmentsFromAdminStorage() {
-            try {
-                // Preferred key used by admin page (keep stable)
-                const exact = localStorage.getItem('adminDepartments');
-                if (exact) {
-                    const arr = JSON.parse(exact);
-                    if (Array.isArray(arr) && arr.length) return arr;
-                }
-                // Heuristic scan for any localStorage value that looks like a departments array
-                const keys = Object.keys(localStorage);
-                for (const k of keys) {
-                    if (/dept|department/i.test(k)) {
-                        try {
-                            const v = JSON.parse(localStorage.getItem(k));
-                            if (Array.isArray(v) && v.every(x => typeof x === 'string')) return v;
-                            if (v && Array.isArray(v.departments)) return v.departments;
-                        } catch { /* skip */ }
-                    }
-                }
-            } catch { /* ignore */ }
-            return null;
-        }
-
-        async function loadDepartments() {
-            // 1) Admin-provided departments (no fallback to hardcoded)
-            const adminDepts = readDepartmentsFromAdminStorage();
-            if (adminDepts && adminDepts.length) {
-                populateDepartmentSelects(adminDepts);
-                return;
-            }
-            // 2) Derive from existing documents list (works without changing backend)
-            try {
-                const r = await fetch(`${API_BASE_URL}/documents/list`, { method:'GET', headers:{ 'Content-Type':'application/json' } });
-                if (r.ok) {
-                    const docs = await r.json();
-                    const docArray = Array.isArray(docs) ? docs : (docs.documents || []);
-                    const uniqueDepts = [...new Set(docArray.map(d => d.department).filter(Boolean))].sort();
-                    populateDepartmentSelects(uniqueDepts);
-                    // Cache for later to speed up loads
-                    localStorage.setItem('adminDepartments', JSON.stringify(uniqueDepts));
-                    return;
-                }
-            } catch (e) {
-                console.warn('Could not load departments from /documents/list:', e);
-            }
-            // 3) No departments available
-            populateDepartmentSelects([]);
-        }
-
         function populateDepartmentSelects(depts) {
             if (!depts || depts.length === 0) {
                 departmentSelect.innerHTML = '<option value="">No departments available</option>';
@@ -302,7 +253,7 @@
             const at = actionType.value;
             if (at === 'update') {
                 existingWrap.style.display = '';
-                if (documentsCache.length === 0) await loadDocuments();
+                if (documentsCache.length === 0) await loadAll();
                 refreshExistingDocOptions(departmentSelect.value);
             } else {
                 existingWrap.style.display = 'none';
@@ -384,7 +335,7 @@
             updateStepStatus('index','active'); updateProgress(80,'Adding to search index...'); await addToSearchIndex(uploadResult); updateStepStatus('index','completed');
             updateStepStatus('embeddings','active'); updateProgress(95,'Creating AI embeddings...'); await createEmbeddings(uploadResult); updateStepStatus('embeddings','completed');
             updateProgress(100,'Upload completed successfully!'); showAlert('success','Document uploaded successfully! It is now available in the repository and search index.');
-            setTimeout(()=>{ resetForm(); loadDocuments(); },2000);
+            setTimeout(()=>{ resetForm(); loadAll(); },2000);
         }
 
         async function calculateFileHash(file){ return new Promise((resolve)=>{ const reader=new FileReader(); reader.onload=async (e)=>{ const ab=e.target.result; const hb=await crypto.subtle.digest('SHA-256',ab); const ha=Array.from(new Uint8Array(hb)); const hx=ha.map(b=>b.toString(16).padStart(2,'0')).join(''); resolve(hx); }; reader.readAsArrayBuffer(file); }); }
@@ -406,7 +357,47 @@
         function showAlert(type,message){ const d=document.createElement('div'); d.className=`alert alert-${type}`; d.innerHTML=`<i class="fas fa-${type==='success'?'check-circle':type==='error'?'exclamation-circle':'info-circle'}"></i> ${message}`; uploadStatus.appendChild(d); setTimeout(()=>{ if(d.parentNode) d.parentNode.removeChild(d); },5000);}
         function clearUploadStatus(){ uploadStatus.innerHTML=''; }
 
-        async function loadDocuments(){ documentsGrid.innerHTML=`<div class="loading"><i class="fas fa-spinner"></i><p>Loading documents...</p></div>`; try{ const r=await fetch(`${API_BASE_URL}/documents/list`,{method:'GET',headers:{'Content-Type':'application/json'}}); if(!r.ok){ throw new Error('Failed to load documents'); } const docs=await r.json(); documentsCache = Array.isArray(docs) ? docs : (docs.documents || []); displayDocuments(documentsCache); if (actionType.value==='update') refreshExistingDocOptions(departmentSelect.value); } catch(e){ console.error('Failed to load documents:',e); documentsGrid.innerHTML=`<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><h3>Unable to Load Documents</h3><p>There was an error loading the document repository. Please try again later.</p></div>`; } }
+        async function fetchDocumentsFromSearch(){
+            // Try GET first
+            try {
+                let res = await fetch(`${API_BASE_URL}/documents-search?all=true`, { method: 'GET' });
+                if (res.ok) {
+                    const data = await res.json();
+                    return Array.isArray(data) ? data : (data.documents || []);
+                }
+            } catch (e) { /* ignore and try next */ }
+            // Try POST fallback
+            try {
+                let res = await fetch(`${API_BASE_URL}/documents-search`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: '*', top: 1000 })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    return Array.isArray(data) ? data : (data.documents || []);
+                }
+            } catch (e) { /* ignore and try last fallback */ }
+            // Last fallback to legacy list
+            try {
+                let res = await fetch(`${API_BASE_URL}/documents/list`, { method: 'GET', headers: { 'Content-Type':'application/json' } });
+                if (res.ok) {
+                    const data = await res.json();
+                    return Array.isArray(data) ? data : (data.documents || []);
+                }
+            } catch (e) { /* give up */ }
+            return [];
+        }
+
+        async function loadAll(){
+            documentsGrid.innerHTML=`<div class="loading"><i class="fas fa-spinner"></i><p>Loading documents...</p></div>`;
+            const docs = await fetchDocumentsFromSearch();
+            documentsCache = docs;
+            displayDocuments(documentsCache);
+            const uniqueDepts = [...new Set((documentsCache||[]).map(d => d.department).filter(Boolean))].sort();
+            populateDepartmentSelects(uniqueDepts);
+            if (actionType.value==='update') refreshExistingDocOptions(departmentSelect.value);
+        }
 
         function displayDocuments(documents){ if(!documents||documents.length===0){ documentsGrid.innerHTML=`<div class="empty-state"><i class="fas fa-folder-open"></i><h3>No Documents Found</h3><p>No documents have been uploaded yet. Use the sidebar to upload your first document.</p></div>`; return; } const html = documents.map(doc => createDocumentCard(doc)).join(''); documentsGrid.innerHTML = html; filterDocuments(); }
 
@@ -442,7 +433,7 @@
         function showModal(content){ document.getElementById('modalContent').innerHTML = content; document.getElementById('uploadModal').style.display='block'; }
         function closeModal(){ document.getElementById('uploadModal').style.display='none'; }
 
-        document.addEventListener('DOMContentLoaded', function(){ loadDepartments(); loadDocuments(); document.addEventListener('keydown', function(event){ if(event.ctrlKey && event.key==='u'){ event.preventDefault(); fileInput.click(); } }); });
+        document.addEventListener('DOMContentLoaded', function(){ loadAll(); document.addEventListener('keydown', function(event){ if(event.ctrlKey && event.key==='u'){ event.preventDefault(); fileInput.click(); } }); });
         window.onclick = function(event){ const modal=document.getElementById('uploadModal'); if(event.target===modal){ closeModal(); } }
     </script>
 </body>
