@@ -519,7 +519,7 @@
                     }
                     if(!res.ok) continue;
                     const data = await res.json().catch(()=>({}));
-                    const url = data.sasUrl || data.url || data.signedUrl || data.previewUrl || data.downloadUrl;
+                    const url = data.sasUrl || data.url || data.blobUrl || data.signedUrl || data.previewUrl || data.downloadUrl;
                     if(url) return url;
                 }catch(e){ /* continue */ }
             }
