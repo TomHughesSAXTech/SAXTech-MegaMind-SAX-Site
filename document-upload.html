@@ -357,16 +357,37 @@
         function showAlert(type,message){ const d=document.createElement('div'); d.className=`alert alert-${type}`; d.innerHTML=`<i class="fas fa-${type==='success'?'check-circle':type==='error'?'exclamation-circle':'info-circle'}"></i> ${message}`; uploadStatus.appendChild(d); setTimeout(()=>{ if(d.parentNode) d.parentNode.removeChild(d); },5000);}
         function clearUploadStatus(){ uploadStatus.innerHTML=''; }
 
+        function fromSearchValueToDocs(value){
+            const map = new Map();
+            for (const c of value || []) {
+                const id = c.documentId || c.id || c.fileId;
+                if (!id) continue;
+                if (!map.has(id)) {
+                    map.set(id, {
+                        id,
+                        title: c.title || c.fileName || `Document ${id}`,
+                        description: c.description || '',
+                        department: c.department || '',
+                        keywords: Array.isArray(c.keywords) ? c.keywords : [],
+                        uploadedAt: c.uploadDate || c.uploadedAt || null,
+                        fileName: c.fileName || '',
+                        fileSize: c.fileSize || 0
+                    });
+                }
+            }
+            return Array.from(map.values());
+        }
+
         async function robustFetchDocuments(){
             const attempts = [
-                { m:'GET',  u:`${API_BASE_URL}/documents-search?all=true` },
-                { m:'POST', u:`${API_BASE_URL}/documents-search`,          b:{ query:'*', top:1000 } },
-                { m:'GET',  u:`${API_BASE_URL}/documents/search?all=true` },
-                { m:'GET',  u:`${API_BASE_URL}/search/documents?all=true` },
                 { m:'POST', u:`${API_BASE_URL}/documents/search`,          b:{ query:'*', top:1000 } },
                 { m:'POST', u:`${API_BASE_URL}/search/documents`,          b:{ query:'*', top:1000 } },
                 { m:'GET',  u:`${API_BASE_URL}/documents` },
-                { m:'GET',  u:`${API_BASE_URL}/documents/list` }
+                { m:'GET',  u:`${API_BASE_URL}/documents/list` },
+                { m:'GET',  u:`${API_BASE_URL}/documents-search?all=true` },
+                { m:'POST', u:`${API_BASE_URL}/documents-search`,          b:{ query:'*', top:1000 } },
+                { m:'GET',  u:`${API_BASE_URL}/documents/search?all=true` },
+                { m:'GET',  u:`${API_BASE_URL}/search/documents?all=true` }
             ];
             for (const a of attempts){
                 try {
@@ -374,7 +395,12 @@
                     const res = await fetch(a.u, opts);
                     if (res.ok){
                         const data = await res.json();
-                        return Array.isArray(data) ? data : (data.documents || []);
+                        if (Array.isArray(data)) return data;
+                        if (Array.isArray(data.value)) return fromSearchValueToDocs(data.value);
+                        if (Array.isArray(data.results)) return fromSearchValueToDocs(data.results);
+                        if (Array.isArray(data.items)) return data.items;
+                        if (Array.isArray(data.documents)) return data.documents;
+                        if (data.documents) return data.documents;
                     }
                 } catch (e) { /* try next */ }
             }
