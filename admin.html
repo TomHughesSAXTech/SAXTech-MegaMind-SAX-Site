@@ -4666,12 +4666,22 @@ Respond with only a JSON object containing:
             if (conv && Array.isArray(conv.messages)) return conv.messages;
             return [];
         };
-        const normalizeSession = (s) => ({
-            ...s,
-            userEmail: s.userEmail || s.email || s.metadata?.userEmail || s.metadata?.email || 'unknown@saxtechnology.com',
-            userName: s.userName || s.metadata?.userName || s.userEmail?.split('@')[0] || 'Unknown',
-            conversation: normalizeConversation(s.conversation)
-        });
+        const getSignedInUser = () => {
+            const email = (window.currentAccount?.username) || (window.userProfile?.mail || window.userProfile?.userPrincipalName) || null;
+            const name = (window.userProfile?.displayName) || (window.currentAccount?.name) || (email ? email.split('@')[0] : null);
+            return { email, name };
+        };
+        const normalizeSession = (s) => {
+            const baseEmail = s.userEmail || s.email || s.metadata?.userEmail || s.metadata?.email || null;
+            const baseName = s.userName || s.metadata?.userName || (baseEmail ? baseEmail.split('@')[0] : null);
+            // Do not overwrite session identity with MSAL for other users; only use MSAL for display fallback
+            return {
+                ...s,
+                userEmail: baseEmail || 'unknown@saxtechnology.com',
+                userName: baseName || 'Unknown',
+                conversation: normalizeConversation(s.conversation)
+            };
+        };
 
         // Load AI Insights - Now RAG Enhancement Report
         async function loadAIInsights() {
@@ -6605,8 +6615,10 @@ Provide insights about conversation quality and satisfaction in JSON format:
             const modalTitle = document.getElementById('modalTitle');
             const conversationContent = document.getElementById('conversationContent');
             
-            // Set modal title
-            modalTitle.textContent = `Conversation with ${session.userName || 'Unknown User'}`;
+            // Set modal title with MSAL fallback
+            const me = getSignedInUser();
+            const displayName = session.userName && session.userName !== 'Unknown' ? session.userName : (session.userEmail ? session.userEmail.split('@')[0] : (me.name || 'Unknown User'));
+            modalTitle.textContent = `Conversation with ${displayName}`;
             
             // Clear previous content
             conversationContent.innerHTML = '';
