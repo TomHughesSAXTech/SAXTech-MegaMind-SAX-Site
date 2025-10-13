@@ -357,44 +357,48 @@
         function showAlert(type,message){ const d=document.createElement('div'); d.className=`alert alert-${type}`; d.innerHTML=`<i class="fas fa-${type==='success'?'check-circle':type==='error'?'exclamation-circle':'info-circle'}"></i> ${message}`; uploadStatus.appendChild(d); setTimeout(()=>{ if(d.parentNode) d.parentNode.removeChild(d); },5000);}
         function clearUploadStatus(){ uploadStatus.innerHTML=''; }
 
-        async function fetchDocumentsFromSearch(){
-            // Try GET first
-            try {
-                let res = await fetch(`${API_BASE_URL}/documents-search?all=true`, { method: 'GET' });
-                if (res.ok) {
-                    const data = await res.json();
-                    return Array.isArray(data) ? data : (data.documents || []);
-                }
-            } catch (e) { /* ignore and try next */ }
-            // Try POST fallback
-            try {
-                let res = await fetch(`${API_BASE_URL}/documents-search`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query: '*', top: 1000 })
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    return Array.isArray(data) ? data : (data.documents || []);
-                }
-            } catch (e) { /* ignore and try last fallback */ }
-            // Last fallback to legacy list
-            try {
-                let res = await fetch(`${API_BASE_URL}/documents/list`, { method: 'GET', headers: { 'Content-Type':'application/json' } });
-                if (res.ok) {
-                    const data = await res.json();
-                    return Array.isArray(data) ? data : (data.documents || []);
-                }
-            } catch (e) { /* give up */ }
+        async function robustFetchDocuments(){
+            const attempts = [
+                { m:'GET',  u:`${API_BASE_URL}/documents-search?all=true` },
+                { m:'POST', u:`${API_BASE_URL}/documents-search`,          b:{ query:'*', top:1000 } },
+                { m:'GET',  u:`${API_BASE_URL}/documents/search?all=true` },
+                { m:'GET',  u:`${API_BASE_URL}/search/documents?all=true` },
+                { m:'POST', u:`${API_BASE_URL}/documents/search`,          b:{ query:'*', top:1000 } },
+                { m:'POST', u:`${API_BASE_URL}/search/documents`,          b:{ query:'*', top:1000 } },
+                { m:'GET',  u:`${API_BASE_URL}/documents` },
+                { m:'GET',  u:`${API_BASE_URL}/documents/list` }
+            ];
+            for (const a of attempts){
+                try {
+                    const opts = a.m==='POST' ? { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(a.b||{}) } : { method:'GET' };
+                    const res = await fetch(a.u, opts);
+                    if (res.ok){
+                        const data = await res.json();
+                        return Array.isArray(data) ? data : (data.documents || []);
+                    }
+                } catch (e) { /* try next */ }
+            }
             return [];
+        }
+
+        async function fetchConfigDepartments(){
+            try {
+                const res = await fetch('/config/departments.json', { cache: 'no-store' });
+                if (!res.ok) return [];
+                const data = await res.json();
+                return Array.isArray(data) ? data : (data.departments || []);
+            } catch { return []; }
         }
 
         async function loadAll(){
             documentsGrid.innerHTML=`<div class="loading"><i class="fas fa-spinner"></i><p>Loading documents...</p></div>`;
-            const docs = await fetchDocumentsFromSearch();
+            const [docs, cfgDepts] = await Promise.all([ robustFetchDocuments(), fetchConfigDepartments() ]);
             documentsCache = docs;
             displayDocuments(documentsCache);
-            const uniqueDepts = [...new Set((documentsCache||[]).map(d => d.department).filter(Boolean))].sort();
+            const uniqueDepts = [...new Set([
+                ...(documentsCache||[]).map(d => d.department).filter(Boolean),
+                ...(cfgDepts||[]).filter(Boolean)
+            ])].sort();
             populateDepartmentSelects(uniqueDepts);
             if (actionType.value==='update') refreshExistingDocOptions(departmentSelect.value);
         }
