@@ -454,9 +454,26 @@
 
         async function downloadDocument(documentId){ try{ const safeId = encodeURIComponent(documentId); const r=await fetch(`${API_BASE_URL}/documents/download/${safeId}`,{method:'GET'}); if(!r.ok){ throw new Error('Download failed'); } const blob=await r.blob(); const url=window.URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=documentId; document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url); document.body.removeChild(a);} catch(e){ console.error('Download failed:',e); alert('Download failed. Please try again.'); } }
 
+        function getDocById(id){
+            return (documentsCache||[]).find(d => (d.id||d.fileName) === id);
+        }
+
         async function tryGetSasUrl(documentId){
+            // Prefer backend GenerateSASToken with blobPath if we can derive it
+            const doc = getDocById(documentId);
+            let blobPath = null;
+            if (doc && doc.fileName) {
+                const dept = doc.department || '';
+                if (dept) blobPath = `${dept}/${doc.fileName}`;
+                else blobPath = doc.fileName; // fallback
+            }
+
             const safeId = encodeURIComponent(documentId);
+            const safeBlob = blobPath ? encodeURIComponent(blobPath) : null;
+
             const attempts = [
+                ...(safeBlob ? [{ m:'GET',  u:`${API_BASE_URL}/generatesastoken?blobPath=${safeBlob}` }] : []),
+                ...(safeBlob ? [{ m:'POST', u:`${API_BASE_URL}/generatesastoken`,     body:{ blobPath } }] : []),
                 { m:'GET',  u:`${API_BASE_URL}/generatesastoken?documentId=${safeId}` },
                 { m:'POST', u:`${API_BASE_URL}/generatesastoken`,     body:{ documentId } },
                 { m:'POST', u:`${API_BASE_URL}/GenerateSASToken`,     body:{ documentId } },
