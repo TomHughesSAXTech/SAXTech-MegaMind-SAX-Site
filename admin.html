@@ -1861,6 +1861,26 @@
                     <div id="results"></div>
                 </div>
 
+                <!-- Manual Tax Ingestion -->
+                <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 24px;">
+                    <h3 style="margin: 0 0 12px 0; color: #1f2937; font-size: 18px; font-weight: 700;">🛠 Manual Tax Ingestion</h3>
+                    <p style="color:#6b7280; margin: 0 0 12px 0;">Trigger the Function App ingestion. This respects skip logic (only runs if versions changed).</p>
+                    <div style="display:grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px; align-items: end;">
+                        <div>
+                            <label style="display:block; margin-bottom:6px; font-weight:500; color:#374151;">Function URL</label>
+                            <input id="ingestUrl" type="text" value="https://saxtech-tax-ingestor-premium.azurewebsites.net/api/ingest" style="width:100%; padding:8px; border:2px solid #d1d5db; border-radius:6px; font-size:14px;">
+                        </div>
+                        <div>
+                            <label style="display:block; margin-bottom:6px; font-weight:500; color:#374151;">Function Key</label>
+                            <input id="ingestKey" type="password" placeholder="Paste key" style="width:100%; padding:8px; border:2px solid #d1d5db; border-radius:6px; font-size:14px;" autocomplete="off">
+                        </div>
+                        <div>
+                            <button id="runIngestBtn" class="btn btn-primary" onclick="runManualIngest()" style="width:100%; padding:10px; font-weight:600;">Run Ingest</button>
+                        </div>
+                    </div>
+                    <div id="ingestStatus" style="margin-top:12px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; line-height:1.5; max-height:180px; overflow:auto; white-space:pre-wrap;"></div>
+                </div>
+
                 <!-- Management Tools -->
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
                     <!-- Delete Document -->
@@ -3108,6 +3128,63 @@ const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversat
         }
 
         // Index Management Functions
+
+        // --- Manual Tax Ingestion ---
+        async function runManualIngest() {
+            const url = document.getElementById('ingestUrl').value.trim();
+            const key = document.getElementById('ingestKey').value.trim();
+            const btn = document.getElementById('runIngestBtn');
+            const out = document.getElementById('ingestStatus');
+            out.textContent = '';
+
+            function log(line){
+                const ts = new Date().toLocaleTimeString();
+                out.textContent += `[${ts}] ${line}\n`;
+                out.scrollTop = out.scrollHeight;
+            }
+            try {
+                btn.disabled = true;
+                log('Submitting ingest request...');
+                const resp = await fetch(url, {
+                    method: 'POST',
+                    headers: key ? { 'x-functions-key': key } : {},
+                    body: ''
+                }).catch(e => ({ ok:false, statusText: String(e) }));
+                if (!resp || !resp.ok) {
+                    log(`Ingest request failed: ${resp && resp.status ? resp.status : ''} ${resp && resp.statusText ? resp.statusText : ''}`);
+                } else {
+                    log('Accepted by Function App (202). Starting status polling...');
+                    await pollStatus(log);
+                }
+            } catch (e) {
+                log(`Error: ${e}`);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function pollStatus(log){
+            const maxSec = 90; // ~1.5 minutes
+            const interval = 5; // seconds
+            for (let t=0; t<=maxSec; t+=interval){
+                try {
+                    const r = await fetch('https://saxtech-tax-ingestor-premium.azurewebsites.net/api/status', { cache: 'no-store' });
+                    if (r.ok){
+                        const data = await r.json();
+                        const st = data.state || {};
+                        const usc = st.last_usc_index_time || data.last_usc_index_time || null;
+                        const cfr = st.last_cfr_index_time || data.last_cfr_index_time || null;
+                        log(`USC=${usc || '—'} | CFR=${cfr || '—'}`);
+                    } else {
+                        log(`Status HTTP ${r.status}`);
+                    }
+                } catch (e) {
+                    log(`Status error: ${e}`);
+                }
+                await new Promise(res => setTimeout(res, interval*1000));
+            }
+            log('Polling finished.');
+        }
         const INDEX_CONFIG = {
             searchEndpoint: 'https://saxmegamind-search.search.windows.net',
             searchApiKey: 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO',
