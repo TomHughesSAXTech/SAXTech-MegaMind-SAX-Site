@@ -415,7 +415,8 @@
         async function fetchConfigDepartments(){
             // Try blob-based config first
             try {
-                const sas = await fetch(`${API_BASE_URL}/generatesastoken?blobPath=${encodeURIComponent('megamind-config/departments.json')}`);
+                const qs = `containerName=${encodeURIComponent('megamind-config')}&blobPath=${encodeURIComponent('departments.json')}`;
+                const sas = await fetch(`${API_BASE_URL}/generatesastoken?${qs}`);
                 if (sas.ok) {
                     const j = await sas.json().catch(()=>({}));
                     const url = j.blobUrl || j.url || j.sasUrl;

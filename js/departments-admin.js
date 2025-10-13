@@ -12,7 +12,8 @@
 
     async function getBlobUrlForDepartments(){
         try{
-            const sas = await fetch('/api/generatesastoken?blobPath=' + encodeURIComponent('megamind-config/departments.json'));
+            const qs = 'containerName=' + encodeURIComponent('megamind-config') + '&blobPath=' + encodeURIComponent('departments.json');
+            const sas = await fetch('/api/generatesastoken?' + qs);
             if (!sas.ok) return null;
             const j = await sas.json().catch(()=>({}));
             return j.blobUrl || j.url || j.sasUrl || null;
