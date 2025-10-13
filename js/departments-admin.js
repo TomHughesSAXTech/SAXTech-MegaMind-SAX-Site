@@ -124,7 +124,7 @@
     }
 
     function buildDepartmentAdminUI(){
-        const tab = document.getElementById('departments-tab');
+        const tab = document.getElementById('department-editor-tab');
         if(!tab) return;
         tab.innerHTML = '' +
           '<div class="admin-card full-width">' +

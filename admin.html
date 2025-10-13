@@ -1450,6 +1450,7 @@
             <button class="tab-btn" onclick="switchTab('ai-insights')">🧠 AI Insights</button>
             <button class="tab-btn" onclick="switchTab('users')">👥 User Analytics</button>
             <button class="tab-btn" onclick="switchTab('departments')">🏢 Departments</button>
+            <button class="tab-btn" onclick="switchTab('department-editor')">🛠️ Department Editor</button>
             <button class="tab-btn" onclick="switchTab('export')">📤 Export</button>
             <button class="tab-btn" onclick="switchTab('api')">⚙️ API Settings</button>
             <button class="tab-btn" onclick="switchTab('system')">🔧 System Info</button>
@@ -2177,11 +2178,19 @@
             </div>
         </div>
         
-        <!-- Departments Tab -->
+        <!-- Departments Tab (statistics) -->
         <div id="departments-tab" class="tab-content">
             <div class="loading">
                 <div class="spinner"></div>
                 Loading department statistics...
+            </div>
+        </div>
+
+        <!-- Department Editor Tab (interactive editor) -->
+        <div id="department-editor-tab" class="tab-content">
+            <div class="loading">
+                <div class="spinner"></div>
+                Loading department editor...
             </div>
         </div>
         
