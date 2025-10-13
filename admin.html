@@ -6738,6 +6738,11 @@ Provide insights about conversation quality and satisfaction in JSON format:
                 }
                 
                 const user = userMetrics[email];
+                // If this is the signed-in user, prefer MSAL display name
+                const me = getSignedInUser();
+                if (me.email && email && me.email.toLowerCase() === email.toLowerCase() && me.name) {
+                    user.name = me.name;
+                }
                 user.sessions++;
                 
                 // Count user vs AI messages
