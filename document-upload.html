@@ -77,6 +77,7 @@
         .action-btn { padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.3s ease; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
         .action-btn.download { background: #17a2b8; color: white; }
         .action-btn.preview { background: #6c757d; color: white; }
+        .action-btn.delete { background: #dc3545; color: white; }
         .action-btn:hover { transform: translateY(-1px); opacity: 0.9; }
         .loading { text-align: center; padding: 40px; color: #666; }
         .loading i { font-size: 32px; margin-bottom: 15px; animation: spin 2s linear infinite; }
@@ -446,6 +447,7 @@
                     <div class="document-actions">
                         <a href="#" class="action-btn download" onclick="downloadDocument('${doc.id||doc.fileName}')"><i class="fas fa-download"></i> Download</a>
                         <a href="#" class="action-btn preview" onclick="previewDocument('${doc.id||doc.fileName}','${ext}')"><i class="fas fa-eye"></i> Preview</a>
+                        <a href="#" class="action-btn delete" onclick="deleteDocument('${doc.id||doc.fileName}')"><i class="fas fa-trash"></i> Delete</a>
                     </div>
                 </div>
             </div>`; }
@@ -453,6 +455,31 @@
         function getDocumentIconClass(ext){ const map={ pdf:'fas fa-file-pdf', doc:'fas fa-file-word', docx:'fas fa-file-word', ppt:'fas fa-file-powerpoint', pptx:'fas fa-file-powerpoint', xls:'fas fa-file-excel', xlsx:'fas fa-file-excel', txt:'fas fa-file-alt'}; return map[ext]||'fas fa-file'; }
 
         async function downloadDocument(documentId){ try{ const safeId = encodeURIComponent(documentId); const r=await fetch(`${API_BASE_URL}/documents/download/${safeId}`,{method:'GET'}); if(!r.ok){ throw new Error('Download failed'); } const blob=await r.blob(); const url=window.URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=documentId; document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url); document.body.removeChild(a);} catch(e){ console.error('Download failed:',e); alert('Download failed. Please try again.'); } }
+
+        async function deleteDocument(documentId){
+            try{
+                if(!confirm('Delete this document? This cannot be undone.')) return;
+                const safeId = encodeURIComponent(documentId);
+                const attempts = [
+                    { m:'DELETE', u:`${API_BASE_URL}/documents/delete/${safeId}` },
+                    { m:'POST', u:`${API_BASE_URL}/documents/delete`, body: { ids: [documentId] }},
+                    { m:'POST', u:`${API_BASE_URL}/documents/delete`, body: { documentIds: [documentId] }}
+                ];
+                let ok = false;
+                for(const a of attempts){
+                    try{
+                        const res = await fetch(a.u, { method: a.m, headers: a.body ? { 'Content-Type':'application/json' } : undefined, body: a.body ? JSON.stringify(a.body) : undefined });
+                        if(res.ok){ ok = true; break; }
+                    }catch(e){/* try next */}
+                }
+                if(!ok){ throw new Error('Delete endpoint not available'); }
+                showAlert('success','Document deleted');
+                await loadAll();
+            }catch(e){
+                console.error('Delete failed:', e);
+                showAlert('error','Delete failed');
+            }
+        }
 
         function getDocById(id){
             return (documentsCache||[]).find(d => (d.id||d.fileName) === id);
