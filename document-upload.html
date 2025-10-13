@@ -505,9 +505,9 @@
         }
 
         async function checkBlobExists(url){
-            try { const h = await fetch(url, { method: 'HEAD' }); if (h.ok) return true; } catch(e){}
-            try { const r = await fetch(url, { method: 'GET', headers: { 'Range': 'bytes=0-0' } }); return r.ok; } catch(e){}
-            return false;
+            // Avoid blocking on CORS: treat unknown as true and let the iframe load
+            try { const h = await fetch(url, { method: 'HEAD' }); if (h.ok) return true; } catch(e){ return true; }
+            try { const r = await fetch(url, { method: 'GET', headers: { 'Range': 'bytes=0-0' } }); return r.ok; } catch(e){ return true; }
         }
 
         async function tryGetSasUrl(documentId){
