@@ -4494,14 +4494,16 @@ const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/
         // Load overview statistics
         async function loadOverviewData() {
             try {
-const response = await fetch('https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=get&email=*&range=month&limit=1000');
+                const response = await fetch('https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=get&email=*&range=month&limit=1000');
                 const data = await response.json();
-                const sessions = data.sessions || [];
+                const sessionsRaw = data.sessions || [];
+                // Normalize all sessions immediately for consistent downstream usage
+                const sessions = sessionsRaw.map(normalizeSession);
                 
                 // Calculate statistics
                 const totalConversations = sessions.length;
                 const uniqueUsers = new Set(sessions.map(s => s.userEmail).filter(Boolean)).size;
-                const totalMessages = sessions.reduce((sum, s) => sum + ((s.conversation || []).length), 0);
+                const totalMessages = sessions.reduce((sum, s) => sum + normalizeConversation(s.conversation).length, 0);
                 const avgMessagesPerSession = totalConversations ? (totalMessages / totalConversations).toFixed(1) : 0;
                 
                 // Calculate average session duration
@@ -4512,7 +4514,7 @@ const response = await fetch('https://saxtechconversationlogs.azurewebsites.net/
                 document.getElementById('activeUsers').textContent = uniqueUsers.toLocaleString();
                 document.getElementById('avgDuration').textContent = avgDuration;
                 
-                // Store data for AI analysis
+                // Store data for all other tabs
                 conversationData = sessions;
                 
                 // Generate AI satisfaction analysis
