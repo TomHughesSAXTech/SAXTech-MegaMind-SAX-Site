@@ -452,14 +452,18 @@
 
         function getDocumentIconClass(ext){ const map={ pdf:'fas fa-file-pdf', doc:'fas fa-file-word', docx:'fas fa-file-word', ppt:'fas fa-file-powerpoint', pptx:'fas fa-file-powerpoint', xls:'fas fa-file-excel', xlsx:'fas fa-file-excel', txt:'fas fa-file-alt'}; return map[ext]||'fas fa-file'; }
 
-        async function downloadDocument(documentId){ try{ const r=await fetch(`${API_BASE_URL}/documents/download/${documentId}`,{method:'GET'}); if(!r.ok){ throw new Error('Download failed'); } const blob=await r.blob(); const url=window.URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=documentId; document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url); document.body.removeChild(a);} catch(e){ console.error('Download failed:',e); alert('Download failed. Please try again.'); } }
+        async function downloadDocument(documentId){ try{ const safeId = encodeURIComponent(documentId); const r=await fetch(`${API_BASE_URL}/documents/download/${safeId}`,{method:'GET'}); if(!r.ok){ throw new Error('Download failed'); } const blob=await r.blob(); const url=window.URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=documentId; document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url); document.body.removeChild(a);} catch(e){ console.error('Download failed:',e); alert('Download failed. Please try again.'); } }
 
         async function tryGetSasUrl(documentId){
+            const safeId = encodeURIComponent(documentId);
             const attempts = [
+                { m:'GET',  u:`${API_BASE_URL}/generatesastoken?documentId=${safeId}` },
+                { m:'POST', u:`${API_BASE_URL}/generatesastoken`,     body:{ documentId } },
+                { m:'POST', u:`${API_BASE_URL}/GenerateSASToken`,     body:{ documentId } },
+                { m:'POST', u:`${API_BASE_URL}/generate-sas-token`,   body:{ documentId } },
                 { m:'POST', u:`${API_BASE_URL}/documents/generate-sas`, body:{ documentId } },
                 { m:'POST', u:`${API_BASE_URL}/sas/generate`,         body:{ documentId } },
-                { m:'POST', u:`${API_BASE_URL}/generate-sas-token`,   body:{ documentId } },
-                { m:'GET',  u:`${API_BASE_URL}/documents/preview/${documentId}` }
+                { m:'GET',  u:`${API_BASE_URL}/documents/preview/${safeId}` }
             ];
             for(const a of attempts){
                 try{
@@ -471,7 +475,7 @@
                     }
                     if(!res.ok) continue;
                     const data = await res.json().catch(()=>({}));
-                    const url = data.sasUrl || data.url || data.signedUrl || data.previewUrl;
+                    const url = data.sasUrl || data.url || data.signedUrl || data.previewUrl || data.downloadUrl;
                     if(url) return url;
                 }catch(e){ /* continue */ }
             }
