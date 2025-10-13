@@ -194,7 +194,7 @@
         </div>
     </div>
     <div id="uploadModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5);">
-        <div class="modal-content" style="background-color: #fefefe; margin: 15% auto; padding: 20px; border-radius: 10px; width: 80%; max-width: 500px; text-align: center;">
+        <div class="modal-content" style="background-color: #fefefe; margin: 15% auto; padding: 20px; border-radius: 10px; width: 80%; max-width: 900px; text-align: center;">
             <div id="modalContent"></div>
             <button onclick="closeModal()" style="margin-top: 20px; padding: 10px 20px; background: #1e3c72; color: white; border: none; border-radius: 5px; cursor: pointer;">Close</button>
         </div>
@@ -445,7 +445,7 @@
                     <div><div style="margin-bottom:4px;"><i class="fas fa-calendar"></i> ${dateStr}</div><div><i class="fas fa-file"></i> ${sizeStr}</div></div>
                     <div class="document-actions">
                         <a href="#" class="action-btn download" onclick="downloadDocument('${doc.id||doc.fileName}')"><i class="fas fa-download"></i> Download</a>
-                        <a href="#" class="action-btn preview" onclick="previewDocument('${doc.id||doc.fileName}')"><i class="fas fa-eye"></i> Preview</a>
+                        <a href="#" class="action-btn preview" onclick="previewDocument('${doc.id||doc.fileName}','${ext}')"><i class="fas fa-eye"></i> Preview</a>
                     </div>
                 </div>
             </div>`; }
@@ -454,7 +454,60 @@
 
         async function downloadDocument(documentId){ try{ const r=await fetch(`${API_BASE_URL}/documents/download/${documentId}`,{method:'GET'}); if(!r.ok){ throw new Error('Download failed'); } const blob=await r.blob(); const url=window.URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=documentId; document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url); document.body.removeChild(a);} catch(e){ console.error('Download failed:',e); alert('Download failed. Please try again.'); } }
 
-        async function previewDocument(documentId){ try{ const r=await fetch(`${API_BASE_URL}/documents/preview/${documentId}`,{method:'GET'}); if(!r.ok){ throw new Error('Preview failed'); } const j=await r.json(); if(j.previewUrl){ window.open(j.previewUrl,'_blank'); } else { alert('Preview not available for this document type.'); } } catch(e){ console.error('Preview failed:',e); alert('Preview failed. Please try again.'); } }
+        async function tryGetSasUrl(documentId){
+            const attempts = [
+                { m:'POST', u:`${API_BASE_URL}/documents/generate-sas`, body:{ documentId } },
+                { m:'POST', u:`${API_BASE_URL}/sas/generate`,         body:{ documentId } },
+                { m:'POST', u:`${API_BASE_URL}/generate-sas-token`,   body:{ documentId } },
+                { m:'GET',  u:`${API_BASE_URL}/documents/preview/${documentId}` }
+            ];
+            for(const a of attempts){
+                try{
+                    let res;
+                    if(a.m==='POST'){
+                        res = await fetch(a.u,{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(a.body||{}) });
+                    } else {
+                        res = await fetch(a.u);
+                    }
+                    if(!res.ok) continue;
+                    const data = await res.json().catch(()=>({}));
+                    const url = data.sasUrl || data.url || data.signedUrl || data.previewUrl;
+                    if(url) return url;
+                }catch(e){ /* continue */ }
+            }
+            return null;
+        }
+
+        function buildPreviewContent(sasUrl, ext){
+            const isPdf = ext==='pdf';
+            const isOffice = ['doc','docx','ppt','pptx','xls','xlsx'].includes(ext);
+            if(isPdf){
+                return `<div style="height:80vh;"><iframe src="${sasUrl}" style="width:100%;height:100%;border:0"></iframe></div>`;
+            } else if(isOffice){
+                const office = 'https://view.officeapps.live.com/op/view.aspx?src=' + encodeURIComponent(sasUrl);
+                return `<div style="height:80vh;"><iframe src="${office}" style="width:100%;height:100%;border:0"></iframe></div>`;
+            } else if(ext==='txt'){
+                return `<div style="text-align:left;max-height:70vh;overflow:auto;"><iframe src="${sasUrl}" style="width:100%;height:70vh;border:0"></iframe></div>`;
+            }
+            return `<p>Preview not available. <a href="${sasUrl}" target="_blank" rel="noopener">Open file</a></p>`;
+        }
+
+        async function previewDocument(documentId, extHint){
+            try{
+                showModal('<div class="loading"><i class="fas fa-spinner"></i><p>Generating preview link...</p></div>');
+                const sasUrl = await tryGetSasUrl(documentId);
+                if(!sasUrl){
+                    showModal('<p style="color:#dc3545;">Preview not available for this document.</p>');
+                    return;
+                }
+                const ext = (extHint||'').toLowerCase();
+                const content = buildPreviewContent(sasUrl, ext);
+                showModal(content);
+            } catch(e){
+                console.error('Preview failed:',e);
+                showModal('<p style="color:#dc3545;">Preview failed. Please try again.</p>');
+            }
+        }
 
         function filterDocuments(){ const term = searchInput.value.toLowerCase(); const dept = departmentFilter.value; const cards = document.querySelectorAll('.document-card'); cards.forEach(card=>{ const title=card.querySelector('.document-title')?.textContent?.toLowerCase()||''; const desc=card.querySelector('.document-description')?.textContent?.toLowerCase()||''; const d=card.querySelector('.document-department')?.textContent||''; const match = (!term || title.includes(term) || desc.includes(term)) && (!dept || d===dept); card.style.display = match ? 'block':'none'; }); }
 
