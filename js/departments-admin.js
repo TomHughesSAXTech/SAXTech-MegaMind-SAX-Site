@@ -74,8 +74,6 @@
         const addBtn = document.getElementById('addDeptBtn');
         const input = document.getElementById('newDeptInput');
         const list = document.getElementById('deptList');
-        const saveBtn = document.getElementById('saveDeptBtn');
-        const tokenInput = document.getElementById('ghTokenInput');
         const saveBlobBtn = document.getElementById('saveBlobBtn');
 
         addBtn?.addEventListener('click', ()=>{
@@ -115,7 +113,8 @@
             }
         });
 
-        saveBtn?.addEventListener('click', async ()=>{
+        /* Removed GitHub save */
+        /* saveBtn?.addEventListener('click', async ()=>{
             const token = (tokenInput?.value||'').trim();
             if(!token){ alert('Enter a GitHub token with repo scope to save.'); return; }
             try{
@@ -139,7 +138,7 @@
                 console.error(e);
                 alert('Failed to save departments: '+ e.message);
             }
-        });
+        }); */
 
         saveBlobBtn?.addEventListener('click', async ()=>{
             try{
@@ -149,7 +148,7 @@
                     path: 'departments.json',
                     departments: departments
                 };
-                const res = await fetch('/api/managevoiceconfig', {
+                const res = await fetch('https://saxtech-config.azurewebsites.net/api/departments/save', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(body)
@@ -178,17 +177,10 @@
         tab.innerHTML = '' +
           '<div class=\"admin-card full-width\">' +
             '<h2>Department Manager</h2>' +
-            '<p style=\"color:#64748b;margin-bottom:10px;\">Add, edit, and remove departments. Save either to Blob (preferred) or to GitHub.</p>' +
+            '<p style=\"color:#64748b;margin-bottom:10px;\">Add, edit, and remove departments. Changes are saved to Blob at <code>megamind-config/departments.json</code>.</p>' +
             '<div class=\"form-group\" style=\"display:flex;gap:10px;align-items:center;\">' +
               '<button class=\"btn btn-success\" id=\"saveBlobBtn\">Save to Blob</button>' +
               '<span style=\"color:#64748b;font-size:12px;\">Blob: megamind-config/departments.json</span>' +
-            '</div>' +
-            '<div class=\"form-group\">' +
-              '<label>GitHub Token (repo scope)</label>' +
-              '<input id=\"ghTokenInput\" type=\"password\" placeholder=\"ghp_...\" class=\"form-input\">' +
-              '<div style=\"margin-top:8px;display:flex;gap:10px;align-items:center;\">' +
-                '<button class=\"btn btn-primary\" id=\"saveDeptBtn\">Save to GitHub</button>' +
-              '</div>' +
             '</div>' +
             '<div style=\"display:flex;gap:10px;align-items:center;margin-bottom:10px;\">' +
               '<input id=\"newDeptInput\" class=\"form-input\" placeholder=\"Add a new department\">' +
