@@ -1220,9 +1220,9 @@
     text-overflow: ellipsis;
   }
   .cpa-last-update{display:block;color:#9CA3AF;font-size:12px;margin-bottom:6px}
-  .cpa-row{display:flex;justify-content:center;gap:6px;margin:2px 0;font-size:13px}
-  .cpa-k{color:#FFD700;font-weight:600;letter-spacing:.5px}
-  .cpa-v{color:#E5E7EB}
+.cpa-grid{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;align-items:center;justify-content:center}
+  .cpa-k{color:#FFD700;font-weight:600;letter-spacing:.5px;white-space:nowrap;text-align:right}
+  .cpa-v{color:#E5E7EB;white-space:nowrap;text-align:left}
 </style>
 </head>
 <body>
@@ -1641,11 +1641,10 @@
                     header = `Last Tax Code Update: ${fmtET(latest)}`;
                 }
 
-                const uscLine = `<div class="cpa-row"><span class="cpa-k">USC</span><span class="cpa-v">${fmtET(usc)}</span></div>`;
-                const cfrLine = `<div class="cpa-row"><span class="cpa-k">CFR</span><span class="cpa-v">${fmtET(cfr)}</span></div>`;
-                const headerHtml = `<span class="cpa-last-update">${header.replace('Last Tax Code Update: ','Last Tax Code Update: ')}</span>`;
+                const grid = `<div class=\"cpa-grid\">\n  <div class=\"cpa-k\">USC</div><div class=\"cpa-v\">${fmtET(usc)}</div>\n  <div class=\"cpa-k\">CFR</div><div class=\"cpa-v\">${fmtET(cfr)}</div>\n</div>`;
+                const headerHtml = `<span class=\"cpa-last-update\">${header.replace('Last Tax Code Update: ','Last Tax Code Update: ')}</span>`;
 
-                el.innerHTML = `${headerHtml}${uscLine}${cfrLine}`;
+                el.innerHTML = `${headerHtml}${grid}`;
             } catch (e) {
                 const el = document.getElementById('cpaStatusText');
                 if (el) el.textContent = 'Status unavailable right now';
