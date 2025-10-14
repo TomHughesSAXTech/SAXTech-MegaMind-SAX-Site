@@ -494,7 +494,7 @@
                     <div class="document-actions">
                         <a href="#" class="action-btn download" onclick="downloadDocument('${doc.id||doc.fileName}')"><i class="fas fa-download"></i> Download</a>
                         <a href="#" class="action-btn preview" onclick="previewDocument('${doc.id||doc.fileName}','${ext}')"><i class="fas fa-eye"></i> Preview</a>
-                        <a href="#" class="action-btn delete" onclick="deleteDocument('${doc.id||doc.fileName}')"><i class="fas fa-trash"></i> Delete</a>
+                        <a href="#" class="action-btn delete" onclick="return deleteDocument('${doc.id||doc.fileName}')"><i class="fas fa-trash"></i> Delete</a>
                     </div>
                 </div>
             </div>`; }
@@ -503,11 +503,35 @@
 
         async function downloadDocument(documentId){ try{ const safeId = encodeURIComponent(documentId); const r=await fetch(`${API_BASE_URL}/documents/download/${safeId}`,{method:'GET'}); if(!r.ok){ throw new Error('Download failed'); } const blob=await r.blob(); const url=window.URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=documentId; document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url); document.body.removeChild(a);} catch(e){ console.error('Download failed:',e); alert('Download failed. Please try again.'); } }
 
+        async function tryDeleteByBlobFallback(id){
+            const doc = getDocById(id) || {};
+            const dept = (doc.department||'').trim();
+            const fileName = (doc.fileName||'').trim();
+            const blobPath = (dept && fileName) ? `${dept}/${fileName}` : (doc.blobPath||'').trim();
+            const attempts = [];
+            if (blobPath) attempts.push({ body: { blobPaths: [blobPath], deleteBlob: true, deleteIndex: true } });
+            if (fileName) attempts.push({ body: { fileNames: [fileName], department: dept||undefined, deleteBlob: true, deleteIndex: true } });
+            for (const a of attempts){
+                try{
+                    const r = await fetch(`${API_BASE_URL}/documents/delete`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(a.body)
+                    });
+                    if (!r.ok) continue;
+                    const j = await r.json().catch(()=>null);
+                    if (j && (j.success === true || (Array.isArray(j.results) && j.results.some(x=>x.Success)))){
+                        return { ok: true, message: 'Document deleted' };
+                    }
+                }catch(_e){ /* next */ }
+            }
+            return { ok: false, message: 'Delete endpoint did not accept blob/file fallback' };
+        }
+
         async function deleteDocument(documentId){
             try{
-                if(!confirm('Delete this document? This cannot be undone.')) return;
+                if(!confirm('Delete this document? This cannot be undone.')) return false;
                 const id = (documentId||'').trim();
-                if(!id){ showAlert('error','Missing document id'); return; }
+                if(!id){ showAlert('error','Missing document id'); return false; }
                 const res = await fetch(`${API_BASE_URL}/documents/delete`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -519,7 +543,7 @@
                 }
                 const j = await res.json().catch(()=>null);
                 let success = false;
-                let message = 'Document deleted';
+                let message = '';
                 if(j && typeof j === 'object'){
                     if(j.success === true) success = true;
                     if(Array.isArray(j.results)){
@@ -528,14 +552,23 @@
                     }
                 }
                 if(!success){
-                    showAlert('error', message || 'Delete failed');
-                    return;
+                    // Try blob/fileName fallback
+                    const fb = await tryDeleteByBlobFallback(id);
+                    if (fb.ok){
+                        showAlert('success', fb.message || 'Document deleted');
+                        await loadAll();
+                        return false;
+                    }
+                    showAlert('error', message || fb.message || 'Delete failed');
+                    return false;
                 }
                 showAlert('success', 'Document deleted');
                 await loadAll();
+                return false;
             }catch(e){
                 console.error('Delete failed:', e);
                 showAlert('error', e?.message || 'Delete failed');
+                return false;
             }
         }
 
