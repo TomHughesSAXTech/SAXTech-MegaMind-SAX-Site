@@ -1525,7 +1525,7 @@
                     <div>
                         <label class="form-label" for="startDate">Start Date</label>
                         <input type="date" id="startDate" class="form-input" value="" onchange="validateAndRefreshTokenUsage()">
-                        <div style="font-size: 11px; color: var(--gray-500); margin-top: 4px;">Available: Sept 25 - Oct 2, 2025</div>
+                        <div style="font-size: 11px; color: var(--gray-500); margin-top: 4px;">Select any date range</div>
                     </div>
                     <div>
                         <label class="form-label" for="endDate">End Date</label>
@@ -1546,7 +1546,7 @@
                 </div>
                 
                 <div id="dateRangeWarning" style="display: none; margin-bottom: var(--space-md); padding: var(--space-md); background: var(--warning-50); border: 1px solid var(--warning-200); border-radius: 8px; color: var(--warning-700);">
-                    <i class="fas fa-exclamation-triangle"></i> <strong>Data Availability:</strong> Azure Monitor data is only available for September 25 - October 2, 2025. Please select dates within this range.
+                    <i class="fas fa-exclamation-triangle"></i> <strong>Invalid Range:</strong> Start date must be on or before end date.
                 </div>
                 
                 <!-- Token Usage Graph -->
@@ -1556,7 +1556,7 @@
                         <canvas id="tokenUsageChart"></canvas>
                     </div>
                     <div style="font-size: 12px; color: var(--gray-600); text-align: center;">
-                        <i class="fas fa-info-circle"></i> Based on Azure Monitor data for selected period
+                        <i class="fas fa-info-circle"></i> Based on conversation logs for selected period
                     </div>
                 </div>
                 
@@ -6171,52 +6171,47 @@ Provide actionable recommendations in JSON format:
             }
         }
         
-        // Get Azure Monitor data (simulate with proportional model over last 30 days)
-        function getRealAzureMonitorData() {
-            // Available period: last 30 days from today
-            const today = new Date();
-            const dataEndDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-            const dataStartDate = new Date(dataEndDate.getTime() - 30 * 24 * 60 * 60 * 1000);
-            
-            // Get selected date range
+        // Fetch metrics by analyzing conversation logs in selected date range
+        async function getRealAzureMonitorData() {
             const startDate = document.getElementById('startDate').value;
             const endDate = document.getElementById('endDate').value;
             const start = new Date(startDate);
             const end = new Date(endDate);
-            
-            // Validate selected dates are within available data period
-            if (start < dataStartDate || end > dataEndDate || start > end) {
-                return null; // No data available for this period
+            const days = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1);
+            // Fetch up to 1000 sessions from the conversation logs API and filter by date
+            const base = 'https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog';
+            const url = `${base}?action=get&email=*&range=month&limit=1000&cb=${Date.now()}`;
+            let sessions = [];
+            try {
+                const res = await fetch(url, { cache: 'no-store' });
+                if (res.ok) {
+                    const data = await res.json();
+                    sessions = Array.isArray(data) ? data : (data.sessions || data.items || data.results || []);
+                }
+            } catch (e) {
+                console.warn('Failed to fetch conversation logs:', e);
             }
-            
-            const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
-            
-            // Simulated daily totals scaled to selected range (baseline over 8 days)
-            const totalMetrics = {
-                gptInputTokens: 15185571,
-                gptOutputTokens: 453221,
-                gptTotalTokens: 15638792,
-                gptRequests: 200,
-                embeddingInputTokens: 93940262,
-                embeddingTotalTokens: 93940262,
-                embeddingRequests: 150,
-                totalDays: 8 // Total days of actual data
+            const filtered = sessions.filter(s => {
+                const t = new Date(s.timestamp || s.date || s.time || start);
+                return t >= start && t <= end;
+            });
+            // Persist for chart building
+            window.lastSessionsForMetrics = filtered;
+            // Analyze tokens from conversations
+            const analysis = analyzeTokenUsage(filtered);
+            return {
+                gpt: analysis.gpt,
+                embedding: analysis.embedding,
+                totalCost: analysis.totalCost,
+                periodCost: analysis.totalCost,
+                rateLimitUtilization: analysis.rateLimitUtilization || 0,
+                requestCount: analysis.requestCount,
+                sessionCount: analysis.sessionCount,
+                hasData: filtered.length > 0,
+                dataSource: 'Conversation Logs',
+                period: `${days} ${days === 1 ? 'day' : 'days'}`,
+                days
             };
-            
-            // Calculate proportion of data for selected period
-            const proportion = Math.max(1, days) / totalMetrics.totalDays;
-            const actualMetrics = {
-                gptInputTokens: Math.round(totalMetrics.gptInputTokens * proportion),
-                gptOutputTokens: Math.round(totalMetrics.gptOutputTokens * proportion),
-                gptTotalTokens: Math.round(totalMetrics.gptTotalTokens * proportion),
-                gptRequests: Math.round(totalMetrics.gptRequests * proportion),
-                embeddingInputTokens: Math.round(totalMetrics.embeddingInputTokens * proportion),
-                embeddingTotalTokens: Math.round(totalMetrics.embeddingTotalTokens * proportion),
-                embeddingRequests: Math.round(totalMetrics.embeddingRequests * proportion),
-                days: days
-            };
-            
-            return parseRealAzureMonitorData(actualMetrics);
         }
         
         // Parse Azure Monitor metrics data with both models
@@ -6639,8 +6634,8 @@ Provide actionable recommendations in JSON format:
                 document.getElementById(id).innerHTML = '<i class="fas fa-calendar-times"></i><span>Data unavailable</span>';
             });
             
-            document.getElementById('gptUsageDetails').innerHTML = '<div style="color: var(--gray-500); text-align: center; padding: var(--space-lg);">Azure Monitor data only available for Sept 25 - Oct 2, 2025</div>';
-            document.getElementById('embeddingUsageDetails').innerHTML = '<div style="color: var(--gray-500); text-align: center; padding: var(--space-lg);">Azure Monitor data only available for Sept 25 - Oct 2, 2025</div>';
+            document.getElementById('gptUsageDetails').innerHTML = '<div style="color: var(--gray-500); text-align: center; padding: var(--space-lg);">No data available for the selected range</div>';
+            document.getElementById('embeddingUsageDetails').innerHTML = '<div style="color: var(--gray-500); text-align: center; padding: var(--space-lg);">No data available for the selected range</div>';
         }
         
         // Clear token usage chart when no data is available
@@ -6741,14 +6736,40 @@ Provide actionable recommendations in JSON format:
             if (!tokenUsageChart) {
                 initializeTokenUsageChart();
             }
-            
-            // Generate daily breakdown based on actual Azure Monitor data
-            const dailyData = generateDailyTokenData(startDate, endDate);
-            
+            const dailyData = getDailyTokenDataFromSessions(startDate, endDate);
             tokenUsageChart.data.labels = dailyData.dates;
             tokenUsageChart.data.datasets[0].data = dailyData.gptTokens;
             tokenUsageChart.data.datasets[1].data = dailyData.embeddingTokens;
             tokenUsageChart.update();
+        }
+        
+        // Build daily token data from fetched sessions
+        function getDailyTokenDataFromSessions(startDate, endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            const days = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1);
+            const dates = [];
+            const gptTokens = new Array(days).fill(0);
+            const embeddingTokens = new Array(days).fill(0);
+            for (let i = 0; i < days; i++) {
+                const d = new Date(start);
+                d.setDate(start.getDate() + i);
+                dates.push(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+            }
+            if (Array.isArray(window.lastSessionsForMetrics)) {
+                window.lastSessionsForMetrics.forEach(sess => {
+                    const t = new Date(sess.timestamp || sess.date || sess.time || start);
+                    if (t >= start && t <= end && Array.isArray(sess.conversation)) {
+                        const idx = Math.min(days - 1, Math.max(0, Math.floor((t - start) / (1000*60*60*24))));
+                        const estimate = estimateTokensFromConversation(sess.conversation);
+                        gptTokens[idx] += estimate.total;
+                        // Rough heuristic: if assistant mentions docs/links, count some embedding tokens
+                        const hasSearch = sess.conversation.some(m => m.role === 'assistant' && /document|pdf|blob\.core\.windows\.net|search/i.test(m.content||''));
+                        if (hasSearch) embeddingTokens[idx] += 2000;
+                    }
+                });
+            }
+            return { dates, gptTokens, embeddingTokens };
         }
         
         // Generate daily token usage data based on real Azure Monitor metrics
@@ -6797,62 +6818,34 @@ Provide actionable recommendations in JSON format:
             const startDate = document.getElementById('startDate')?.value;
             const endDate = document.getElementById('endDate')?.value;
             const warningEl = document.getElementById('dateRangeWarning');
-            
-            if (!startDate || !endDate) {
-                // No dates selected, show fallback
-                showTokenUsageFallback();
-                return;
-            }
-            
+            if (!startDate || !endDate) { showTokenUsageFallback(); return; }
             const start = new Date(startDate);
             const end = new Date(endDate);
-            const dataStartDate = new Date('2025-09-25');
-            const dataEndDate = new Date('2025-10-02');
-            
-            // Validate date range
-            if (start < dataStartDate || end > dataEndDate || start > end) {
-                // Show warning and fallback data
-                warningEl.style.display = 'block';
-                showTokenUsageFallback();
-                return;
-            } else {
-                warningEl.style.display = 'none';
-            }
-            
+            if (start > end) { warningEl.style.display = 'block'; showTokenUsageFallback(); return; }
+            warningEl.style.display = 'none';
             refreshTokenUsage();
         }
         
         // Refresh token usage with current settings (for valid date ranges only)
-        function refreshTokenUsage() {
+        async function refreshTokenUsage() {
             const startDate = document.getElementById('startDate')?.value;
             const endDate = document.getElementById('endDate')?.value;
-            
-            if (!startDate || !endDate) {
-                showTokenUsageFallback();
-                return;
-            }
-            
+            if (!startDate || !endDate) { showTokenUsageFallback(); return; }
             const daysDifference = Math.max(1, Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1);
-            
             console.log(`Refreshing token usage for ${daysDifference} days (${startDate} to ${endDate})`);
-            
             try {
-                // Show loading state
                 document.getElementById('gptTokens').textContent = '-';
                 document.getElementById('embeddingTokens').textContent = '-';
                 document.getElementById('monthlyCost').textContent = '-';
                 document.getElementById('rateLimitUsage').textContent = '-';
-                
-                const usageData = getRealAzureMonitorData();
-                
-                if (usageData) {
+                const usageData = await getRealAzureMonitorData();
+                if (usageData && usageData.hasData) {
                     updateTokenUsageDisplay(usageData);
                     updateTokenUsageChart(startDate, endDate);
                 } else {
                     showTokenUsageFallback();
                     clearTokenUsageChart();
                 }
-                
             } catch (error) {
                 console.error('Failed to refresh token usage:', error);
                 showTokenUsageFallback();
