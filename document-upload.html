@@ -414,19 +414,10 @@
         }
 
         async function fetchConfigDepartments(){
-            // Blob-backed config only: try config API first, then SAS blob
-            try {
-                const url = 'https://saxtech-config.azurewebsites.net/api/departments/get?container=megamind-config&path=departments.json&cb=' + Date.now();
-                const r = await fetch(url, { cache: 'no-store' });
-                if (r.ok) {
-                    const jb = await r.json();
-                    const arr = Array.isArray(jb) ? jb : (jb.departments || []);
-                    if (Array.isArray(arr) && arr.length) return arr;
-                }
-            } catch {}
+            // Blob-only: use SAS from saxtech-megamind function, then GET Blob
             try {
                 const qs = 'containerName=' + encodeURIComponent('megamind-config') + '&blobPath=' + encodeURIComponent('departments.json');
-                const sasRes = await fetch('https://saxtech-megamind.azurewebsites.net/api/generatesastoken?' + qs);
+                const sasRes = await fetch('https://saxtech-megamind.azurewebsites.net/api/generatesastoken?' + qs, { cache: 'no-store' });
                 if (sasRes.ok) {
                     const jsas = await sasRes.json().catch(()=>({}));
                     const url = jsas.blobUrl || jsas.url || jsas.sasUrl;
@@ -447,17 +438,28 @@
             return [];
         }
 
+        function normalizeDepartments(arr){
+            const out = [];
+            const seen = new Set();
+            for (const d of (arr||[])){
+                const s = (d==null ? '' : String(d)).trim();
+                if(!s) continue;
+                const key = s.toLowerCase();
+                if(seen.has(key)) continue;
+                seen.add(key);
+                out.push(s);
+            }
+            return out.sort((a,b)=>a.localeCompare(b));
+        }
+
         async function loadAll(){
-            documentsGrid.innerHTML=`<div class="loading"><i class="fas fa-spinner"></i><p>Loading documents...</p></div>`;
+            documentsGrid.innerHTML=`<div class=\"loading\"><i class=\"fas fa-spinner\"></i><p>Loading documents...</p></div>`;
             const [docs, cfgDepts] = await Promise.all([ robustFetchDocuments(), fetchConfigDepartments() ]);
             documentsCache = docs;
             displayDocuments(documentsCache);
-            const uniqueDepts = [...new Set([
-                ...(documentsCache||[]).map(d => d.department).filter(Boolean),
-                ...(cfgDepts||[]).filter(Boolean)
-            ])].sort();
-            populateDepartmentSelects(uniqueDepts);
-            knownDepartments = uniqueDepts;
+            const canonicalDepts = normalizeDepartments(cfgDepts);
+            populateDepartmentSelects(canonicalDepts);
+            knownDepartments = canonicalDepts;
             if (actionType.value==='update') refreshExistingDocOptions(departmentSelect.value);
         }
 
