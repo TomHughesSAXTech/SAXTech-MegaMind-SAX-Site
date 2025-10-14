@@ -21,15 +21,13 @@
     }
 
     async function loadDepartments(){
-        // Prefer blob-based config first
+        // Prefer backend config API (no SAS)
         try{
-            const blobUrl = await getBlobUrlForDepartments();
-            if (blobUrl) {
-                const r = await fetch(blobUrl, { cache: 'no-store' });
-                if (r.ok) {
-                    const jb = await r.json();
-                    departments = Array.isArray(jb) ? jb : (jb.departments || []);
-                }
+            const url = 'https://saxtech-config.azurewebsites.net/api/departments/get?container=megamind-config&path=departments.json&cb=' + Date.now();
+            const r = await fetch(url, { cache: 'no-store' });
+            if (r.ok) {
+                const jb = await r.json();
+                departments = Array.isArray(jb) ? jb : (jb.departments || []);
             }
         }catch(e){ /* ignore and fallback */ }
         // Fallback to site file
@@ -44,11 +42,6 @@
                 departments = [];
             }
         }
-        // Get GitHub sha (for optional GitHub save)
-        try{
-            const gh = await fetch('https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + DEPTS_PATH + '?ref=' + GH_BRANCH);
-            if(gh.ok){ const meta = await gh.json(); currentSha = meta.sha; }
-        }catch{}
     }
 
     function renderList(){
