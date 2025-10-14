@@ -161,7 +161,7 @@
                     <p><strong>Drag and drop your document here</strong></p>
                     <p>or</p>
                     <label for="fileInput" class="file-input-label"><i class="fas fa-folder-open"></i> Browse Files</label>
-                    <input type="file" id="fileInput" class="file-input" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt">
+                    <input type="file" id="fileInput" class="file-input" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.csv">
                     <p style="margin-top: 15px; font-size: 12px; color: #888;">Supported formats: PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, TXT<br>Maximum file size: 50MB</p>
                 </div>
                 <div id="selectedFileContainer"></div>
@@ -263,9 +263,36 @@
         uploadForm.addEventListener('submit', handleUpload);
         // Make sure clicking the Browse Files label opens the file chooser
         fileInputLabel?.addEventListener('click', (e)=>{ e.preventDefault(); fileInput?.click(); });
-        fileUploadArea?.addEventListener('click', (e)=>{ if (e.target && e.target.closest && e.target.closest('.file-input-label')) { e.preventDefault(); fileInput?.click(); } });
+        fileUploadArea?.addEventListener('click', (e)=>{
+            // Click anywhere on the drop area to open chooser (excluding buttons inside)
+            const withinLabel = e.target && e.target.closest && e.target.closest('.file-input-label');
+            const withinButtons = e.target && e.target.closest && e.target.closest('button');
+            if (withinLabel || (!withinButtons && e.currentTarget === fileUploadArea)){
+                e.preventDefault(); fileInput?.click();
+            }
+        });
         searchInput.addEventListener('input', debounce(filterDocuments, 300));
         departmentFilter.addEventListener('change', filterDocuments);
+
+        function updateActionUI(){
+            const at = actionType.value;
+            if (at === 'new'){
+                // Show metadata + file section for new document
+                metaSection.style.display = '';
+                fileUploadArea.style.display = '';
+                existingWrap.style.display = 'none';
+            } else if (at === 'update'){
+                // Ask user to pick an existing doc; hide meta until chosen
+                existingWrap.style.display = '';
+                metaSection.style.display = 'none';
+                fileUploadArea.style.display = '';
+            } else {
+                // Default: hide meta until an action is selected
+                existingWrap.style.display = 'none';
+                metaSection.style.display = 'none';
+                fileUploadArea.style.display = '';
+            }
+        }
 
         actionType.addEventListener('change', async () => {
             const at = actionType.value;
@@ -273,9 +300,14 @@
                 existingWrap.style.display = '';
                 if (documentsCache.length === 0) await loadAll();
                 refreshExistingDocOptions(departmentSelect.value);
-            } else {
+                metaSection.style.display = 'none';
+            } else if (at === 'new') {
                 existingWrap.style.display = 'none';
                 existingDoc.innerHTML = '<option value="">Select a document to update</option>';
+                metaSection.style.display = '';
+            } else {
+                existingWrap.style.display = 'none';
+                metaSection.style.display = 'none';
             }
         });
 
@@ -285,13 +317,15 @@
 
         existingDoc.addEventListener('change', () => {
             const id = existingDoc.value;
-            if (!id) return;
+            if (!id) { metaSection.style.display = 'none'; return; }
             const doc = documentsCache.find(d => (d.id||d.fileName) === id);
-            if (!doc) return;
+            if (!doc) { metaSection.style.display = 'none'; return; }
             document.getElementById('title').value = doc.title || '';
             document.getElementById('description').value = doc.description || '';
             document.getElementById('keywords').value = Array.isArray(doc.keywords)? doc.keywords.join(', ') : (doc.keywords || '');
             document.getElementById('version').value = doc.version || '';
+            // Reveal metadata after selecting existing doc
+            metaSection.style.display = '';
         });
 
         function refreshExistingDocOptions(dept){
@@ -330,7 +364,8 @@
 
         async function handleUpload(event){
             event.preventDefault();
-            if (!selectedFile || uploadInProgress) return;
+            if (!selectedFile){ showAlert('error','Please select a file to upload.'); return; }
+            if (uploadInProgress){ showAlert('info','An upload is already in progress. Please wait...'); return; }
             const formData = new FormData(uploadForm);
             const requiredFields=['department','documentType','actionType','title','description','keywords'];
             for (const f of requiredFields){ if(!formData.get(f)){ showAlert('error',`Please fill in the ${f.replace(/([A-Z])/g,' $1').toLowerCase()} field.`); return; } }
@@ -714,7 +749,11 @@
         function showModal(content){ document.getElementById('modalContent').innerHTML = content; document.getElementById('uploadModal').style.display='block'; }
         function closeModal(){ document.getElementById('uploadModal').style.display='none'; }
 
-        document.addEventListener('DOMContentLoaded', function(){ loadAll(); document.addEventListener('keydown', function(event){ if(event.ctrlKey && event.key==='u'){ event.preventDefault(); fileInput.click(); } }); });
+        document.addEventListener('DOMContentLoaded', function(){
+            loadAll();
+            updateActionUI();
+            document.addEventListener('keydown', function(event){ if(event.ctrlKey && event.key==='u'){ event.preventDefault(); fileInput.click(); } });
+        });
         window.onclick = function(event){ const modal=document.getElementById('uploadModal'); if(event.target===modal){ closeModal(); } }
     </script>
 </body>
