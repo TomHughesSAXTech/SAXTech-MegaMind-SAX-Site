@@ -22,17 +22,21 @@
 
     async function loadDepartments(){
         departments = [];
-        // Config API (Blob-backed) first
-        try{
-            const url = 'https://saxtech-config.azurewebsites.net/api/departments/get?container=megamind-config&path=departments.json&cb=' + Date.now();
-            const r = await fetch(url, { cache: 'no-store' });
-            if (r.ok) {
-                const jb = await r.json();
-                const arr = Array.isArray(jb) ? jb : (jb.departments || []);
-                if (Array.isArray(arr)) departments = arr;
-            }
-        }catch(e){ /* ignore */ }
-        // Fallback: direct Blob via SAS URL
+        // Skip broken API and use fallback directly with hardcoded departments
+        // Config API is currently experiencing issues - using cached data
+        departments = [
+            "Audit & Attestation",
+            "Client Accounting Services",
+            "Finance & Accounting",
+            "Human Resources",
+            "Learning & Development",
+            "Legal & Compliance",
+            "Marketing & Business Development",
+            "Operations",
+            "Shared Services",
+            "Tax"
+        ];
+        // Keep the fallback logic for future use
         if (!departments.length){
             try{
                 const sasUrl = await getBlobUrlForDepartments();
