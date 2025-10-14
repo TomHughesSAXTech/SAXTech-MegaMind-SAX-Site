@@ -426,7 +426,7 @@
             } catch {}
             try {
                 const qs = 'containerName=' + encodeURIComponent('megamind-config') + '&blobPath=' + encodeURIComponent('departments.json');
-                const sasRes = await fetch('/api/generatesastoken?' + qs);
+                const sasRes = await fetch('https://saxtech-megamind.azurewebsites.net/api/generatesastoken?' + qs);
                 if (sasRes.ok) {
                     const jsas = await sasRes.json().catch(()=>({}));
                     const url = jsas.blobUrl || jsas.url || jsas.sasUrl;
