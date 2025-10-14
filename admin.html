@@ -6155,19 +6155,25 @@ Provide actionable recommendations in JSON format:
         }
         
         // Token usage analytics functions
-        function loadTokenUsageAnalytics() {
+        async function loadTokenUsageAnalytics() {
             try {
-                const usageData = getRealAzureMonitorData();
-                
-                if (usageData) {
+                const usageData = await getRealAzureMonitorData();
+                if (usageData && usageData.hasData) {
                     updateTokenUsageDisplay(usageData);
+                    // Initialize chart with the current date range if present
+                    const startDate = document.getElementById('startDate')?.value;
+                    const endDate = document.getElementById('endDate')?.value;
+                    if (startDate && endDate) {
+                        updateTokenUsageChart(startDate, endDate);
+                    }
                 } else {
                     showTokenUsageFallback();
+                    clearTokenUsageChart();
                 }
-                
             } catch (error) {
                 console.error('Failed to load token usage analytics:', error);
                 showTokenUsageFallback();
+                clearTokenUsageChart();
             }
         }
         
@@ -6500,57 +6506,51 @@ Provide actionable recommendations in JSON format:
         }
         
         function updateTokenUsageDisplay(analytics) {
+            analytics = analytics || {};
+            const gpt = analytics.gpt || { input: 0, output: 0, total: 0 };
+            const embedding = analytics.embedding || { total: 0 };
+            const req = analytics.requestCount || { gpt: 0, embedding: 0 };
+            const days = analytics.days || 1;
+            const periodCost = Number.isFinite(analytics.periodCost) ? analytics.periodCost : 0;
+            const rate = Number.isFinite(analytics.rateLimitUtilization) ? analytics.rateLimitUtilization : 0;
+            
             // Update API status in header if available
             const statusEl = document.getElementById('tokenApiStatus');
             if (statusEl && (analytics.apiStatus || analytics.statusNote)) {
-                statusEl.innerHTML = `<span style="color: var(--gray-500);">(📊 ${analytics.statusNote || 'Estimated data'})</span>`;
+                statusEl.innerHTML = `<span style=\"color: var(--gray-500);\">(📊 ${analytics.statusNote || 'Estimated data'})</span>`;
             }
             
             // Update main stats
-            document.getElementById('gptTokens').textContent = formatNumber(analytics.gpt.total);
-            document.getElementById('embeddingTokens').textContent = formatNumber(analytics.embedding.total);
-            // Update cost card title and value based on selected period
-            const days = analytics.days || 1;
+            document.getElementById('gptTokens').textContent = formatNumber(gpt.total);
+            document.getElementById('embeddingTokens').textContent = formatNumber(embedding.total);
             const costTitle = days === 1 ? '1 Day Cost' : `${days} Day Cost`;
             document.getElementById('costPeriodTitle').textContent = costTitle;
-            document.getElementById('monthlyCost').textContent = '$' + analytics.periodCost.toFixed(2);
-            document.getElementById('rateLimitUsage').textContent = analytics.rateLimitUtilization.toFixed(1) + '%';
+            document.getElementById('monthlyCost').textContent = '$' + periodCost.toFixed(2);
+            document.getElementById('rateLimitUsage').textContent = rate.toFixed(1) + '%';
             
-            // Show real vs estimated data - always real now
-            const isRealData = true; // Always real Azure Monitor data
-            const isMonitorData = true; // Always Azure Monitor data
-            const dataLabel = ''; // No estimate labels
-            const realDataIndicator = ' ✅'; // Always show real data indicator
-            
-            // Update trends with more detailed info
+            // Trends
             document.getElementById('gptTokenTrend').innerHTML = `
-                <i class="fas fa-chart-line"></i>
-                <span>In: ${formatNumber(analytics.gpt.input)} | Out: ${formatNumber(analytics.gpt.output)}</span>
+                <i class=\"fas fa-chart-line\"></i>
+                <span>In: ${formatNumber(gpt.input)} | Out: ${formatNumber(gpt.output)}</span>
             `;
-            
             document.getElementById('embeddingTokenTrend').innerHTML = `
-                <i class="fas fa-search"></i>
+                <i class=\"fas fa-search\"></i>
                 <span>text-embedding-3-large</span>
             `;
-            
             document.getElementById('costTrend').innerHTML = `
-                <i class="fas fa-calculator"></i>
-                <span>${analytics.period}</span>
+                <i class=\"fas fa-calculator\"></i>
+                <span>${analytics.period || ''}</span>
             `;
-            
-            const rateLimitStatus = analytics.rateLimitUtilization < 50 ? 'Healthy' : 
-                                   analytics.rateLimitUtilization < 80 ? 'Moderate' : 'High';
-            const rateLimitColor = analytics.rateLimitUtilization < 50 ? 'var(--success-600)' : 
-                                  analytics.rateLimitUtilization < 80 ? 'var(--warning-600)' : 'var(--error-600)';
-            
+            const rateLimitStatus = rate < 50 ? 'Healthy' : rate < 80 ? 'Moderate' : 'High';
+            const rateLimitColor = rate < 50 ? 'var(--success-600)' : rate < 80 ? 'var(--warning-600)' : 'var(--error-600)';
             document.getElementById('rateLimitTrend').innerHTML = `
-                <i class="fas fa-gauge"></i>
-                <span style="color: ${rateLimitColor};">${rateLimitStatus}</span>
+                <i class=\"fas fa-gauge\"></i>
+                <span style=\"color: ${rateLimitColor};\">${rateLimitStatus}</span>
             `;
             
-            // Update detailed usage panels
-            updateGptUsageDetails(analytics.gpt, analytics.requestCount.gpt, analytics.sessionCount, analytics);
-            updateEmbeddingUsageDetails(analytics.embedding, analytics.requestCount.embedding, analytics);
+            // Details
+            updateGptUsageDetails(gpt, req.gpt || 0, analytics.sessionCount || 0, analytics);
+            updateEmbeddingUsageDetails(embedding, req.embedding || 0, analytics);
         }
         
         function updateGptUsageDetails(gptAnalytics, requestCount, sessionCount, analytics) {
