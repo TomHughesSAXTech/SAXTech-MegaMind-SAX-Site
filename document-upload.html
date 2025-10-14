@@ -23,7 +23,8 @@
         .file-upload-area.dragover { border-color: #1e3c72; background: rgba(30, 60, 114, 0.05); }
         .file-upload-area i { font-size: 48px; color: #ccc; margin-bottom: 15px; }
         .file-upload-area p { color: #666; margin-bottom: 15px; line-height: 1.5; }
-        .file-input { display: none; }
+        /* Keep file input focusable for programmatic click across browsers */
+        .file-input { position: absolute; left: -9999px; width: 0; height: 0; opacity: 0; pointer-events: none; }
         .file-input-label { display: inline-block; padding: 12px 24px; background: #1e3c72; color: white; border-radius: 6px; cursor: pointer; transition: all 0.3s ease; font-weight: 500; }
         .file-input-label:hover { background: #2a5298; transform: translateY(-2px); box-shadow: 0 4px 15px rgba(30, 60, 114, 0.3); }
         .upload-btn { width: 100%; padding: 15px; background: linear-gradient(45deg, #1e3c72, #2a5298); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; margin-top: 20px; }
@@ -209,6 +210,7 @@
         const fileInput = document.getElementById('fileInput');
         const fileUploadArea = document.getElementById('fileUploadArea');
         const selectedFileContainer = document.getElementById('selectedFileContainer');
+        const fileInputLabel = document.querySelector('.file-input-label');
         const uploadBtn = document.getElementById('uploadBtn');
         // Ensure click triggers form submission in all browsers
         uploadBtn?.addEventListener('click', async (e)=>{
@@ -259,6 +261,9 @@
         fileUploadArea.addEventListener('dragleave', handleDragLeave);
         fileUploadArea.addEventListener('drop', handleFileDrop);
         uploadForm.addEventListener('submit', handleUpload);
+        // Make sure clicking the Browse Files label opens the file chooser
+        fileInputLabel?.addEventListener('click', (e)=>{ e.preventDefault(); fileInput?.click(); });
+        fileUploadArea?.addEventListener('click', (e)=>{ if (e.target && e.target.closest && e.target.closest('.file-input-label')) { e.preventDefault(); fileInput?.click(); } });
         searchInput.addEventListener('input', debounce(filterDocuments, 300));
         departmentFilter.addEventListener('change', filterDocuments);
 
