@@ -260,6 +260,8 @@
         function escapeHtml(s){return String(s).replace(/[&<>"]/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]||c));}
 
         fileInput.addEventListener('change', handleFileSelect);
+        // Ensure any click inside the drop area opens the native chooser
+        fileUploadArea.addEventListener('click', () => fileInput.click());
         fileUploadArea.addEventListener('dragover', handleDragOver);
         fileUploadArea.addEventListener('dragleave', handleDragLeave);
         fileUploadArea.addEventListener('drop', handleFileDrop);
