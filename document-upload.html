@@ -506,25 +506,36 @@
         async function deleteDocument(documentId){
             try{
                 if(!confirm('Delete this document? This cannot be undone.')) return;
-                const safeId = encodeURIComponent(documentId);
-                const attempts = [
-                    { m:'DELETE', u:`${API_BASE_URL}/documents/delete/${safeId}` },
-                    { m:'POST', u:`${API_BASE_URL}/documents/delete`, body: { ids: [documentId] }},
-                    { m:'POST', u:`${API_BASE_URL}/documents/delete`, body: { documentIds: [documentId] }}
-                ];
-                let ok = false;
-                for(const a of attempts){
-                    try{
-                        const res = await fetch(a.u, { method: a.m, headers: a.body ? { 'Content-Type':'application/json' } : undefined, body: a.body ? JSON.stringify(a.body) : undefined });
-                        if(res.ok){ ok = true; break; }
-                    }catch(e){/* try next */}
+                const id = (documentId||'').trim();
+                if(!id){ showAlert('error','Missing document id'); return; }
+                const res = await fetch(`${API_BASE_URL}/documents/delete`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ documentIds: [id] })
+                });
+                if(!res.ok){
+                    const t = await res.text();
+                    throw new Error(`Delete failed: ${res.status} - ${t}`);
                 }
-                if(!ok){ throw new Error('Delete endpoint not available'); }
-                showAlert('success','Document deleted');
+                const j = await res.json().catch(()=>null);
+                let success = false;
+                let message = 'Document deleted';
+                if(j && typeof j === 'object'){
+                    if(j.success === true) success = true;
+                    if(Array.isArray(j.results)){
+                        const r = j.results.find(r=>r.DocumentId===id) || j.results[0];
+                        if(r){ success = !!r.Success; if(r.Message) message = r.Message; }
+                    }
+                }
+                if(!success){
+                    showAlert('error', message || 'Delete failed');
+                    return;
+                }
+                showAlert('success', 'Document deleted');
                 await loadAll();
             }catch(e){
                 console.error('Delete failed:', e);
-                showAlert('error','Delete failed');
+                showAlert('error', e?.message || 'Delete failed');
             }
         }
 
