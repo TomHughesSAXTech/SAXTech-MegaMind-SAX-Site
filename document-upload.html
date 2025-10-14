@@ -23,9 +23,10 @@
         .file-upload-area.dragover { border-color: #1e3c72; background: rgba(30, 60, 114, 0.05); }
         .file-upload-area i { font-size: 48px; color: #ccc; margin-bottom: 15px; }
         .file-upload-area p { color: #666; margin-bottom: 15px; line-height: 1.5; }
-        /* Keep file input focusable for programmatic click across browsers */
-        .file-input { position: absolute; left: -9999px; width: 0; height: 0; opacity: 0; pointer-events: none; }
-        .file-input-label { display: inline-block; padding: 12px 24px; background: #1e3c72; color: white; border-radius: 6px; cursor: pointer; transition: all 0.3s ease; font-weight: 500; }
+        /* Overlay input approach: clicking label opens native chooser reliably */
+        .file-input-wrapper { position: relative; display: inline-block; }
+        .file-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+        .file-input-label { display: inline-block; padding: 12px 24px; background: #1e3c72; color: white; border-radius: 6px; cursor: pointer; transition: all 0.3s ease; font-weight: 500; position: relative; }
         .file-input-label:hover { background: #2a5298; transform: translateY(-2px); box-shadow: 0 4px 15px rgba(30, 60, 114, 0.3); }
         .upload-btn { width: 100%; padding: 15px; background: linear-gradient(45deg, #1e3c72, #2a5298); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; margin-top: 20px; }
         .upload-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(30, 60, 114, 0.4); }
@@ -160,8 +161,11 @@
                     <i class="fas fa-cloud-upload-alt"></i>
                     <p><strong>Drag and drop your document here</strong></p>
                     <p>or</p>
-                    <label for="fileInput" class="file-input-label"><i class="fas fa-folder-open"></i> Browse Files</label>
-                    <input type="file" id="fileInput" class="file-input" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.csv">
+                    <div class="file-input-wrapper">
+                        <label class="file-input-label"><i class="fas fa-folder-open"></i> Browse Files
+                            <input type="file" id="fileInput" class="file-input" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.csv">
+                        </label>
+                    </div>
                     <p style="margin-top: 15px; font-size: 12px; color: #888;">Supported formats: PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, TXT<br>Maximum file size: 50MB</p>
                 </div>
                 <div id="selectedFileContainer"></div>
@@ -261,16 +265,6 @@
         fileUploadArea.addEventListener('dragleave', handleDragLeave);
         fileUploadArea.addEventListener('drop', handleFileDrop);
         uploadForm.addEventListener('submit', handleUpload);
-        // Make sure clicking the Browse Files label opens the file chooser
-        fileInputLabel?.addEventListener('click', (e)=>{ e.preventDefault(); fileInput?.click(); });
-        fileUploadArea?.addEventListener('click', (e)=>{
-            // Click anywhere on the drop area to open chooser (excluding buttons inside)
-            const withinLabel = e.target && e.target.closest && e.target.closest('.file-input-label');
-            const withinButtons = e.target && e.target.closest && e.target.closest('button');
-            if (withinLabel || (!withinButtons && e.currentTarget === fileUploadArea)){
-                e.preventDefault(); fileInput?.click();
-            }
-        });
         searchInput.addEventListener('input', debounce(filterDocuments, 300));
         departmentFilter.addEventListener('change', filterDocuments);
 
