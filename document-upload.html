@@ -532,27 +532,33 @@
                 if(!confirm('Delete this document? This cannot be undone.')) return false;
                 const id = (documentId||'').trim();
                 if(!id){ showAlert('error','Missing document id'); return false; }
-                const res = await fetch(`${API_BASE_URL}/documents/delete`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ documentIds: [id] })
-                });
-                if(!res.ok){
-                    const t = await res.text();
-                    throw new Error(`Delete failed: ${res.status} - ${t}`);
-                }
-                const j = await res.json().catch(()=>null);
+
+                // Attempt 1: delete by documentIds
                 let success = false;
                 let message = '';
-                if(j && typeof j === 'object'){
-                    if(j.success === true) success = true;
-                    if(Array.isArray(j.results)){
-                        const r = j.results.find(r=>r.DocumentId===id) || j.results[0];
-                        if(r){ success = !!r.Success; if(r.Message) message = r.Message; }
+                let res; let j;
+                try{
+                    res = await fetch(`${API_BASE_URL}/documents/delete`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ documentIds: [id] })
+                    });
+                    if(res.ok){
+                        j = await res.json().catch(()=>null);
+                        if(j && typeof j === 'object'){
+                            if(j.success === true) success = true;
+                            if(Array.isArray(j.results)){
+                                const r = j.results.find(r=>r.DocumentId===id) || j.results[0];
+                                if(r){ success = !!r.Success; if(r.Message) message = r.Message; }
+                            }
+                        }
+                    } else {
+                        message = await res.text().catch(()=>`HTTP ${res.status}`);
                     }
-                }
+                }catch(_e){ /* proceed to fallback */ }
+
+                // If attempt 1 not successful, try blob/filename fallbacks
                 if(!success){
-                    // Try blob/fileName fallback
                     const fb = await tryDeleteByBlobFallback(id);
                     if (fb.ok){
                         showAlert('success', fb.message || 'Document deleted');
@@ -562,6 +568,7 @@
                     showAlert('error', message || fb.message || 'Delete failed');
                     return false;
                 }
+
                 showAlert('success', 'Document deleted');
                 await loadAll();
                 return false;
