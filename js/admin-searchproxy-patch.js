@@ -114,7 +114,27 @@ async function searchEmployees() {
 
 // Override the loadDepartments function to handle the missing API
 async function loadDepartments() {
-    console.log('Loading departments...');
+    console.log('Loading departments - using cached data due to API issues');
+    
+    // Skip broken API and use cached departments directly
+    const departments = [
+        "Audit & Attestation",
+        "Client Accounting Services", 
+        "Finance & Accounting",
+        "Human Resources",
+        "Learning & Development",
+        "Legal & Compliance",
+        "Marketing & Business Development",
+        "Operations",
+        "Shared Services",
+        "Tax"
+    ];
+    
+    populateDepartmentsList(departments);
+    return;
+    
+    // Keep original fallback logic commented for future use
+    /*
     try {
         // Try the departments API first
         const response = await fetch('https://saxtech-config.azurewebsites.net/api/departments/get?container=megamind-config&path=departments.json');
@@ -127,6 +147,7 @@ async function loadDepartments() {
     } catch (error) {
         console.log('Departments API failed, using fallback:', error);
     }
+    */
     
     // Fallback: Use hardcoded departments list
     const fallbackDepartments = [
