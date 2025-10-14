@@ -104,7 +104,7 @@
             </div>
             <form id="uploadForm">
                 <div class="form-group">
-                    <label for="department">Department <span style="color: #dc3545;">*</span></label>
+                    <label for="department">Department <span style="color: #dc3545;">*</span> <a href="/admin.html#department-editor" target="_blank" style="font-size:12px;margin-left:8px;">Manage</a></label>
                     <select id="department" name="department" required>
                         <option value="">Select Department</option>
                     </select>
@@ -191,6 +191,7 @@
                     <select class="department-filter" id="departmentFilter">
                         <option value="">All Departments</option>
                     </select>
+                    <a href="/admin.html#department-editor" target="_blank" style="font-size:12px;margin-left:8px; align-self:center;">Manage</a>
                     <button class="refresh-btn" id="refreshBtn" onclick="loadAll()"><i class="fas fa-sync-alt"></i> Refresh</button>
                 </div>
                 <div class="documents-grid" id="documentsGrid"></div>
@@ -413,7 +414,16 @@
         }
 
         async function fetchConfigDepartments(){
-            // Prefer backend config API (no SAS)
+            // Prefer site file first to avoid remote 404s
+            try {
+                const res = await fetch('/config/departments.json?cb=' + Date.now(), { cache: 'no-store' });
+                if (res.ok) {
+                    const data = await res.json();
+                    const arr = Array.isArray(data) ? data : (data.departments || []);
+                    if (Array.isArray(arr) && arr.length) return arr;
+                }
+            } catch {}
+            // Try backend config API
             try {
                 const url = 'https://saxtech-config.azurewebsites.net/api/departments/get?container=megamind-config&path=departments.json&cb=' + Date.now();
                 const r = await fetch(url, { cache: 'no-store' });
@@ -422,13 +432,7 @@
                     return Array.isArray(jb) ? jb : (jb.departments || []);
                 }
             } catch {}
-            // Fallback to site file
-            try {
-                const res = await fetch('/config/departments.json', { cache: 'no-store' });
-                if (!res.ok) return [];
-                const data = await res.json();
-                return Array.isArray(data) ? data : (data.departments || []);
-            } catch { return []; }
+            return [];
         }
 
         async function loadAll(){

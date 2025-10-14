@@ -21,7 +21,19 @@
     }
 
     async function loadDepartments(){
-        // Prefer backend config API (no SAS)
+        // Prefer local site file first to avoid remote 404s
+        try{
+            const res = await fetch('/config/departments.json?cb=' + Date.now(), { cache: 'no-store' });
+            if(res.ok){
+                const j = await res.json();
+                const arr = Array.isArray(j) ? j : (j.departments || []);
+                if (Array.isArray(arr) && arr.length) {
+                    departments = arr;
+                    return;
+                }
+            }
+        }catch(e){ /* ignore and try remote */ }
+        // Try backend config API (if available)
         try{
             const url = 'https://saxtech-config.azurewebsites.net/api/departments/get?container=megamind-config&path=departments.json&cb=' + Date.now();
             const r = await fetch(url, { cache: 'no-store' });
@@ -29,19 +41,9 @@
                 const jb = await r.json();
                 departments = Array.isArray(jb) ? jb : (jb.departments || []);
             }
-        }catch(e){ /* ignore and fallback */ }
-        // Fallback to site file
-        if (!Array.isArray(departments) || departments.length === 0) {
-            try{
-                const res = await fetch('/config/departments.json?cb=' + Date.now(), { cache: 'no-store' });
-                if(!res.ok){ throw new Error('Failed to load departments.json'); }
-                const j = await res.json();
-                departments = Array.isArray(j) ? j : (j.departments || []);
-            }catch(e){
-                console.warn('Departments load failed:', e);
-                departments = [];
-            }
-        }
+        }catch(e){ /* ignore */ }
+        // Final guard
+        if (!Array.isArray(departments)) departments = [];
     }
 
     function renderList(){
@@ -69,6 +71,8 @@
         const input = document.getElementById('newDeptInput');
         const list = document.getElementById('deptList');
         const saveBlobBtn = document.getElementById('saveBlobBtn');
+        const ghTokenInput = document.getElementById('ghTokenInput');
+        const saveGithubBtn = document.getElementById('saveGithubBtn');
 
         addBtn?.addEventListener('click', ()=>{
             const v = (input.value||'').trim();
@@ -157,6 +161,47 @@
                 alert('Failed to save to Blob: ' + e.message);
             }
         });
+
+        // Fallback: Save to GitHub (requires a personal access token with repo scope)
+        saveGithubBtn?.addEventListener('click', async ()=>{
+            try{
+                const token = (ghTokenInput?.value||'').trim();
+                if(!token){ alert('Enter a GitHub token with repo scope to save.'); return; }
+                const payload = { departments: departments };
+                const content = btoa(unescape(encodeURIComponent(JSON.stringify(payload, null, 2))));
+
+                // Fetch current SHA if file exists
+                let sha = null;
+                try{
+                    const getRes = await fetch('https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + DEPTS_PATH + '?ref=' + GH_BRANCH, {
+                        headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json' }
+                    });
+                    if(getRes.ok){
+                        const gj = await getRes.json();
+                        sha = gj.sha || gj.content?.sha || null;
+                    }
+                }catch(_e){ /* ignore */ }
+
+                const body = { message: 'Update departments.json via Admin UI', content, branch: GH_BRANCH };
+                if(sha) body.sha = sha;
+
+                const res = await fetch('https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + DEPTS_PATH, {
+                    method:'PUT',
+                    headers:{ 'Authorization': 'Bearer ' + token, 'Content-Type':'application/json' },
+                    body: JSON.stringify(body)
+                });
+                if(!res.ok){
+                    const t = await res.text();
+                    throw new Error('GitHub save failed: ' + res.status + ' - ' + t);
+                }
+                const j = await res.json();
+                currentSha = j.content?.sha || sha;
+                alert('Departments saved to GitHub.');
+            }catch(e){
+                console.error(e);
+                alert('Failed to save to GitHub: ' + e.message);
+            }
+        });
     }
 
     function escapeHtml(s){ 
@@ -171,10 +216,15 @@
         tab.innerHTML = '' +
           '<div class=\"admin-card full-width\">' +
             '<h2>Department Manager</h2>' +
-            '<p style=\"color:#64748b;margin-bottom:10px;\">Add, edit, and remove departments. Changes are saved to Blob at <code>megamind-config/departments.json</code>.</p>' +
+            '<p style=\"color:#64748b;margin-bottom:10px;\">Add, edit, and remove departments. Preferred source is Blob at <code>megamind-config/departments.json</code>; falls back to site file <code>/config/departments.json</code>.</p>' +
             '<div class=\"form-group\" style=\"display:flex;gap:10px;align-items:center;\">' +
               '<button class=\"btn btn-success\" id=\"saveBlobBtn\">Save to Blob</button>' +
               '<span style=\"color:#64748b;font-size:12px;\">Blob: megamind-config/departments.json</span>' +
+            '</div>' +
+            '<div class=\"form-group\" style=\"display:flex;gap:10px;align-items:center;\">' +
+              '<input id=\"ghTokenInput\" type=\"password\" class=\"form-input\" placeholder=\"GitHub token (repo scope) for fallback save\">' +
+              '<button class=\"btn btn-secondary\" id=\"saveGithubBtn\">Save to GitHub</button>' +
+              '<span style=\"color:#64748b;font-size:12px;\">Path: ' + GH_REPO + '/' + DEPTS_PATH + '</span>' +
             '</div>' +
             '<div style=\"display:flex;gap:10px;align-items:center;margin-bottom:10px;\">' +
               '<input id=\"newDeptInput\" class=\"form-input\" placeholder=\"Add a new department\">' +
