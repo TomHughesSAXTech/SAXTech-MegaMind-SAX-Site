@@ -1530,12 +1530,13 @@
                     <div>
                         <label class="form-label" for="endDate">End Date</label>
                         <input type="date" id="endDate" class="form-input" value="" onchange="validateAndRefreshTokenUsage()">
-                        <div style="font-size: 11px; color: var(--gray-500); margin-top: 4px;">Available: Sept 25 - Oct 2, 2025</div>
+                        <div style="font-size: 11px; color: var(--gray-500); margin-top: 4px;">Select any date range</div>
                     </div>
                     <div>
                         <label class="form-label" for="metricsSource">Data Source</label>
                         <select id="metricsSource" class="form-select" onchange="validateAndRefreshTokenUsage()">
-                            <option value="azure-monitor" selected>Azure Monitor Data</option>
+                            <option value="conversation-logs" selected>Conversation Logs</option>
+                            <option value="azure-monitor">Azure Monitor Data (legacy)</option>
                         </select>
                     </div>
                     <div>
@@ -5226,12 +5227,25 @@ const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/
                 
                 // Store data for all other tabs
                 conversationData = sessions;
+
+                // Set default date range to last 7 days and trigger metrics refresh
+                try {
+                    const end = new Date();
+                    const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
+                    const fmt = d => d.toISOString().slice(0,10);
+                    const startEl = document.getElementById('startDate');
+                    const endEl = document.getElementById('endDate');
+                    if (startEl && endEl) {
+                        startEl.value = fmt(start);
+                        endEl.value = fmt(end);
+                    }
+                } catch(e) { /* ignore */ }
                 
                 // Generate AI satisfaction analysis
                 generateSatisfactionAnalysis(sessions);
                 
                 // Load token usage analytics
-                loadTokenUsageAnalytics(sessions);
+                await loadTokenUsageAnalytics(sessions);
                 
             } catch (error) {
                 console.error('Failed to load overview data:', error);
@@ -8198,7 +8212,7 @@ Provide insights about conversation quality and satisfaction in JSON format:
                 </div>
                 
                 <div style="margin: var(--space-xl) 0;">
-                    <h3>Azure Monitor Data (Sept 25 - Oct 2)</h3>
+                    <h3>Conversation Logs (dynamic date range)</h3>
                     <div style="display: grid; gap: var(--space-sm); margin-top: var(--space-md);">
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-md); background: var(--success-50); border-radius: 8px; border: 1px solid var(--success-200);">
                             <div>
