@@ -25,8 +25,8 @@
         .file-upload-area p { color: #666; margin-bottom: 15px; line-height: 1.5; }
         /* Overlay input approach: clicking label opens native chooser reliably */
         .file-input-wrapper { position: relative; display: inline-block; }
-        .file-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-        .file-input-label { display: inline-block; padding: 12px 24px; background: #1e3c72; color: white; border-radius: 6px; cursor: pointer; transition: all 0.3s ease; font-weight: 500; position: relative; }
+        .file-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; pointer-events: auto; }
+        .file-input-label { display: inline-block; padding: 12px 24px; background: #1e3c72; color: white; border-radius: 6px; cursor: pointer; transition: all 0.3s ease; font-weight: 500; position: relative; z-index: 1; }
         .file-input-label:hover { background: #2a5298; transform: translateY(-2px); box-shadow: 0 4px 15px rgba(30, 60, 114, 0.3); }
         .upload-btn { width: 100%; padding: 15px; background: linear-gradient(45deg, #1e3c72, #2a5298); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; margin-top: 20px; }
         .upload-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(30, 60, 114, 0.4); }
@@ -162,9 +162,8 @@
                     <p><strong>Drag and drop your document here</strong></p>
                     <p>or</p>
                     <div class="file-input-wrapper">
-                        <label class="file-input-label"><i class="fas fa-folder-open"></i> Browse Files
-                            <input type="file" id="fileInput" class="file-input" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.csv">
-                        </label>
+                        <label class="file-input-label" for="fileInput"><i class="fas fa-folder-open"></i> Browse Files</label>
+                        <input type="file" id="fileInput" class="file-input" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.csv">
                     </div>
                     <p style="margin-top: 15px; font-size: 12px; color: #888;">Supported formats: PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, TXT<br>Maximum file size: 50MB</p>
                 </div>
