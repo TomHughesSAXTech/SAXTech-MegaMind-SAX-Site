@@ -21,28 +21,35 @@
     }
 
     async function loadDepartments(){
-        // Prefer local site file first to avoid remote 404s
-        try{
-            const res = await fetch('/config/departments.json?cb=' + Date.now(), { cache: 'no-store' });
-            if(res.ok){
-                const j = await res.json();
-                const arr = Array.isArray(j) ? j : (j.departments || []);
-                if (Array.isArray(arr) && arr.length) {
-                    departments = arr;
-                    return;
-                }
-            }
-        }catch(e){ /* ignore and try remote */ }
-        // Try backend config API (if available)
+        departments = [];
+        // Config API (Blob-backed) first
         try{
             const url = 'https://saxtech-config.azurewebsites.net/api/departments/get?container=megamind-config&path=departments.json&cb=' + Date.now();
             const r = await fetch(url, { cache: 'no-store' });
             if (r.ok) {
                 const jb = await r.json();
-                departments = Array.isArray(jb) ? jb : (jb.departments || []);
+                const arr = Array.isArray(jb) ? jb : (jb.departments || []);
+                if (Array.isArray(arr)) departments = arr;
             }
         }catch(e){ /* ignore */ }
-        // Final guard
+        // Fallback: direct Blob via SAS URL
+        if (!departments.length){
+            try{
+                const sasUrl = await getBlobUrlForDepartments();
+                if (sasUrl){
+                    const rb = await fetch(sasUrl, { cache: 'no-store' });
+                    if (rb.ok){
+                        try{
+                            const j = await rb.json();
+                            departments = Array.isArray(j) ? j : (j.departments || []);
+                        }catch(_){
+                            const txt = await rb.text();
+                            try{ const j2 = JSON.parse(txt); departments = Array.isArray(j2) ? j2 : (j2.departments || []); }catch(__){}
+                        }
+                    }
+                }
+            }catch(e){ /* ignore */ }
+        }
         if (!Array.isArray(departments)) departments = [];
     }
 
@@ -71,8 +78,6 @@
         const input = document.getElementById('newDeptInput');
         const list = document.getElementById('deptList');
         const saveBlobBtn = document.getElementById('saveBlobBtn');
-        const ghTokenInput = document.getElementById('ghTokenInput');
-        const saveGithubBtn = document.getElementById('saveGithubBtn');
 
         addBtn?.addEventListener('click', ()=>{
             const v = (input.value||'').trim();
@@ -162,46 +167,6 @@
             }
         });
 
-        // Fallback: Save to GitHub (requires a personal access token with repo scope)
-        saveGithubBtn?.addEventListener('click', async ()=>{
-            try{
-                const token = (ghTokenInput?.value||'').trim();
-                if(!token){ alert('Enter a GitHub token with repo scope to save.'); return; }
-                const payload = { departments: departments };
-                const content = btoa(unescape(encodeURIComponent(JSON.stringify(payload, null, 2))));
-
-                // Fetch current SHA if file exists
-                let sha = null;
-                try{
-                    const getRes = await fetch('https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + DEPTS_PATH + '?ref=' + GH_BRANCH, {
-                        headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json' }
-                    });
-                    if(getRes.ok){
-                        const gj = await getRes.json();
-                        sha = gj.sha || gj.content?.sha || null;
-                    }
-                }catch(_e){ /* ignore */ }
-
-                const body = { message: 'Update departments.json via Admin UI', content, branch: GH_BRANCH };
-                if(sha) body.sha = sha;
-
-                const res = await fetch('https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + DEPTS_PATH, {
-                    method:'PUT',
-                    headers:{ 'Authorization': 'Bearer ' + token, 'Content-Type':'application/json' },
-                    body: JSON.stringify(body)
-                });
-                if(!res.ok){
-                    const t = await res.text();
-                    throw new Error('GitHub save failed: ' + res.status + ' - ' + t);
-                }
-                const j = await res.json();
-                currentSha = j.content?.sha || sha;
-                alert('Departments saved to GitHub.');
-            }catch(e){
-                console.error(e);
-                alert('Failed to save to GitHub: ' + e.message);
-            }
-        });
     }
 
     function escapeHtml(s){ 
@@ -216,15 +181,10 @@
         tab.innerHTML = '' +
           '<div class=\"admin-card full-width\">' +
             '<h2>Department Manager</h2>' +
-            '<p style=\"color:#64748b;margin-bottom:10px;\">Add, edit, and remove departments. Preferred source is Blob at <code>megamind-config/departments.json</code>; falls back to site file <code>/config/departments.json</code>.</p>' +
+            '<p style=\"color:#64748b;margin-bottom:10px;\">Add, edit, and remove departments. Configuration is loaded from Blob at <code>megamind-config/departments.json</code>.</p>' +
             '<div class=\"form-group\" style=\"display:flex;gap:10px;align-items:center;\">' +
               '<button class=\"btn btn-success\" id=\"saveBlobBtn\">Save to Blob</button>' +
               '<span style=\"color:#64748b;font-size:12px;\">Blob: megamind-config/departments.json</span>' +
-            '</div>' +
-            '<div class=\"form-group\" style=\"display:flex;gap:10px;align-items:center;\">' +
-              '<input id=\"ghTokenInput\" type=\"password\" class=\"form-input\" placeholder=\"GitHub token (repo scope) for fallback save\">' +
-              '<button class=\"btn btn-secondary\" id=\"saveGithubBtn\">Save to GitHub</button>' +
-              '<span style=\"color:#64748b;font-size:12px;\">Path: ' + GH_REPO + '/' + DEPTS_PATH + '</span>' +
             '</div>' +
             '<div style=\"display:flex;gap:10px;align-items:center;margin-bottom:10px;\">' +
               '<input id=\"newDeptInput\" class=\"form-input\" placeholder=\"Add a new department\">' +

@@ -414,22 +414,34 @@
         }
 
         async function fetchConfigDepartments(){
-            // Prefer site file first to avoid remote 404s
-            try {
-                const res = await fetch('/config/departments.json?cb=' + Date.now(), { cache: 'no-store' });
-                if (res.ok) {
-                    const data = await res.json();
-                    const arr = Array.isArray(data) ? data : (data.departments || []);
-                    if (Array.isArray(arr) && arr.length) return arr;
-                }
-            } catch {}
-            // Try backend config API
+            // Blob-backed config only: try config API first, then SAS blob
             try {
                 const url = 'https://saxtech-config.azurewebsites.net/api/departments/get?container=megamind-config&path=departments.json&cb=' + Date.now();
                 const r = await fetch(url, { cache: 'no-store' });
                 if (r.ok) {
                     const jb = await r.json();
-                    return Array.isArray(jb) ? jb : (jb.departments || []);
+                    const arr = Array.isArray(jb) ? jb : (jb.departments || []);
+                    if (Array.isArray(arr) && arr.length) return arr;
+                }
+            } catch {}
+            try {
+                const qs = 'containerName=' + encodeURIComponent('megamind-config') + '&blobPath=' + encodeURIComponent('departments.json');
+                const sasRes = await fetch('/api/generatesastoken?' + qs);
+                if (sasRes.ok) {
+                    const jsas = await sasRes.json().catch(()=>({}));
+                    const url = jsas.blobUrl || jsas.url || jsas.sasUrl;
+                    if (url) {
+                        const rb = await fetch(url, { cache: 'no-store' });
+                        if (rb.ok) {
+                            try {
+                                const j = await rb.json();
+                                return Array.isArray(j) ? j : (j.departments || []);
+                            } catch {
+                                const txt = await rb.text();
+                                try { const j2 = JSON.parse(txt); return Array.isArray(j2) ? j2 : (j2.departments || []); } catch { return []; }
+                            }
+                        }
+                    }
                 }
             } catch {}
             return [];
