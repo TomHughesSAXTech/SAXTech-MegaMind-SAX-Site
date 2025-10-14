@@ -394,26 +394,41 @@
 
         async function createChunks(file){ return [{ id:1, content:`Document: ${file.name}`, page:1, length:file.size }]; }
 
+        function fileToBase64(file){
+            return new Promise((resolve, reject)=>{
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const dataUrl = reader.result || '';
+                    const base64 = String(dataUrl).includes(',') ? String(dataUrl).split(',')[1] : String(dataUrl);
+                    resolve(base64);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
         async function uploadToCloud(uploadData){
-            const fd=new FormData();
-            fd.append('file',uploadData.file);
-            fd.append('metadata',JSON.stringify(uploadData.metadata));
-            fd.append('hash',uploadData.hash);
-            fd.append('chunks',JSON.stringify(uploadData.chunks));
+            const base64 = await fileToBase64(uploadData.file);
+            const meta = uploadData.metadata || {};
+            const jsonBody = {
+                fileContent: base64,
+                fileName: meta.fileName || uploadData.file?.name,
+                title: meta.title || meta.documentTitle || meta.fileTitle || uploadData.file?.name,
+                description: meta.description || '',
+                department: meta.department || meta.Dept || '',
+                documentType: meta.documentType || '',
+                author: meta.author || '',
+                keywords: meta.keywords || ''
+            };
+
             const endpoints = [
-                // Primary: exact function per requirement
-                `${API_BASE_URL}/documents-upload-json-enhanced`,
-                // Fallbacks
-                `${API_BASE_URL}/documents-upload`,
-                `${API_BASE_URL}/documents-upload-file`,
-                `${API_BASE_URL}/documents/upload-json-enhanced`,
-                `${API_BASE_URL}/documents/upload`,
-                `${API_BASE_URL}/upload`
+                `${API_BASE_URL}/documents/upload-json`, // JSON + base64 (primary)
+                `${API_BASE_URL}/documents/upload-json-enhanced` // enhanced JSON (server may ignore fileContent)
             ];
             let lastStatus = 0, lastText = '';
             for (const url of endpoints){
                 try{
-                    const res = await fetch(url,{ method:'POST', body:fd });
+                    const res = await fetch(url,{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(jsonBody) });
                     if (res.ok){ return await res.json(); }
                     lastStatus = res.status; lastText = await res.text().catch(()=>`HTTP ${res.status}`);
                 }catch(e){ lastText = e?.message || String(e); }
