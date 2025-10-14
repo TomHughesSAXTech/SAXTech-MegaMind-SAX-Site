@@ -210,6 +210,12 @@
         const fileUploadArea = document.getElementById('fileUploadArea');
         const selectedFileContainer = document.getElementById('selectedFileContainer');
         const uploadBtn = document.getElementById('uploadBtn');
+        // Ensure click triggers form submission in all browsers
+        uploadBtn?.addEventListener('click', (e)=>{
+            if (uploadBtn.disabled) { showAlert('error','Select a file to upload.'); return; }
+            e.preventDefault();
+            try { uploadForm.requestSubmit(); } catch { uploadForm.submit(); }
+        });
         const uploadForm = document.getElementById('uploadForm');
         const uploadProgress = document.getElementById('uploadProgress');
         const progressFill = document.getElementById('progressFill');
@@ -298,9 +304,9 @@
         function handleFileDrop(event){ event.preventDefault(); fileUploadArea.classList.remove('dragover'); const file = event.dataTransfer.files[0]; if (file) validateAndSetFile(file);}
 
         function validateAndSetFile(file){
-            const allowedTypes = ['.pdf','.doc','.docx','.ppt','.pptx','.xls','.xlsx','.txt'];
+            const allowedTypes = ['.pdf','.doc','.docx','.ppt','.pptx','.xls','.xlsx','.txt','.csv'];
             const ext='.'+file.name.split('.').pop().toLowerCase();
-            if (!allowedTypes.includes(ext)){ showAlert('error','Invalid file type. Please select a supported document format.'); return; }
+            if (!allowedTypes.includes(ext)){ showAlert('error','Invalid file type. Supported: PDF, DOC/DOCX, PPT/PPTX, XLS/XLSX, TXT, CSV.'); return; }
             const maxSize = 50*1024*1024; if (file.size>maxSize){ showAlert('error','File size exceeds 50MB limit. Please select a smaller file.'); return; }
             selectedFile = file; displaySelectedFile(file); uploadBtn.disabled = false;
         }
@@ -350,7 +356,28 @@
 
         async function createChunks(file){ return [{ id:1, content:`Document: ${file.name}`, page:1, length:file.size }]; }
 
-        async function uploadToCloud(uploadData){ const fd=new FormData(); fd.append('file',uploadData.file); fd.append('metadata',JSON.stringify(uploadData.metadata)); fd.append('hash',uploadData.hash); fd.append('chunks',JSON.stringify(uploadData.chunks)); const res=await fetchWithRetry(`${API_BASE_URL}/documents/upload-json-enhanced`,{ method:'POST', body:fd }); if(!res.ok){ const t=await res.text(); throw new Error(`Upload failed: ${res.status} - ${t}`);} return await res.json(); }
+        async function uploadToCloud(uploadData){
+            const fd=new FormData();
+            fd.append('file',uploadData.file);
+            fd.append('metadata',JSON.stringify(uploadData.metadata));
+            fd.append('hash',uploadData.hash);
+            fd.append('chunks',JSON.stringify(uploadData.chunks));
+            const endpoints = [
+                `${API_BASE_URL}/documents/upload-json-enhanced`,
+                `${API_BASE_URL}/documents/upload`,
+                `${API_BASE_URL}/upload`,
+                `${API_BASE_URL}/documents/upload-file`
+            ];
+            let lastStatus = 0, lastText = '';
+            for (const url of endpoints){
+                try{
+                    const res = await fetch(url,{ method:'POST', body:fd });
+                    if (res.ok){ return await res.json(); }
+                    lastStatus = res.status; lastText = await res.text().catch(()=>`HTTP ${res.status}`);
+                }catch(e){ lastText = e?.message || String(e); }
+            }
+            throw new Error(`Upload failed: ${lastStatus} - ${lastText}`);
+        }
 
         async function addToSearchIndex(result){ try{ const r=await fetchWithRetry(`${API_BASE_URL}/search-index/add`,{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(result)}); if(!r.ok){ console.warn('Search index update failed'); } } catch(e){ console.warn('Search index error:',e);} }
         async function createEmbeddings(result){ try{ const r=await fetchWithRetry(`${API_BASE_URL}/embeddings/create`,{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(result)}); if(!r.ok){ console.warn('Embeddings creation failed'); } } catch(e){ console.warn('Embeddings error:',e);} }
