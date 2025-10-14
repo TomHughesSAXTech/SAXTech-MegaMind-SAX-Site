@@ -3335,11 +3335,16 @@ const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversat
                         </div>
                     ` : ''}
                     
-                    ${employee.employeeDirectReportsCount > 0 ? `
-                        <div style="margin-bottom: 8px; display: flex; align-items: center;">
-                            <i class="fas fa-users" style="width: 16px; color: #94a3b8; margin-right: 8px;"></i>
-                            Direct Reports: ${employee.employeeDirectReportsCount}
-                        </div>
+                    ${employee.employeeDirectReports ? `
+                        <details style="margin-bottom: 8px;">
+                            <summary style="cursor: pointer; color: #64748b; font-size: 12px;">
+                                <i class="fas fa-users" style="width: 16px; color: #94a3b8; margin-right: 8px;"></i>
+                                Direct Reports (${employee.employeeDirectReportsCount || employee.employeeDirectReports.split(',').length})
+                            </summary>
+                            <div style="margin-left: 24px; margin-top: 5px; font-size: 11px; color: #94a3b8;">
+                                ${employee.employeeDirectReports.split(',').map(name => name.trim()).join('<br>')}
+                            </div>
+                        </details>
                     ` : ''}
                     
                     ${employee.employeeGroups ? `
