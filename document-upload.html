@@ -211,10 +211,11 @@
         const selectedFileContainer = document.getElementById('selectedFileContainer');
         const uploadBtn = document.getElementById('uploadBtn');
         // Ensure click triggers form submission in all browsers
-        uploadBtn?.addEventListener('click', (e)=>{
-            if (uploadBtn.disabled) { showAlert('error','Select a file to upload.'); return; }
+        uploadBtn?.addEventListener('click', async (e)=>{
             e.preventDefault();
-            try { uploadForm.requestSubmit(); } catch { uploadForm.submit(); }
+            if (uploadBtn.disabled) { showAlert('error','Select a file to upload.'); return; }
+            // Call handler directly to avoid browser quirks
+            try { await handleUpload(new Event('submit')); } catch (err) { console.error(err); showAlert('error', err?.message || 'Upload failed to start'); }
         });
         const uploadForm = document.getElementById('uploadForm');
         const uploadProgress = document.getElementById('uploadProgress');
