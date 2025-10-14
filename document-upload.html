@@ -401,10 +401,14 @@
             fd.append('hash',uploadData.hash);
             fd.append('chunks',JSON.stringify(uploadData.chunks));
             const endpoints = [
+                // Primary: exact function per requirement
+                `${API_BASE_URL}/documents-upload-json-enhanced`,
+                // Fallbacks
+                `${API_BASE_URL}/documents-upload`,
+                `${API_BASE_URL}/documents-upload-file`,
                 `${API_BASE_URL}/documents/upload-json-enhanced`,
                 `${API_BASE_URL}/documents/upload`,
-                `${API_BASE_URL}/upload`,
-                `${API_BASE_URL}/documents/upload-file`
+                `${API_BASE_URL}/upload`
             ];
             let lastStatus = 0, lastText = '';
             for (const url of endpoints){
