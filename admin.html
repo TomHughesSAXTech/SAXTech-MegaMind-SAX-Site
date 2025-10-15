@@ -2868,6 +2868,7 @@ const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversat
         ];
 
         let voices = [];
+        let elevenVoices = [];
 
         // Load saved configuration on page load
         window.addEventListener('load', () => {
@@ -2882,6 +2883,8 @@ const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversat
             updateSystemInfo();
             // Load session stats on page load to populate the User Sessions tab
             loadSessionStats();
+            // Kick off live ElevenLabs fetch in background
+            refreshElevenLabsVoices();
         });
 
         function switchTab(tab) {
@@ -2892,6 +2895,11 @@ const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversat
             // Show selected tab
             const tabPane = document.getElementById(`${tab}-tab`);
             if (tabPane) tabPane.classList.add('active');
+
+            // If switching to voice tab, refresh voices from ElevenLabs
+            if (tab === 'voice') {
+                refreshElevenLabsVoices();
+            }
 
             // Activate the matching button without relying on window.event
             const buttons = Array.from(document.querySelectorAll('.tab-btn'));
@@ -3430,7 +3438,10 @@ const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversat
             list.innerHTML = '';
             testSelect.innerHTML = '';
             
-            voices.forEach((voice, index) => {
+            // Prefer showing live ElevenLabs voices if available
+            const displayVoices = (elevenVoices && elevenVoices.length) ? elevenVoices : voices;
+            
+            displayVoices.forEach((voice, index) => {
                 // Add to list
                 const item = document.createElement('div');
                 item.className = 'voice-item';
@@ -3448,9 +3459,9 @@ const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversat
                 
                 // Add to test select
                 const option = document.createElement('option');
-                option.value = voice.voiceId || voice.id;
-                option.textContent = voice.name;
-                option.setAttribute('data-voice-id', voice.voiceId || voice.id);
+                option.value = voice.voice_id || voice.voiceId || voice.id;
+                option.textContent = voice.name || voice.label || voice.voice_name || voice.voiceId || voice.id;
+                option.setAttribute('data-voice-id', voice.voice_id || voice.voiceId || voice.id);
                 testSelect.appendChild(option);
             });
         }
@@ -3593,6 +3604,43 @@ const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversat
             }
         }
 
+        async function refreshElevenLabsVoices() {
+            try {
+                const apiKey = localStorage.getItem('elevenlabs_api_key') || 'sk_94c95a3f46355ef03ad7cc214059cccfd2c492fc1571a2bf';
+                const resp = await fetch('https://api.elevenlabs.io/v1/voices', {
+                    headers: { 'xi-api-key': apiKey }
+                });
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const data = await resp.json();
+                const apiList = (data.voices || []).map(v => ({
+                    name: v.name,
+                    id: v.voice_id,
+                    voice_id: v.voice_id,
+                    category: v.category,
+                    labels: v.labels || {}
+                }));
+                elevenVoices = apiList;
+
+                // Merge names into local voices by id for consistency
+                const byId = new Map((voices || []).map(v => [v.id || v.voiceId, v]));
+                apiList.forEach(v => {
+                    const key = v.voice_id;
+                    if (byId.has(key)) {
+                        byId.get(key).name = v.name || byId.get(key).name;
+                    } else {
+                        byId.set(key, { name: v.name, id: key, voiceId: key });
+                    }
+                });
+                voices = Array.from(byId.values());
+                renderVoiceList();
+                updateVoiceStats();
+                showStatus('Loaded ElevenLabs voices', 'success');
+            } catch (e) {
+                console.warn('Failed to load ElevenLabs voices:', e);
+                showStatus('Could not load ElevenLabs voices: ' + e.message, 'error');
+            }
+        }
+
         async function previewVoice() {
             const selectElement = document.getElementById('testVoiceSelect');
             const voiceId = selectElement.value;
@@ -3679,7 +3727,8 @@ const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversat
         }
 
         function updateVoiceStats() {
-            document.getElementById('voiceCount').textContent = voices.length;
+            const count = (elevenVoices && elevenVoices.length) ? elevenVoices.length : voices.length;
+            document.getElementById('voiceCount').textContent = count;
         }
 
         function saveAPIKey() {
