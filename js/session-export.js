@@ -506,4 +506,12 @@ window.addEventListener('load', function(){
       return { dates: labels, gptTokens: gpt, embeddingTokens: emb };
     } catch(e){ if (typeof __origDaily === 'function') return __origDaily(startISO, endISO); return { dates: [], gptTokens: [], embeddingTokens: [] }; }
   };
+
+  // Dynamically load bootstrap overrides to capture sessions and add logs
+  try {
+    var s = document.createElement('script');
+    s.src = '/js/token-metrics-bootstrap.js';
+    s.async = true;
+    document.head.appendChild(s);
+  } catch(e) {}
 });
