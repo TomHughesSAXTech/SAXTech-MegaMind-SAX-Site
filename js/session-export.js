@@ -496,7 +496,7 @@ window.addEventListener('load', function(){
               const convo = normConv(sess.conversation);
               const est = (typeof window.estimateTokensFromConversation === 'function') ? window.estimateTokensFromConversation(convo) : { total: 0 };
               gpt[idx] += est.total || 0;
-              const hasSearch = convo.some(m => m.role==='assistant' && /document|pdf|blob\.core\.windows\.net|search/i.test(m.content||''));
+              const hasSearch = convo.some(m => m.role==='assistant' && /document|pdf|blob/.test(m.content||''));
               if (hasSearch) emb[idx] += 2000;
             }
           }
