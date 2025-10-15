@@ -209,7 +209,6 @@
     <div id="uploadModal" class="modal" style="display: none;">
         <div class="modal-content">
             <div id="modalContent"></div>
-            <button onclick="closeModal()" style="margin-top: 20px; padding: 10px 20px; background: #1e3c72; color: white; border: none; border-radius: 5px; cursor: pointer;">Close</button>
         </div>
     </div>
     <script>
@@ -454,12 +453,13 @@
             if (formData.get('actionType')==='update' && existingDoc.value){ uploadData.metadata.documentId = existingDoc.value; }
             const uploadResult = await uploadToCloud(uploadData);
             updateStepStatus('upload','completed');
-            // Finalize directly (indexing/embeddings handled server-side or not required)
+            // Mark server-side tasks as started; final status comes from server logs
+            updateStepStatus('index','active');
+            updateStepStatus('embeddings','active');
             updateProgress(100,'Upload completed successfully!');
             showAlert('success','Document uploaded successfully!');
             // Keep modal open and do not auto-reset; refresh list only
             loadAll();
-        }
 
         async function calculateFileHash(file){ return new Promise((resolve)=>{ const reader=new FileReader(); reader.onload=async (e)=>{ const ab=e.target.result; const hb=await crypto.subtle.digest('SHA-256',ab); const ha=Array.from(new Uint8Array(hb)); const hx=ha.map(b=>b.toString(16).padStart(2,'0')).join(''); resolve(hx); }; reader.readAsArrayBuffer(file); }); }
 
@@ -550,8 +550,18 @@
 
         async function fetchWithRetry(url,options,maxRetries=3){ for(let i=0;i<maxRetries;i++){ try{ const res=await fetch(url,options); if(res.ok||i===maxRetries-1) return res; await new Promise(r=>setTimeout(r,1000*(i+1))); } catch(e){ if(i===maxRetries-1) throw e; await new Promise(r=>setTimeout(r,1000*(i+1))); } } }
 
-        function updateStepStatus(step,status){ const el=document.querySelector(`[data-step="${step}"]`); if(el){ el.className=`step ${status}`; } }
-        function updateProgress(pct,text){ progressFill.style.width=`${pct}%`; progressText.textContent=text; }
+        const STEP_LABELS = { hash:'File hash', duplicate:'Duplicate check', chunk:'Chunking', upload:'Blob upload', index:'Indexing', embeddings:'Embeddings' };
+        function updateStepStatus(step,status){
+            const el=document.querySelector(`[data-step="${step}"]`);
+            if(el){ el.className=`step ${status}`; }
+            try{
+                const label = STEP_LABELS[step] || step;
+                if (status === 'active') netLog(`${label} started...`);
+                else if (status === 'completed') netLog(`${label} completed.`);
+                else if (status === 'error') netLog(`${label} failed.`);
+            } catch(_){}
+        }
+        function updateProgress(pct,text){ progressFill.style.width=`${pct}%`; progressText.textContent=text; try{ if(text) netLog(text); }catch(_){} }
         function resetForm(){ uploadForm.reset(); removeFile(); uploadProgress.style.display='none'; uploadSteps.style.display='none'; document.querySelectorAll('.step').forEach(s=>s.className='step'); updateProgress(0,'Preparing upload...'); }
         function showAlert(type,message){ const d=document.createElement('div'); d.className=`alert alert-${type}`; d.innerHTML=`<i class=\"fas fa-${type==='success'?'check-circle':type==='error'?'exclamation-circle':'info-circle'}\"></i> ${message}`; uploadStatus.appendChild(d); try{ d.scrollIntoView({behavior:'smooth', block:'nearest'});}catch(_){} setTimeout(()=>{ if(d.parentNode) d.parentNode.removeChild(d); },5000);} 
         function clearUploadStatus(){ uploadStatus.innerHTML=''; }
