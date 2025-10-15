@@ -214,6 +214,8 @@
     </div>
     <script>
         const API_BASE_URL = 'https://saxtech-megamind.azurewebsites.net/api';
+        const FUNCTION_KEY = (localStorage.getItem('DOC_UPLOAD_FUNCTION_KEY') || '').trim();
+        function withFunctionCode(u){ if (!FUNCTION_KEY) return u; return u.includes('?') ? `${u}&code=${encodeURIComponent(FUNCTION_KEY)}` : `${u}?code=${encodeURIComponent(FUNCTION_KEY)}`; }
         const fileInput = document.getElementById('fileInput');
         const fileUploadArea = document.getElementById('fileUploadArea');
         const selectedFileContainer = document.getElementById('selectedFileContainer');
@@ -466,6 +468,9 @@
             const jsonBody = {
                 fileContent: base64,
                 fileName: meta.fileName || uploadData.file?.name,
+                contentType: uploadData.file?.type || 'application/octet-stream',
+                size: uploadData.file?.size || 0,
+                sha256: uploadData.hash || '',
                 title: meta.title || meta.documentTitle || meta.fileTitle || uploadData.file?.name,
                 description: meta.description || '',
                 department: meta.department || meta.Dept || '',
@@ -475,14 +480,15 @@
             };
 
             const endpoints = [
-                `${API_BASE_URL}/documents/upload-json`, // JSON + base64 (primary)
-                `${API_BASE_URL}/documents/upload-json-enhanced` // enhanced JSON (server may ignore fileContent)
+                `${API_BASE_URL}/documents/upload-json-enhanced`
             ];
             let lastStatus = 0, lastText = '';
             for (const url of endpoints){
                 try{
-                    const res = await fetchWithTimeout(url,{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(jsonBody) }, 60000);
-                    if (res.ok){ return await res.json(); }
+                    const headers = { 'Content-Type': 'application/json' };
+                    if (FUNCTION_KEY) headers['x-functions-key'] = FUNCTION_KEY;
+                    const res = await fetchWithTimeout(withFunctionCode(url), { method:'POST', headers, body: JSON.stringify(jsonBody) }, 60000);
+                    if (res.ok){ const out = await res.json().catch(()=>({ success:true })); showAlert('success', `Uploaded: ${out.documentId || out.id || jsonBody.fileName}`); return out; }
                     lastStatus = res.status; lastText = await res.text().catch(()=>`HTTP ${res.status}`);
                 }catch(e){ lastText = e?.message || String(e); }
             }
