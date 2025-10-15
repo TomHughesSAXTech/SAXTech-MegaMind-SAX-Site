@@ -3849,9 +3849,28 @@ const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversat
                 { name: 'sop-documents', label: 'sop-documents' },
                 { name: 'ld-documents', label: 'ld-documents' },
                 { name: 'ustaxpublic', label: 'ustaxpublic' },
-                { name: 'audit-tax-documents', label: 'audit-tax-documents' },
                 { name: 'megamind-it', label: 'megamind-it' }
             ];
+        }
+
+        // Fetch live index list from Azure Cognitive Search and cache in localStorage
+        async function refreshIndexListFromAzure() {
+            try {
+                const url = `${INDEX_CONFIG.searchEndpoint}/indexes?api-version=2024-07-01`;
+                const resp = await fetch(url, { headers: { 'api-key': INDEX_CONFIG.searchApiKey }});
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const data = await resp.json();
+                const names = (data.value || []).map(x => x.name).filter(Boolean);
+                const list = names.map(n => ({ name: n, label: n }));
+                if (list.length) {
+                    localStorage.setItem('megamind_indexes', JSON.stringify(list));
+                    console.log('✅ Refreshed index list from Azure:', list.map(i=>i.name));
+                    // Re-init selector with live list
+                    initIndexSelector();
+                }
+            } catch (e) {
+                console.warn('⚠️ Failed to refresh index list from Azure:', e);
+            }
         }
 
         function initIndexSelector() {
@@ -3885,6 +3904,10 @@ const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversat
                 console.log('🔄 Calling refreshStats for index:', newSel.value);
                 refreshStats();
             });
+
+            // Attempt live refresh in background so only existing indexes show
+            refreshIndexListFromAzure();
+        }
         }
 
         function showIndexAlert(type, message) {
