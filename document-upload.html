@@ -19,7 +19,7 @@
         .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px 15px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; transition: all 0.3s ease; background: white; }
         .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #1e3c72; box-shadow: 0 0 0 3px rgba(30, 60, 114, 0.1); }
         .form-group textarea { resize: vertical; min-height: 80px; }
-        .file-upload-area { border: 2px dashed #ccc; border-radius: 10px; padding: 30px; text-align: center; transition: all 0.3s ease; background: rgba(248, 249, 250, 0.8); margin: 20px 0; position: relative; }
+        .file-upload-area { border: 2px dashed #ccc; border-radius: 10px; padding: 30px; text-align: center; transition: all 0.3s ease; background: rgba(248, 249, 250, 0.8); margin: 20px 0; position: relative; cursor: pointer; }
         .file-upload-area.dragover { border-color: #1e3c72; background: rgba(30, 60, 114, 0.05); }
         .file-upload-area i { font-size: 48px; color: #ccc; margin-bottom: 15px; }
         .file-upload-area p { color: #666; margin-bottom: 15px; line-height: 1.5; }
@@ -245,6 +245,14 @@
         let documentsCache = [];
         let knownDepartments = [];
 
+        function ensureStatusVisible(){
+            try {
+                uploadProgress.style.display='block';
+                uploadSteps.style.display='block';
+                uploadProgress.scrollIntoView({behavior:'smooth', block:'start'});
+            } catch(_){}
+        }
+
         function populateDepartmentSelects(depts) {
             if (!depts || depts.length === 0) {
                 departmentSelect.innerHTML = '<option value="">No departments available</option>';
@@ -263,9 +271,16 @@
 
         function escapeHtml(s){return String(s).replace(/[&<>"]/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]||c));}
 
+        function openFilePicker(){
+            if (!fileInput) return;
+            try { if (typeof fileInput.showPicker === 'function') { fileInput.showPicker(); return; } } catch(_){ }
+            fileInput.click();
+        }
         fileInput.addEventListener('change', handleFileSelect);
-        // Ensure any click inside the drop area opens the native chooser
-        fileUploadArea.addEventListener('click', () => fileInput.click());
+        // Ensure any click/tap inside the drop area opens the native chooser
+        fileUploadArea.addEventListener('click', openFilePicker);
+        fileUploadArea.addEventListener('touchend', (e)=>{ e.preventDefault(); openFilePicker(); }, { passive: false });
+        fileInputLabel?.addEventListener('click', (e)=>{ e.preventDefault(); openFilePicker(); });
         fileUploadArea.addEventListener('dragover', handleDragOver);
         fileUploadArea.addEventListener('dragleave', handleDragLeave);
         fileUploadArea.addEventListener('drop', handleFileDrop);
@@ -369,7 +384,7 @@
             const requiredFields=['department','documentType','actionType','title','description','keywords'];
             for (const f of requiredFields){ if(!formData.get(f)){ showAlert('error',`Please fill in the ${f.replace(/([A-Z])/g,' $1').toLowerCase()} field.`); return; } }
             if (formData.get('actionType')==='update' && !existingDoc.value){ showAlert('error','Select a document to update'); return; }
-            uploadInProgress=true; uploadBtn.disabled=true; uploadProgress.style.display='block'; uploadSteps.style.display='block'; clearUploadStatus();
+            uploadInProgress=true; uploadBtn.disabled=true; ensureStatusVisible(); clearUploadStatus();
             try { await processUpload(formData); } catch (e){ console.error('Upload failed:',e); showAlert('error', `Upload failed: ${e.message}`); updateStepStatus('error'); } finally { uploadInProgress=false; uploadBtn.disabled=false; }
         }
 
@@ -413,6 +428,13 @@
             });
         }
 
+        async function fetchWithTimeout(url, options, timeoutMs=60000){
+            const controller = new AbortController();
+            const id = setTimeout(()=>controller.abort('timeout'), timeoutMs);
+            try { return await fetch(url, { ...(options||{}), signal: controller.signal }); }
+            finally { clearTimeout(id); }
+        }
+
         async function uploadToCloud(uploadData){
             const base64 = await fileToBase64(uploadData.file);
             const meta = uploadData.metadata || {};
@@ -434,7 +456,7 @@
             let lastStatus = 0, lastText = '';
             for (const url of endpoints){
                 try{
-                    const res = await fetch(url,{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(jsonBody) });
+                    const res = await fetchWithTimeout(url,{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(jsonBody) }, 60000);
                     if (res.ok){ return await res.json(); }
                     lastStatus = res.status; lastText = await res.text().catch(()=>`HTTP ${res.status}`);
                 }catch(e){ lastText = e?.message || String(e); }
@@ -450,7 +472,7 @@
         function updateStepStatus(step,status){ const el=document.querySelector(`[data-step="${step}"]`); if(el){ el.className=`step ${status}`; } }
         function updateProgress(pct,text){ progressFill.style.width=`${pct}%`; progressText.textContent=text; }
         function resetForm(){ uploadForm.reset(); removeFile(); uploadProgress.style.display='none'; uploadSteps.style.display='none'; document.querySelectorAll('.step').forEach(s=>s.className='step'); updateProgress(0,'Preparing upload...'); }
-        function showAlert(type,message){ const d=document.createElement('div'); d.className=`alert alert-${type}`; d.innerHTML=`<i class="fas fa-${type==='success'?'check-circle':type==='error'?'exclamation-circle':'info-circle'}"></i> ${message}`; uploadStatus.appendChild(d); setTimeout(()=>{ if(d.parentNode) d.parentNode.removeChild(d); },5000);}
+        function showAlert(type,message){ const d=document.createElement('div'); d.className=`alert alert-${type}`; d.innerHTML=`<i class=\"fas fa-${type==='success'?'check-circle':type==='error'?'exclamation-circle':'info-circle'}\"></i> ${message}`; uploadStatus.appendChild(d); try{ d.scrollIntoView({behavior:'smooth', block:'nearest'});}catch(_){} setTimeout(()=>{ if(d.parentNode) d.parentNode.removeChild(d); },5000);} 
         function clearUploadStatus(){ uploadStatus.innerHTML=''; }
 
         function fromSearchValueToDocs(value){
