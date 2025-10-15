@@ -459,3 +459,51 @@ function storeSessionData(sessions) {
 window.exportToExcel = exportToExcel;
 window.exportToPDF = exportToPDF;
 window.storeSessionData = storeSessionData;
+
+// Token usage hotfix: destroy Chart before recreate + robust daily bucketing after full page load
+window.addEventListener('load', function(){
+  function destroyTokenChart(){
+    try { if (window.Chart && Chart.getChart) { const inst = Chart.getChart('tokenUsageChart'); if (inst) inst.destroy(); } } catch(e) {}
+    try { if (window.tokenUsageChart && typeof window.tokenUsageChart.destroy === 'function') { window.tokenUsageChart.destroy(); } } catch(e) {}
+    window.tokenUsageChart = null;
+  }
+  const __origInit = window.initializeTokenUsageChart;
+  if (typeof __origInit === 'function') {
+    window.initializeTokenUsageChart = function(){ destroyTokenChart(); return __origInit(); };
+  }
+  const __origClear = window.clearTokenUsageChart;
+  window.clearTokenUsageChart = function(){ destroyTokenChart(); if (typeof __origClear === 'function') { try { __origClear(); } catch(e) {} } };
+  const __origDaily = window.getDailyTokenDataFromSessions;
+  window.getDailyTokenDataFromSessions = function(startISO, endISO){
+    try {
+      const msDay = 86400000;
+      const toLocalDay = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const start = toLocalDay(new Date(startISO));
+      const end = toLocalDay(new Date(endISO));
+      const days = Math.max(1, Math.floor((end - start)/msDay) + 1);
+      const labels = [];
+      const gpt = new Array(days).fill(0);
+      const emb = new Array(days).fill(0);
+      for (let i=0;i<days;i++){ const d = new Date(start); d.setDate(start.getDate()+i); labels.push(d.toLocaleDateString('en-US',{month:'short',day:'numeric'})); }
+      const tsOf = s => new Date(s.timestamp || s.createdAt || s.startedAt || s.startTime || s.sessionStart || s.date || s.time || (s.metadata && s.metadata.timestamp) || start);
+      const normConv = conv => Array.isArray(conv) ? conv : [];
+      if (Array.isArray(window.lastSessionsForMetrics)) {
+        for (const sess of window.lastSessionsForMetrics){
+          const t = toLocalDay(tsOf(sess));
+          if (t >= start && t <= end){
+            const idx = Math.floor((t - start)/msDay);
+            if (idx >= 0 && idx < days) {
+              const convo = normConv(sess.conversation);
+              const est = (typeof window.estimateTokensFromConversation === 'function') ? window.estimateTokensFromConversation(convo) : { total: 0 };
+              gpt[idx] += est.total || 0;
+              const hasSearch = convo.some(m => m.role==='assistant' && /document|pdf|blob\.core\.windows\.net|search/i.test(m.content||''));
+              if (hasSearch) emb[idx] += 2000;
+            }
+          }
+        }
+      }
+      if (gpt.every(v=>v===0) && emb.every(v=>v===0) && typeof __origDaily === 'function') return __origDaily(startISO, endISO);
+      return { dates: labels, gptTokens: gpt, embeddingTokens: emb };
+    } catch(e){ if (typeof __origDaily === 'function') return __origDaily(startISO, endISO); return { dates: [], gptTokens: [], embeddingTokens: [] }; }
+  };
+});
