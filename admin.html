@@ -6200,18 +6200,26 @@ Provide actionable recommendations in JSON format:
             const days = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1);
             // Fetch up to 1000 sessions from the conversation logs API and filter by date
             const base = 'https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog';
-            const url = `${base}?action=get&email=*&range=month&limit=1000&cb=${Date.now()}`;
+            const primaryUrl = `${base}?action=recent&limit=1000&cb=${Date.now()}`;
+            const fallbackUrl = `${base}?action=get&email=*&range=year&limit=2000&cb=${Date.now()}`;
             let sessions = [];
             try {
-                const res = await fetch(url, { cache: 'no-store' });
+                let res = await fetch(primaryUrl, { cache: 'no-store' });
                 if (res.ok) {
                     const data = await res.json();
                     sessions = Array.isArray(data) ? data : (data.sessions || data.items || data.results || []);
                 }
+                if ((!sessions || sessions.length === 0)) {
+                    res = await fetch(fallbackUrl, { cache: 'no-store' });
+                    if (res.ok) {
+                        const data = await res.json();
+                        sessions = Array.isArray(data) ? data : (data.sessions || data.items || data.results || []);
+                    }
+                }
             } catch (e) {
                 console.warn('Failed to fetch conversation logs:', e);
             }
-            const filtered = sessions.filter(s => {
+            const filtered = (sessions || []).filter(s => {
                 const t = new Date(s.timestamp || s.date || s.time || start);
                 return t >= start && t <= end;
             });
@@ -6384,30 +6392,25 @@ Provide actionable recommendations in JSON format:
             
             if (sessions && sessions.length > 0) {
                 sessions.forEach(session => {
-                    if (session.conversation && session.conversation.length > 0) {
+                    const convo = normalizeConversation(session.conversation || []);
+                    if (convo && convo.length > 0) {
                         // Estimate tokens from actual conversation content
-                        const tokenEstimate = estimateTokensFromConversation(session.conversation);
+                        const tokenEstimate = estimateTokensFromConversation(convo);
                         
                         gptTokens.input += tokenEstimate.input;
                         gptTokens.output += tokenEstimate.output;
                         gptTokens.total += tokenEstimate.total;
                         
                         // Count AI responses as GPT requests
-                        const aiResponses = session.conversation.filter(msg => msg.role === 'assistant').length;
+                        const aiResponses = convo.filter(msg => msg.role === 'assistant').length;
                         requestCount.gpt += aiResponses;
                         
                         // Estimate embedding usage based on search-like responses
-                        // Look for responses that seem to involve document search
-                        const searchResponses = session.conversation.filter(msg => 
+                        const searchResponses = convo.filter(msg => 
                             msg.role === 'assistant' && 
-                            (msg.content.includes('document') || 
-                             msg.content.includes('PDF') ||
-                             msg.content.includes('handbook') ||
-                             msg.content.includes('saxtechmegamind.blob.core.windows.net'))
+                            /document|pdf|handbook|saxtechmegamind\.blob\.core\.windows\.net/i.test(msg.content || '')
                         ).length;
-                        
                         if (searchResponses > 0) {
-                            // Estimate ~2000 tokens per document search
                             embeddingTokens.total += searchResponses * 2000;
                             requestCount.embedding += searchResponses;
                         }
@@ -6416,22 +6419,11 @@ Provide actionable recommendations in JSON format:
                     // Check for any existing metadata token fields (fallback)
                     if (session.metadata) {
                         const metadata = session.metadata;
-                        
-                        if (metadata.gpt_input_tokens) {
-                            gptTokens.input += parseInt(metadata.gpt_input_tokens) || 0;
-                        }
-                        if (metadata.gpt_output_tokens) {
-                            gptTokens.output += parseInt(metadata.gpt_output_tokens) || 0;
-                        }
-                        if (metadata.total_tokens) {
-                            gptTokens.total += parseInt(metadata.total_tokens) || 0;
-                        }
-                        if (metadata.embedding_tokens) {
-                            embeddingTokens.total += parseInt(metadata.embedding_tokens) || 0;
-                        }
-                        if (metadata.estimated_cost) {
-                            totalCost += parseFloat(metadata.estimated_cost) || 0;
-                        }
+                        if (metadata.gpt_input_tokens) gptTokens.input += parseInt(metadata.gpt_input_tokens) || 0;
+                        if (metadata.gpt_output_tokens) gptTokens.output += parseInt(metadata.gpt_output_tokens) || 0;
+                        if (metadata.total_tokens) gptTokens.total += parseInt(metadata.total_tokens) || 0;
+                        if (metadata.embedding_tokens) embeddingTokens.total += parseInt(metadata.embedding_tokens) || 0;
+                        if (metadata.estimated_cost) totalCost += parseFloat(metadata.estimated_cost) || 0;
                     }
                 });
             }
@@ -8638,5 +8630,29 @@ Provide detailed user analysis in JSON format:
     <script src="admin-session-management.js"></script>
     <!-- Load the searchproxy bypass patch -->
     <script src="js/admin-searchproxy-patch.js"></script>
+<script>
+// Ensure date inputs are set and metrics load if empty when DOM is ready
+(function() {
+  const init = () => {
+    const startEl = document.getElementById('startDate');
+    const endEl = document.getElementById('endDate');
+    if (startEl && endEl && (!startEl.value || !endEl.value)) {
+      const end = new Date();
+      const start = new Date(end.getTime() - 7*24*60*60*1000);
+      const fmt = d => d.toISOString().slice(0,10);
+      startEl.value = fmt(start);
+      endEl.value = fmt(end);
+      if (typeof validateAndRefreshTokenUsage === 'function') {
+        validateAndRefreshTokenUsage();
+      }
+    }
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
 </body>
 </html>
