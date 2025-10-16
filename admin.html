@@ -3078,7 +3078,7 @@ const response = await safeFetch('https://saxtech-megamind-entra.azurewebsites.n
                     body: JSON.stringify({
                         indexName: 'sop-documents',
                         search: '*',
-                        filter: "documentType eq 'employee'",
+                        filter: "employeeType eq 'employee'",
                         count: true,
                         top: 0
                     })
@@ -3090,7 +3090,7 @@ const response = await safeFetch('https://saxtech-megamind-entra.azurewebsites.n
                     body: JSON.stringify({
                         indexName: 'sop-documents',
                         search: '*',
-                        filter: "documentType eq 'group'",
+                        filter: "(employeeType eq 'group') or (documentType eq 'group')",
                         count: true,
                         top: 0
                     })
@@ -3156,13 +3156,14 @@ const response = await safeFetch('https://saxtech-megamind-entra.azurewebsites.n
                 
                 if (response.ok) {
                     const result = await response.json();
-                    document.getElementById('syncStatus').textContent = 'Sync completed!';
+                    const queued = (response.status === 202) || (result && result.status && String(result.status).toLowerCase() === 'queued');
+                    document.getElementById('syncStatus').textContent = queued ? 'Sync queued (running in background)...' : 'Sync completed!';
                     
-                    // Display results
+                    // Display results/info
                     displaySyncResults(result);
                     
-                    // Refresh stats after sync
-                    setTimeout(loadIndexStats, 2000);
+                    // Refresh stats after short delay
+                    setTimeout(loadIndexStats, 3000);
                 } else {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }

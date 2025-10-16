@@ -72,7 +72,7 @@ async function searchEmployees() {
             body: JSON.stringify({
                 indexName: 'sop-documents',
                 search: searchTerm,
-                filter: "documentType eq 'employee'",
+                filter: "employeeType eq 'employee'",
                 top: 20,
                 select: 'employeeName,employeeEmail,employeeTitle,employeeDepartment,employeeLocation,employeeCompany,employeePhone,employeeMobile,employeeType,status,employeePhotoBase64,employeeManager,employeeManagerEmail,employeeGroups,employeeDirectReports,employeeDirectReportsCount',
                 count: true
