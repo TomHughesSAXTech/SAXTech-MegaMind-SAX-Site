@@ -1,4 +1,5 @@
 const { randomUUID } = require('crypto');
+const { runFullSync } = require('../sync-lib');
 
 const ok = (body, status = 200) => ({
   status,
@@ -18,6 +19,11 @@ module.exports = async function (context, req) {
   }
 
   const id = randomUUID();
-  // Placeholder: in future, enqueue a real sync job here
-  context.res = ok({ status: 'queued', id, received: req.body || null }, 202);
+  try {
+    const res = await runFullSync(context.log);
+    context.res = ok({ status: 'completed', id, ...res }, 200);
+  } catch (err) {
+    context.log.error('runsync error', err);
+    context.res = ok({ status: 'failed', id, error: String(err && err.message || err) }, 500);
+  }
 };
