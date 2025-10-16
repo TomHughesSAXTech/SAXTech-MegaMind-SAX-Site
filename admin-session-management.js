@@ -431,7 +431,19 @@ function updateSessionStats(sessions) {
     }
     
     const totalSessions = sessions.length;
-    const totalMessages = sessions.reduce((sum, s) => sum + (s.conversation?.length || 0), 0);
+    const totalMessages = sessions.reduce((sum, s) => {
+        try {
+            if (typeof window.normalizeConversation === 'function') {
+                return sum + (window.normalizeConversation(s.conversation).length || 0);
+            }
+            if (Array.isArray(s.conversation)) return sum + s.conversation.length;
+            if (typeof s.conversation === 'string') {
+                try { const parsed = JSON.parse(s.conversation); return sum + (Array.isArray(parsed) ? parsed.length : (parsed.messages||[]).length); } catch(_) { return sum; }
+            }
+            if (s.conversation && Array.isArray(s.conversation.messages)) return sum + s.conversation.messages.length;
+            return sum;
+        } catch(_) { return sum; }
+    }, 0);
     const uniqueUsers = new Set(sessions.map(s => s.userEmail || 'unknown')).size;
     const avgLength = totalSessions > 0 ? (totalMessages / totalSessions).toFixed(1) : 0;
     

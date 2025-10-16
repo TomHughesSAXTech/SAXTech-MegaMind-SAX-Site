@@ -3029,15 +3029,13 @@ function exportSystemHealth() {
                 // Test the function endpoint
 const response = await safeFetch('https://saxtech-megamind-entra.azurewebsites.net/api/test');
                 if (response.ok) {
-                    const data = await response.json();
+                    const data = await response.json().catch(()=>({}));
                     document.getElementById('functionStatus').innerHTML = '<span style="color: #22c55e;">✓ Online</span>';
-                    
-                    // Format timestamp
-                    const timestamp = new Date(data.timestamp);
-                    const timeAgo = getTimeAgo(timestamp);
-                    document.getElementById('lastSyncTime').textContent = timeAgo;
+                    const ts = data.timestamp ? new Date(data.timestamp) : new Date();
+                    document.getElementById('lastSyncTime').textContent = getTimeAgo(ts);
                 } else {
-                    document.getElementById('functionStatus').innerHTML = '<span style="color: #dc2626;">✗ Offline</span>';
+                    document.getElementById('functionStatus').innerHTML = '<span style="color: #dc2626;">✗ Not Configured</span>';
+                    document.getElementById('lastSyncTime').textContent = '-';
                 }
             } catch (error) {
                 console.error('Error checking function status:', error);
@@ -3052,14 +3050,14 @@ const response = await safeFetch('https://saxtech-megamind-entra.azurewebsites.n
             btn.disabled = true;
             
             try {
-                const response = await fetch('https://saxtech-megamind-entra.azurewebsites.net/api/test');
-                const data = await response.json();
-                
+                const response = await safeFetch('https://saxtech-megamind-entra.azurewebsites.net/api/test');
+                let data = {};
+                try { data = await response.json(); } catch(_){}
                 if (response.ok) {
                     showStatus('✓ Connection successful! Function is online.', 'success');
                     console.log('Entra function test response:', data);
                 } else {
-                    showStatus('✗ Connection failed. Function may be offline.', 'error');
+                    showStatus('✗ Entra function endpoint not found (404). Configure function or update URL.', 'warning');
                 }
             } catch (error) {
                 showStatus('✗ Connection error: ' + error.message, 'error');
@@ -3154,7 +3152,7 @@ const totalResponse = await safeFetch('https://saxtech-megamind-entra.azurewebsi
             try {
                 document.getElementById('syncStatus').textContent = 'Connecting to Azure Function...';
                 
-                const response = await fetch('https://saxtech-megamind-entra.azurewebsites.net/api/runsync', {
+                const response = await safeFetch('https://saxtech-megamind-entra.azurewebsites.net/api/runsync', {
                     method: 'POST'
                 });
                 
@@ -4014,22 +4012,9 @@ function removeVoice(index) {
 
         // Fetch live index list from Azure Cognitive Search and cache in localStorage
         async function refreshIndexListFromAzure() {
-            try {
-                const url = `${INDEX_CONFIG.searchEndpoint}/indexes?api-version=2024-07-01`;
-                const resp = await fetch(url, { headers: { 'api-key': INDEX_CONFIG.searchApiKey }});
-                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-                const data = await resp.json();
-                const names = (data.value || []).map(x => x.name).filter(Boolean);
-                const list = names.map(n => ({ name: n, label: n }));
-                if (list.length) {
-                    localStorage.setItem('megamind_indexes', JSON.stringify(list));
-                    console.log('✅ Refreshed index list from Azure:', list.map(i=>i.name));
-                    // Re-init selector with live list
-                    initIndexSelector();
-                }
-            } catch (e) {
-                console.warn('⚠️ Failed to refresh index list from Azure:', e);
-            }
+            // Skip direct Azure Search call in browser (CORS). Use cached/static list and show warning.
+            console.warn('⚠️ Skipping live Azure index list (CORS). Using cached index list.');
+            return;
         }
 
         function initIndexSelector() {
@@ -4157,7 +4142,7 @@ function removeVoice(index) {
                     
                     console.log('🔍 refreshStats - API call body:', JSON.stringify(searchBody, null, 2));
                     
-                    const response = await fetch(`${INDEX_CONFIG.functionUrl}/documents/search`, {
+                    const response = await fetch(`${INDEX_CONFIG.functionUrl}/documents/search?indexName=${encodeURIComponent(currentIndex)}`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
