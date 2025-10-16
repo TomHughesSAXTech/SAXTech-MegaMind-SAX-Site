@@ -460,6 +460,7 @@
             showAlert('success','Document uploaded successfully!');
             // Keep modal open and do not auto-reset; refresh list only
             loadAll();
+        }
 
         async function calculateFileHash(file){ return new Promise((resolve)=>{ const reader=new FileReader(); reader.onload=async (e)=>{ const ab=e.target.result; const hb=await crypto.subtle.digest('SHA-256',ab); const ha=Array.from(new Uint8Array(hb)); const hx=ha.map(b=>b.toString(16).padStart(2,'0')).join(''); resolve(hx); }; reader.readAsArrayBuffer(file); }); }
 
@@ -516,7 +517,9 @@
                 Department: meta.department || meta.Dept || '',
                 DocumentType: docType,
                 Author: meta.author || '',
-                Keywords: keywordsArr
+                Keywords: keywordsArr,
+                Summary: meta.description || '',
+                SummaryHtml: meta.description || ''
             };
 
             netLog(`Preparing upload: file="${uploadData.file?.name}" size=${uploadData.file?.size||0}B dept="${jsonBody.Department}" type="${jsonBody.DocumentType}" keywords=${keywordsArr.length}`);

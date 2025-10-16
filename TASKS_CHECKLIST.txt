@@ -1,0 +1,19 @@
+MegaMind Admin + Document Upload Fix Checklist
+
+Completed:
+- Fix Data Source dropdown accuracy
+- Fix Daily Token Usage Trend (live from logs)
+- Make Usage Insights live (requests/day, tokens/sec)
+- Voice Models remove/edit reliability
+- Activity Timeline live (computed from conversation logs)
+- System health live (success rate, requests, errors)
+- Index Management respects selected index
+- Analytics PDF exports (Executive/Dept/Engagement/System)
+- System data exports (index stats, API logs, backup)
+- Document-Upload syntax error fixed
+
+Pending:
+- Conversations mismatch ("508 total" vs visible) — verify counts in all viewers and unify source
+- Entra tab robustness — enhance error states and retries if API intermittent
+- Document-Upload: validate backend mapping for SOP fields/semantic & embeddings
+- Document-Upload: end-to-end test (upload->index->search)
