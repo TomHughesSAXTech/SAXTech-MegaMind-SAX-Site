@@ -3006,16 +3006,33 @@ const { format } = getExportFilters();
             }
         }
         
-        // Entra Tab Functions
+// Entra Tab Functions
         async function loadEntraStatus() {
             checkEntraStatus();
             loadIndexStats();
         }
         
+        // Robust fetch with timeout and retries for Entra tab
+        async function safeFetch(url, options = {}, retries = 2, timeoutMs = 6000) {
+            for (let attempt = 0; attempt <= retries; attempt++) {
+                const ctrl = new AbortController();
+                const t = setTimeout(() => ctrl.abort('timeout'), timeoutMs);
+                try {
+                    const res = await fetch(url, { ...options, signal: ctrl.signal });
+                    clearTimeout(t);
+                    return res;
+                } catch (e) {
+                    clearTimeout(t);
+                    if (attempt === retries) throw e;
+                    await new Promise(r => setTimeout(r, 400 * (attempt + 1)));
+                }
+            }
+        }
+        
         async function checkEntraStatus() {
             try {
                 // Test the function endpoint
-                const response = await fetch('https://saxtech-megamind-entra.azurewebsites.net/api/test');
+const response = await safeFetch('https://saxtech-megamind-entra.azurewebsites.net/api/test');
                 if (response.ok) {
                     const data = await response.json();
                     document.getElementById('functionStatus').innerHTML = '<span style="color: #22c55e;">✓ Online</span>';
@@ -3060,7 +3077,7 @@ const { format } = getExportFilters();
         async function loadIndexStats() {
             try {
                 // Get employee count via proxy
-                const employeeResponse = await fetch('https://saxtech-megamind-entra.azurewebsites.net/api/searchproxy', {
+const employeeResponse = await safeFetch('https://saxtech-megamind-entra.azurewebsites.net/api/searchproxy', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -3077,7 +3094,7 @@ const { format } = getExportFilters();
                 });
                 
                 // Get group count via proxy
-                const groupResponse = await fetch('https://saxtech-megamind-entra.azurewebsites.net/api/searchproxy', {
+const groupResponse = await safeFetch('https://saxtech-megamind-entra.azurewebsites.net/api/searchproxy', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -3094,7 +3111,7 @@ const { format } = getExportFilters();
                 });
                 
                 // Get total count via proxy
-                const totalResponse = await fetch('https://saxtech-megamind-entra.azurewebsites.net/api/searchproxy', {
+const totalResponse = await safeFetch('https://saxtech-megamind-entra.azurewebsites.net/api/searchproxy', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
