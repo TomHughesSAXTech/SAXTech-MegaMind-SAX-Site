@@ -3629,10 +3629,15 @@ function removeVoice(index) {
                         'x-user-email': 'admin@saxtechnology.com'  // Admin context doesn't have userProfile
                     },
                     body: JSON.stringify({ 
+                        voiceProvider: 'ElevenLabs',
                         voices: voices.map(v => ({
-                            name: v.name,
-                            id: v.id || v.voiceId,
-                            voiceId: v.voiceId || v.id
+                            VoiceProvider: 'ElevenLabs',
+                            VoiceModel: 'eleven_turbo_v2_5',
+                            VoiceId: (v.voiceId || v.id),
+                            VoiceName: v.name,
+                            IsActive: true,
+                            OutputFormat: 'mp3_44100_128',
+                            Language: 'en'
                         }))
                     })
                 });
