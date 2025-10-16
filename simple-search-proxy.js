@@ -20,11 +20,12 @@ module.exports = async function (context, req) {
     try {
         const searchEndpoint = 'https://saxmegamind-search.search.windows.net';
         const apiKey = 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO';
-        const indexName = 'sop-documents';
+        const body = req.body || {};
+        const indexName = (body.indexName || (req.query && req.query.indexName) || 'sop-documents');
+        const query = body.query || '*';
+        const top = body.top || 1000;
         
-        const { query = '*', top = 1000 } = req.body || {};
-        
-        const searchUrl = `${searchEndpoint}/indexes/${indexName}/docs?api-version=2023-11-01&search=${encodeURIComponent(query)}&$top=${top}&$select=id,content,title,metadata_storage_name,metadata_storage_path,metadata_storage_last_modified,uploadDate`;
+        const searchUrl = `${searchEndpoint}/indexes/${encodeURIComponent(indexName)}/docs?api-version=2023-11-01&search=${encodeURIComponent(query)}&$top=${top}&$select=id,content,title,metadata_storage_name,metadata_storage_path,metadata_storage_last_modified,uploadDate`;
         
         // Make direct call to Azure Search
         const response = await fetch(searchUrl, {

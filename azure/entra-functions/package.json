@@ -1,0 +1,16 @@
+{
+  "name": "saxtech-entra-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimal Azure Functions for Entra tab (test, searchproxy, runsync)",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "index.js",
+  "scripts": {
+    "build": "echo 'no build'",
+    "start": "func start"
+  },
+  "dependencies": {}
+}

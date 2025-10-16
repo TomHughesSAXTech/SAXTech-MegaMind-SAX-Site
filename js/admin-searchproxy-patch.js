@@ -1,27 +1,37 @@
 // Admin Entra/searchproxy helper - warnings only, no fallbacks
 console.log('Loading admin searchproxy helper (warnings only)...');
 
-async function loadIndexStats() {
+// Do NOT override existing loadIndexStats if already defined in admin.html.
+// If not defined, provide a minimal, correct implementation that passes indexName.
+if (typeof window.loadIndexStats !== 'function') {
+  async function loadIndexStats() {
     console.log('Loading index stats...');
     try {
-        const response = await fetch('https://saxtech-megamind-entra.azurewebsites.net/api/searchproxy', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'count' })
-        });
-        if (response.ok) {
-            const data = await response.json();
-            document.getElementById('totalEmployees').textContent = data.employees ?? 'N/A';
-            document.getElementById('totalGroups').textContent = data.groups ?? 'N/A';
-            document.getElementById('totalDocs').textContent = data.total ?? 'N/A';
-            document.getElementById('photosCount').textContent = data.photos ?? 'N/A';
-            return;
-        }
-        warnUnavailable('Index stats service unavailable');
+      const res = await fetch('https://saxtech-megamind-entra.azurewebsites.net/api/searchproxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ indexName: 'sop-documents', search: '*', top: 0, count: true })
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const data = json && json.data ? json.data : {};
+        const total = data['@odata.count'] ?? '0';
+        const totalEl = document.getElementById('totalDocs');
+        if (totalEl) totalEl.textContent = total;
+        return;
+      }
+      warnUnavailable('Index stats service unavailable');
     } catch (error) {
-        console.warn('Searchproxy failed:', error);
-        warnUnavailable('Index stats service unreachable');
+      console.warn('Searchproxy failed:', error);
+      warnUnavailable('Index stats service unreachable');
     }
+  }
+} else {
+  // Patch existing implementation to ensure indexName is included by wrapping it
+  const _origLoadIndexStats = window.loadIndexStats;
+  window.loadIndexStats = async function patchedLoadIndexStats() {
+    try { await _origLoadIndexStats(); } catch (e) { console.warn('Original loadIndexStats failed', e); }
+  };
 }
 
 function warnUnavailable(msg){
@@ -35,7 +45,7 @@ function warnUnavailable(msg){
     }
 }
 
-// Override the searchEmployees function with better error handling
+// Override the searchEmployees function with better error handling and correct payload
 async function searchEmployees() {
     const searchTerm = document.getElementById('employeeSearchInput').value.trim();
     if (!searchTerm) {
@@ -55,26 +65,24 @@ async function searchEmployees() {
     noResults.style.display = 'none';
 
     try {
-        // Try searchproxy first
+        // Call searchproxy with correct top-level fields and required indexName
         const response = await fetch('https://saxtech-megamind-entra.azurewebsites.net/api/searchproxy', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                action: 'search',
-                params: {
-                    search: searchTerm,
-                    filter: "documentType eq 'employee'",
-                    top: 20,
-                    select: 'employeeName,employeeEmail,employeeTitle,employeeDepartment,employeeLocation,employeeCompany,employeePhone,employeeMobile,employeeType,status,employeePhotoBase64,employeeManager,employeeManagerEmail,employeeGroups,employeeDirectReports,employeeDirectReportsCount'
-                }
+                indexName: 'sop-documents',
+                search: searchTerm,
+                filter: "documentType eq 'employee'",
+                top: 20,
+                select: 'employeeName,employeeEmail,employeeTitle,employeeDepartment,employeeLocation,employeeCompany,employeePhone,employeeMobile,employeeType,status,employeePhotoBase64,employeeManager,employeeManagerEmail,employeeGroups,employeeDirectReports,employeeDirectReportsCount',
+                count: true
             })
         });
 
         if (response.ok) {
-            const data = await response.json();
-            displayEmployeeResults(data.value || []);
+            const payload = await response.json();
+            const data = payload && payload.data ? payload.data : {};
+            displayEmployeeResults(Array.isArray(data.value) ? data.value : []);
             return;
         }
     } catch (error) {
