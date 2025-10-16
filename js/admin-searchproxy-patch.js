@@ -72,9 +72,7 @@ async function searchEmployees() {
             body: JSON.stringify({
                 indexName: 'sop-documents',
                 search: searchTerm,
-                filter: "employeeType eq 'employee'",
                 top: 20,
-                select: 'employeeName,employeeEmail,employeeTitle,employeeDepartment,employeeLocation,employeeCompany,employeePhone,employeeMobile,employeeType,status,employeePhotoBase64,employeeManager,employeeManagerEmail,employeeGroups,employeeDirectReports,employeeDirectReportsCount',
                 count: true
             })
         });
@@ -82,7 +80,9 @@ async function searchEmployees() {
         if (response.ok) {
             const payload = await response.json();
             const data = payload && payload.data ? payload.data : {};
-            displayEmployeeResults(Array.isArray(data.value) ? data.value : []);
+            const items = Array.isArray(data.value) ? data.value : [];
+            const employeesOnly = items.filter(e => (e.employeeType||'').toLowerCase()==='employee' || String(e.documentId||'').startsWith('employee_'));
+            displayEmployeeResults(employeesOnly);
             return;
         }
     } catch (error) {

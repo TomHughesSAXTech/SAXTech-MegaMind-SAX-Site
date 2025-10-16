@@ -3071,30 +3071,26 @@ const response = await safeFetch('https://saxtech-megamind-entra.azurewebsites.n
             try {
                 const base = 'https://saxtech-megamind-entra.azurewebsites.net/api/searchproxy';
                 const headers = { 'Content-Type': 'application/json' };
-                // Employee count
+                // Employee count (approximate via search term, avoids filter on non-filterable fields)
                 const employeeResponse = await safeFetch(base, {
                     method: 'POST',
                     headers,
                     body: JSON.stringify({
                         indexName: 'sop-documents',
-                        search: '*',
-                        filter: "employeeType eq 'employee'",
+                        search: 'employee',
                         count: true,
                         top: 0
                     })
                 });
-                // Group count
-                const groupResponse = await safeFetch(base, {
-                    method: 'POST',
-                    headers,
-                    body: JSON.stringify({
-                        indexName: 'sop-documents',
-                        search: '*',
-                        filter: "(employeeType eq 'group') or (documentType eq 'group')",
-                        count: true,
-                        top: 0
-                    })
-                });
+                // Group count (not reliable without filterable fields) — request minimal and set to 'N/A' if unavailable
+                let groupResponseOk = false; let groupPayload = null;
+                try {
+                    const gr = await safeFetch(base, {
+                        method: 'POST', headers,
+                        body: JSON.stringify({ indexName: 'sop-documents', search: 'group', count: true, top: 0 })
+                    });
+                    groupResponseOk = gr.ok; groupPayload = gr.ok ? await gr.json() : null;
+                } catch(_) {}
                 // Total count
                 const totalResponse = await safeFetch(base, {
                     method: 'POST',
@@ -3107,16 +3103,14 @@ const response = await safeFetch('https://saxtech-megamind-entra.azurewebsites.n
                     })
                 });
 
-                if (employeeResponse.ok && groupResponse.ok && totalResponse.ok) {
+                if (employeeResponse.ok && totalResponse.ok) {
                     const employeePayload = await employeeResponse.json();
-                    const groupPayload = await groupResponse.json();
                     const totalPayload = await totalResponse.json();
                     const employeeCount = employeePayload?.data?.['@odata.count'] ?? '0';
-                    const groupCount = groupPayload?.data?.['@odata.count'] ?? '0';
                     const totalCount = totalPayload?.data?.['@odata.count'] ?? '0';
 
                     document.getElementById('totalEmployees').textContent = employeeCount;
-                    document.getElementById('totalGroups').textContent = groupCount;
+                    document.getElementById('totalGroups').textContent = groupResponseOk ? (groupPayload?.data?.['@odata.count'] ?? 'N/A') : 'N/A';
                     document.getElementById('totalDocs').textContent = totalCount;
                     // Photo count would need a distinct filter; leave as estimate for now
                     document.getElementById('photosCount').textContent = '~50';
