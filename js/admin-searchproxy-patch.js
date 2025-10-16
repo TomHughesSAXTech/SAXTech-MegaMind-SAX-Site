@@ -1,52 +1,38 @@
-// Improved admin searchproxy patch with fallback handling
-console.log('Loading improved admin searchproxy patch...');
+// Admin Entra/searchproxy helper - warnings only, no fallbacks
+console.log('Loading admin searchproxy helper (warnings only)...');
 
-// Override the loadIndexStats function with better error handling and fallbacks
 async function loadIndexStats() {
     console.log('Loading index stats...');
     try {
-        // Try the searchproxy function first
         const response = await fetch('https://saxtech-megamind-entra.azurewebsites.net/api/searchproxy', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                action: 'count'
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'count' })
         });
-        
         if (response.ok) {
             const data = await response.json();
-            console.log('Searchproxy response:', data);
-            
-            // Update display with real data
-            document.getElementById('totalEmployees').textContent = data.employees || 'N/A';
-            document.getElementById('totalGroups').textContent = data.groups || 'N/A';
-            document.getElementById('totalDocs').textContent = data.total || 'N/A';
-            document.getElementById('photosCount').textContent = data.photos || 'N/A';
+            document.getElementById('totalEmployees').textContent = data.employees ?? 'N/A';
+            document.getElementById('totalGroups').textContent = data.groups ?? 'N/A';
+            document.getElementById('totalDocs').textContent = data.total ?? 'N/A';
+            document.getElementById('photosCount').textContent = data.photos ?? 'N/A';
             return;
         }
+        warnUnavailable('Index stats service unavailable');
     } catch (error) {
-        console.log('Searchproxy failed, using fallback:', error);
+        console.warn('Searchproxy failed:', error);
+        warnUnavailable('Index stats service unreachable');
     }
-    
-    // Fallback: Display placeholder values with indicators
-    document.getElementById('totalEmployees').textContent = '~150';
-    document.getElementById('totalGroups').textContent = '~25';
-    document.getElementById('totalDocs').textContent = '~1,250';
-    document.getElementById('photosCount').textContent = '~45';
-    
-    // Add visual indicator that these are estimates
-    ['totalEmployees', 'totalGroups', 'totalDocs', 'photosCount'].forEach(id => {
-        const element = document.getElementById(id);
-        if (element) {
-            element.style.color = '#f59e0b';
-            element.title = 'Estimated value - searchproxy service unavailable';
-        }
-    });
-    
-    console.log('Index stats loaded with fallback values');
+}
+
+function warnUnavailable(msg){
+    const id = 'service-status-indicator';
+    if (!document.getElementById(id)){
+        const indicator = document.createElement('div');
+        indicator.id = id;
+        indicator.style.cssText = 'position:fixed;top:10px;right:10px;background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;padding:8px 12px;font-size:12px;color:#92400e;z-index:1000;box-shadow:0 2px 4px rgba(0,0,0,0.1)';
+        indicator.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${msg}`;
+        document.body.appendChild(indicator);
+    }
 }
 
 // Override the searchEmployees function with better error handling

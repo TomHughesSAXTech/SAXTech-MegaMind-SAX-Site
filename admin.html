@@ -2807,7 +2807,7 @@
             URL.revokeObjectURL(url);
         }
         
-function exportIndexStats() {
+        function exportIndexStats() {
             try {
                 const sel = document.getElementById('indexSelector');
                 const idx = sel ? sel.value : (INDEX_CONFIG.indexName||'');
@@ -2822,8 +2822,6 @@ function exportIndexStats() {
                 const a = document.createElement('a'); a.href=url; a.download=`index-stats-${idx||'unknown'}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
             } catch(e){ alert('Failed to export index stats: '+e.message); }
         }
-            alert('Index statistics export will be implemented when search index data is available.');
-        }
         
 function exportAPILogs() {
             (async ()=>{
@@ -2836,8 +2834,6 @@ function exportAPILogs() {
                     const a = document.createElement('a'); a.href=url; a.download=`api-logs-${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
                 } catch(e){ alert('Failed to export API logs: '+e.message); }
             })();
-        }
-            alert('API logs export will be implemented when logging system is available.');
         }
         
 function exportBackup() {
@@ -2853,8 +2849,6 @@ function exportBackup() {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a'); a.href=url; a.download=`megamind-backup-${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
             } catch(e){ alert('Failed to export backup: '+e.message); }
-        }
-            alert('Full system backup export will be implemented with proper backup procedures.');
         }
         
         // Additional export functions for new buttons
