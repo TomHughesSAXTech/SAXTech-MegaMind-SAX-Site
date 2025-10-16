@@ -2998,6 +2998,8 @@ function exportSystemHealth() {
                 loadEntraStatus();
             }
         }
+        // Ensure global export for inline onclick
+        try { window.switchTab = switchTab; } catch(_){}
         
 // Entra Tab Functions
         async function loadEntraStatus() {
