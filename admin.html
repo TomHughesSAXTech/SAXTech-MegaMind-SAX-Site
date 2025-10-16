@@ -2879,9 +2879,8 @@ if (format === 'pdf') { exportAnalyticsPDF('engagement'); return; }
             window.open(url, '_blank');
         }
         
-        function exportSystemHealth() {
+function exportSystemHealth() {
             const { userEmail, range, format } = getExportFilters();
-const { format } = getExportFilters();
             if (format === 'pdf') { exportAnalyticsPDF('system'); return; }
             const url = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=exportSystemHealth&format=${format}&adminKey=sax-admin-2024&range=${encodeURIComponent(range)}`;
             window.open(url, '_blank');
