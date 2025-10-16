@@ -7073,38 +7073,6 @@ function updateSystemHealthWithAvailability() {
                 console.warn('System health update failed', e);
             }
         }
-            // Based on real Azure Monitor data for Sept 25 - Oct 2, 2025:
-            // - ModelAvailabilityRate: 100% for both models
-            // - TotalErrors: 2,051 total errors
-            // - TotalCalls: 56,461 total calls
-            // - Success Rate: ~96.4% (based on errors/calls)
-            const systemUptime = 100.0; // Model availability was 100%
-            const actualSuccessRate = 96.4; // (56461-2051)/56461 = 96.4%
-            const gptAvailability = 100.0;
-            const embeddingAvailability = 100.0;
-            const avgResponseTime = 150; // Estimated from usage patterns
-            
-            // Update UI with real data
-            document.getElementById('systemUptime').textContent = `${actualSuccessRate}%`;
-            document.getElementById('systemUptime').style.color = actualSuccessRate >= 99 ? 'var(--success-600)' : actualSuccessRate >= 95 ? 'var(--warning-600)' : 'var(--error-600)';
-            
-            // Update uptime label to reflect success rate
-            document.querySelector('#systemUptime').parentElement.lastElementChild.textContent = 'Success Rate (7 days)';
-            
-            document.getElementById('avgResponseTime').textContent = `~${avgResponseTime}ms`;
-            
-            document.getElementById('gptAvailability').textContent = `${gptAvailability}%`;
-            document.getElementById('gptAvailability').style.color = gptAvailability >= 99 ? 'var(--success-600)' : 'var(--warning-600)';
-            
-            document.getElementById('embeddingAvailability').textContent = `${embeddingAvailability}%`;
-            document.getElementById('embeddingAvailability').style.color = embeddingAvailability >= 99 ? 'var(--success-600)' : 'var(--warning-600)';
-            
-            // Update request volume and error metrics
-            document.getElementById('totalRequests').textContent = '56.5K'; // 56,461 total requests
-            document.getElementById('errorCount').textContent = '2.1K'; // 2,051 errors
-            
-            console.log('✅ System health updated with real Azure metrics (56,461 calls, 2,051 errors, 96.4% success)');
-        }
         
         // Generate department analysis
         async function generateDepartmentAnalysis() {
