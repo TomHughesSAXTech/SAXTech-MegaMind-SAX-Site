@@ -7,7 +7,7 @@ if (typeof window.loadIndexStats !== 'function') {
   async function loadIndexStats() {
     console.log('Loading index stats...');
     try {
-      const res = await fetch('https://saxtech-megamind-entra.azurewebsites.net/api/searchproxy', {
+      const res = await fetch('https://saxtech-entra-sync.azurewebsites.net/api/searchproxy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ indexName: 'sop-documents', search: '*', top: 0, count: true })
@@ -66,7 +66,7 @@ async function searchEmployees() {
 
     try {
         // Call searchproxy with correct top-level fields and required indexName
-        const response = await fetch('https://saxtech-megamind-entra.azurewebsites.net/api/searchproxy', {
+        const response = await fetch('https://saxtech-entra-sync.azurewebsites.net/api/searchproxy', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

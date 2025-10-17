@@ -2205,7 +2205,7 @@
                 <h2><i class="fas fa-cog"></i> Configuration Details</h2>
                 <div style="background: #f8fafc; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 13px;">
                     <div style="margin-bottom: 10px;">
-                        <strong>Function App:</strong> saxtech-megamind-entra<br>
+                        <strong>Function App:</strong> saxtech-entra-sync<br>
                         <strong>Resource Group:</strong> SAXTECH-AI<br>
                         <strong>Schedule:</strong> Every 4 hours (0 0 */4 * * *)<br>
                         <strong>Runtime:</strong> Python 3.11 (Linux Consumption)
@@ -3027,7 +3027,7 @@ function exportSystemHealth() {
         async function checkEntraStatus() {
             try {
                 // Test the function endpoint
-const response = await safeFetch('https://saxtech-megamind-entra.azurewebsites.net/api/test');
+const response = await safeFetch('https://saxtech-entra-sync.azurewebsites.net/api/test');
                 if (response.ok) {
                     const data = await response.json().catch(()=>({}));
                     document.getElementById('functionStatus').innerHTML = '<span style="color: #22c55e;">✓ Online</span>';
@@ -3050,7 +3050,7 @@ const response = await safeFetch('https://saxtech-megamind-entra.azurewebsites.n
             btn.disabled = true;
             
             try {
-                const response = await safeFetch('https://saxtech-megamind-entra.azurewebsites.net/api/test');
+                const response = await safeFetch('https://saxtech-entra-sync.azurewebsites.net/api/test');
                 let data = {};
                 try { data = await response.json(); } catch(_){}
                 if (response.ok) {
@@ -3069,7 +3069,7 @@ const response = await safeFetch('https://saxtech-megamind-entra.azurewebsites.n
         
         async function loadIndexStats() {
             try {
-                const base = 'https://saxtech-megamind-entra.azurewebsites.net/api/searchproxy';
+                const base = 'https://saxtech-entra-sync.azurewebsites.net/api/searchproxy';
                 const headers = { 'Content-Type': 'application/json' };
                 // Employee count (approximate via search term, avoids filter on non-filterable fields)
                 const employeeResponse = await safeFetch(base, {
@@ -3141,7 +3141,7 @@ const response = await safeFetch('https://saxtech-megamind-entra.azurewebsites.n
             try {
                 document.getElementById('syncStatus').textContent = 'Connecting to Azure Function...';
                 
-                const response = await safeFetch('https://saxtech-megamind-entra.azurewebsites.net/api/runsync', {
+                const response = await safeFetch('https://saxtech-entra-sync.azurewebsites.net/api/runsync', {
                     method: 'POST'
                 });
                 
@@ -3252,7 +3252,7 @@ const response = await safeFetch('https://saxtech-megamind-entra.azurewebsites.n
 
         async function startEntraSyncPolling() {
             // Poll index counts every 10s up to 2 minutes to detect background sync completion
-            const base = 'https://saxtech-megamind-entra.azurewebsites.net/api/searchproxy';
+            const base = 'https://saxtech-entra-sync.azurewebsites.net/api/searchproxy';
             const headers = { 'Content-Type': 'application/json' };
             let attempts = 0;
             const maxAttempts = 12; // ~2 minutes
@@ -3327,7 +3327,7 @@ const response = await safeFetch('https://saxtech-megamind-entra.azurewebsites.n
             
             try {
                 // Search for employees
-                const response = await fetch('https://saxtech-megamind-entra.azurewebsites.net/api/searchproxy', {
+                const response = await fetch('https://saxtech-entra-sync.azurewebsites.net/api/searchproxy', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -3519,7 +3519,7 @@ const response = await safeFetch('https://saxtech-megamind-entra.azurewebsites.n
         async function loadVoiceConfig() {
             try {
                 // Load from Azure Function (centralized storage)
-                const response = await fetch('https://saxtech-megamind.azurewebsites.net/api/managevoiceconfig');
+                const response = await fetch('https://saxtech-enhanced-sop.azurewebsites.net/api/managevoiceconfig');
                 
                 if (response.ok) {
                     const config = await response.json();
@@ -3688,7 +3688,7 @@ function removeVoice(index) {
             };
             showStatus('Saving configuration to cloud...', 'success');
             try {
-                const response = await fetch('https://saxtech-megamind.azurewebsites.net/api/managevoiceconfig', {
+                const response = await fetch('https://saxtech-enhanced-sop.azurewebsites.net/api/managevoiceconfig', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -4045,7 +4045,7 @@ function removeVoice(index) {
             searchEndpoint: 'https://saxmegamind-search.search.windows.net',
             searchApiKey: 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO',
             indexName: localStorage.getItem('megamind_selected_index') || 'sop-documents',
-            functionUrl: 'https://saxtech-megamind.azurewebsites.net/api',
+            functionUrl: 'https://saxtech-enhanced-sop.azurewebsites.net/api',
             functionKey: 'zM5jG96cEf8xys3BptLRhgMoKAh9Ots6avbBOLuTGhSrAzFuxCpucw=='
         };
 
