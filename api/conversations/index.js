@@ -1,19 +1,28 @@
+const fetch = require('node-fetch');
+
 module.exports = async function (context, req) {
-    const { method, headers, body, url } = req;
+    // Handle CORS preflight
+    if (req.method === 'OPTIONS') {
+        context.res = {
+            status: 200,
+            headers: {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type,Authorization'
+            }
+        };
+        return;
+    }
     
-    // Extract query parameters from the original request
-    const urlObj = new URL(url, `https://${headers.host}`);
-    const queryString = urlObj.search;
+    const { method, body, query } = req;
     
-    // Build the target URL with query parameters
-    const targetUrl = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog${queryString}`;
+    // Build query string from request query parameters
+    const queryString = new URLSearchParams(query).toString();
+    const targetUrl = `https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog${queryString ? '?' + queryString : ''}`;
     
     context.log(`Proxying ${method} request to: ${targetUrl}`);
     
     try {
-        // Import fetch for Node.js environment
-        const fetch = require('node-fetch');
-        
         // Forward the request to the external API
         const response = await fetch(targetUrl, {
             method: method,
@@ -27,13 +36,22 @@ module.exports = async function (context, req) {
         const responseData = await response.text();
         
         context.log(`Response status: ${response.status}`);
-        context.log(`Response data length: ${responseData.length}`);
+        context.log(`Response data preview: ${responseData.substring(0, 200)}`);
+        
+        // Try to parse as JSON to set correct content type
+        let isJson = false;
+        try {
+            JSON.parse(responseData);
+            isJson = true;
+        } catch (e) {
+            // Not JSON, that's fine
+        }
         
         // Set CORS headers
         context.res = {
             status: response.status,
             headers: {
-                'Content-Type': response.headers.get('content-type') || 'application/json',
+                'Content-Type': isJson ? 'application/json' : (response.headers.get('content-type') || 'text/plain'),
                 'Access-Control-Allow-Origin': '*',
                 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
                 'Access-Control-Allow-Headers': 'Content-Type,Authorization'
@@ -48,7 +66,9 @@ module.exports = async function (context, req) {
             status: 500,
             headers: {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type,Authorization'
             },
             body: JSON.stringify({ error: 'Proxy error: ' + error.message })
         };

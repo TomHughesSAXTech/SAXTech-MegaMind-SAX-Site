@@ -4110,58 +4110,10 @@ function removeVoice(index) {
         // Fetch live index list from Azure Search API and cache in localStorage
         let isRefreshingIndexes = false;
         async function refreshIndexListFromAzure() {
-            // Prevent multiple simultaneous executions
-            if (isRefreshingIndexes) {
-                console.log('🗑️ Index refresh already in progress, skipping...');
-                return;
-            }
-            
-            isRefreshingIndexes = true;
-            
-            try {
-                console.log('🔄 Fetching live index list from Azure Search API...');
-                
-                // Try direct Azure Search API call for official index list
-                const response = await fetch(`${INDEX_CONFIG.searchEndpoint}/indexes?api-version=2023-11-01`, {
-                    headers: {
-                        'api-key': INDEX_CONFIG.searchApiKey,
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    const indexes = data.value || [];
-                    
-                    if (Array.isArray(indexes) && indexes.length > 0) {
-                        const indexList = indexes.map(idx => ({
-                            name: idx.name,
-                            label: idx.name
-                        }));
-                        
-                        // Cache the live index list
-                        localStorage.setItem('megamind_indexes', JSON.stringify(indexList));
-                        console.log('✅ Updated index list from Azure Search API:', indexList.map(i => i.name).join(', '));
-                        
-                        return; // Don't call initIndexSelector here to prevent loops
-                    }
-                }
-                
-                console.error('❌ Azure Search API failed or returned no indexes');
-                
-            } catch (error) {
-                console.error('❌ Failed to fetch live index list:', error);
-                
-                // Only use cached data as fallback
-                const cached = localStorage.getItem('megamind_indexes');
-                if (cached) {
-                    console.log('📋 Using last cached index list');
-                } else {
-                    console.log('📋 No cached data available, using static fallback');
-                }
-            } finally {
-                isRefreshingIndexes = false;
-            }
+            console.log('🚫 DISABLED: Index refresh disabled to prevent loops');
+            // Completely disabled to stop infinite loops
+            // Use static list from getIndexList() function
+            return;
         }
 
         function initIndexSelector() {
