@@ -13,7 +13,7 @@
     async function getBlobUrlForDepartments(){
         try{
             const qs = 'containerName=' + encodeURIComponent('megamind-config') + '&blobPath=' + encodeURIComponent('departments.json');
-            const sas = await fetch('https://saxtech-megamind.azurewebsites.net/api/generatesastoken?' + qs);
+            const sas = await fetch('https://saxtech-enhanced-sop.azurewebsites.net/api/generatesastoken?' + qs);
             if (!sas.ok) return null;
             const j = await sas.json().catch(()=>({}));
             return j.blobUrl || j.url || j.sasUrl || null;
