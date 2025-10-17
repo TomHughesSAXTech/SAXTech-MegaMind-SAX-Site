@@ -8982,5 +8982,14 @@ window.addEventListener('load', () => {
     <script src="admin-session-management.js"></script>
     <!-- Load the searchproxy bypass patch -->
     <script src="js/admin-searchproxy-patch.js"></script>
+    
+    <!-- Development override for local testing (handles CORS issues) -->
+    <script>
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        const devScript = document.createElement('script');
+        devScript.src = 'js/dev-override.js';
+        document.head.appendChild(devScript);
+    }
+    </script>
 </body>
 </html>
