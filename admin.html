@@ -4107,92 +4107,130 @@ function removeVoice(index) {
             ];
         }
 
-        // Fetch live index list from Azure Cognitive Search via Function App and cache in localStorage
+        // Fetch live index list by testing known indexes via Function App search endpoint
         async function refreshIndexListFromAzure() {
-            console.log('🔄 Fetching live index list from Azure via Function App...');
+            console.log('🔄 Discovering live indexes by testing search endpoints...');
+            
+            // Known potential indexes to test
+            const potentialIndexes = [
+                'sop-documents',
+                'ld-documents', 
+                'ustaxpublic',
+                'megamind-it',
+                'megamind-sax',
+                'askforeman-docs',
+                'fcs-documents',
+                'saxtech-policies',
+                'training-materials',
+                'project-docs',
+                'client-documents'
+            ];
+            
+            const validIndexes = [];
             
             try {
-                // Use Function App admin endpoint to avoid CORS issues
-                const response = await fetch(`${INDEX_CONFIG.functionUrl}/admin/indexes`, {
-                    method: 'GET',
+                console.log('🔍 Testing', potentialIndexes.length, 'potential indexes...');
+                
+                // Test each potential index by making a search request
+                const testPromises = potentialIndexes.map(async (indexName) => {
+                    try {
+                        const response = await fetch(`${INDEX_CONFIG.functionUrl}/documents/search`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'x-functions-key': INDEX_CONFIG.functionKey
+                            },
+                            body: JSON.stringify({
+                                search: '*',
+                                top: 0,
+                                count: true,
+                                indexName: indexName
+                            })
+                        });
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            const docCount = data['@odata.count'] || 0;
+                            
+                            if (docCount >= 0) {
+                                console.log('✅ Found valid index:', indexName, 'with', docCount, 'documents');
+                                return {
+                                    name: indexName,
+                                    label: indexName,
+                                    documentCount: docCount
+                                };
+                            }
+                        } else {
+                            console.log('❌ Index', indexName, 'not found or inaccessible:', response.status);
+                        }
+                    } catch (error) {
+                        console.log('❌ Error testing index', indexName, ':', error.message);
+                    }
+                    return null;
+                });
+                
+                const results = await Promise.all(testPromises);
+                const validResults = results.filter(result => result !== null);
+                
+                if (validResults.length > 0) {
+                    // Sort by document count (descending) to show most active indexes first
+                    validResults.sort((a, b) => b.documentCount - a.documentCount);
+                    
+                    // Cache the discovered indexes
+                    localStorage.setItem('megamind_indexes', JSON.stringify(validResults));
+                    console.log('✅ Discovered', validResults.length, 'valid indexes:', validResults.map(i => `${i.name} (${i.documentCount})`).join(', '));
+                    
+                    // Refresh the dropdown
+                    initIndexSelector();
+                    return;
+                } else {
+                    console.warn('⚠️ No valid indexes found during discovery');
+                }
+                
+            } catch (error) {
+                console.error('❌ Error during index discovery:', error);
+            }
+            
+            // Fallback: try direct Azure Search API for official index list
+            try {
+                console.log('🔄 Falling back to direct Azure Search API...');
+                
+                const directResponse = await fetch(`${INDEX_CONFIG.searchEndpoint}/indexes?api-version=2023-11-01`, {
                     headers: {
-                        'Content-Type': 'application/json',
-                        'x-functions-key': INDEX_CONFIG.functionKey
+                        'api-key': INDEX_CONFIG.searchApiKey,
+                        'Content-Type': 'application/json'
                     }
                 });
                 
-                if (response.ok) {
-                    const data = await response.json();
-                    const indexes = data.indexes || data.value || [];
+                if (directResponse.ok) {
+                    const directData = await directResponse.json();
+                    const indexes = directData.value || [];
                     
                     if (Array.isArray(indexes) && indexes.length > 0) {
                         const indexList = indexes.map(idx => ({
-                            name: typeof idx === 'string' ? idx : idx.name,
-                            label: typeof idx === 'string' ? idx : (idx.label || idx.name)
+                            name: idx.name,
+                            label: idx.name,
+                            documentCount: idx.documentCount || 0
                         }));
                         
-                        // Cache the live index list
                         localStorage.setItem('megamind_indexes', JSON.stringify(indexList));
-                        console.log('✅ Updated index list from Function App:', indexList.map(i => i.name).join(', '));
+                        console.log('✅ Updated index list from direct Azure API:', indexList.map(i => i.name).join(', '));
                         
-                        // Refresh the dropdown to reflect new data
                         initIndexSelector();
                         return;
-                    } else {
-                        console.warn('⚠️ Function App returned empty or invalid index list');
-                    }
-                } else {
-                    const errorText = await response.text();
-                    console.error('Function App admin/indexes failed:', response.status, errorText);
-                }
-                
-                throw new Error(`Function App admin/indexes failed: ${response.status}`);
-                
-            } catch (error) {
-                console.error('❌ Failed to fetch live index list from Function App:', error);
-                
-                // Try direct Azure Search API as fallback
-                try {
-                    console.log('🔄 Trying direct Azure Search API as fallback...');
-                    
-                    const directResponse = await fetch(`${INDEX_CONFIG.searchEndpoint}/indexes?api-version=2023-11-01`, {
-                        headers: {
-                            'api-key': INDEX_CONFIG.searchApiKey,
-                            'Content-Type': 'application/json'
-                        }
-                    });
-                    
-                    if (directResponse.ok) {
-                        const directData = await directResponse.json();
-                        const indexes = directData.value || [];
-                        
-                        if (Array.isArray(indexes) && indexes.length > 0) {
-                            const indexList = indexes.map(idx => ({
-                                name: idx.name,
-                                label: idx.name
-                            }));
-                            
-                            localStorage.setItem('megamind_indexes', JSON.stringify(indexList));
-                            console.log('✅ Updated index list from direct Azure API:', indexList.map(i => i.name).join(', '));
-                            
-                            initIndexSelector();
-                            return;
-                        }
-                    }
-                    
-                    throw new Error(`Direct Azure Search API also failed: ${directResponse.status}`);
-                    
-                } catch (fallbackError) {
-                    console.error('❌ Direct Azure API fallback also failed:', fallbackError);
-                    
-                    // Only use cached data as absolute last resort
-                    const cached = localStorage.getItem('megamind_indexes');
-                    if (cached) {
-                        console.log('📋 Using last cached index list - all live fetching failed');
-                    } else {
-                        console.log('📋 Using static fallback index list - no cached data available');
                     }
                 }
+                
+            } catch (directError) {
+                console.error('❌ Direct Azure Search API also failed:', directError);
+            }
+            
+            // Absolute last resort: use cached data or static list
+            const cached = localStorage.getItem('megamind_indexes');
+            if (cached) {
+                console.log('📋 Using last cached index list - all discovery methods failed');
+            } else {
+                console.log('📋 Using static fallback index list - no other options available');
             }
         }
 
