@@ -1474,18 +1474,22 @@
             auth: {
                 clientId: "93540af4-ed24-4202-a334-acd7f29bdd4b", // MegaMind SAX Portal SPA (saxadvisorygroup.com)
                 authority: "https://login.microsoftonline.com/a33e9b66-a6ef-43bf-9702-7cb4301d0a16", // saxadvisorygroup.com tenant
-                redirectUri: window.location.origin,
-                postLogoutRedirectUri: window.location.origin
+                redirectUri: "https://megamind.saxtechnology.com", // Fixed to match exact domain
+                postLogoutRedirectUri: "https://megamind.saxtechnology.com",
+                navigateToLoginRequestUrl: false // Prevent navigation loops
             },
             cache: {
-                cacheLocation: "localStorage",
-                storeAuthStateInCookie: true
+                cacheLocation: "sessionStorage", // Changed from localStorage to sessionStorage
+                storeAuthStateInCookie: false // Changed to false to avoid cookie issues
             },
             system: {
+                allowNativeBroker: false, // Disable native broker for web
+                iframeHashTimeout: 60000, // Increase iframe timeout to 60 seconds
+                loadFrameTimeout: 60000, // Increase frame load timeout
                 loggerOptions: {
                     loggerCallback: function (level, message, containsPii) {
                         if (containsPii) return;
-                        console.log(message);
+                        console.log('[MSAL]', message);
                     },
                     piiLoggingEnabled: false,
                     logLevel: window.msal ? msal.LogLevel.Warning : 2
@@ -1494,11 +1498,11 @@
         };
 
         const loginRequest = {
-            // Request elevated scope for manager endpoint (requires admin consent in tenant)
-            scopes: ["openid", "profile", "email", "User.Read", "User.Read.All"],
+            scopes: ["User.Read", "openid", "profile", "offline_access"],
             prompt: "select_account",
             domainHint: "saxadvisorygroup.com",
-            loginHint: "@saxadvisorygroup.com"
+            loginHint: "@saxadvisorygroup.com",
+            redirectUri: "https://megamind.saxtechnology.com" // Explicit redirect URI
         };
 
         // Initialize MSAL instance
@@ -1725,9 +1729,34 @@
             if (typeof updateCardTransforms === 'function') updateCardTransforms(frontIndex);
         }
         
+        // Clear problematic cached tokens on startup
+        function clearAuthCache() {
+            try {
+                // Clear any cached auth state that might be causing issues
+                sessionStorage.removeItem('megamind_sax_consent_attempted');
+                
+                // Clear MSAL cache if it exists
+                const msalKeys = [];
+                for (let i = 0; i < sessionStorage.length; i++) {
+                    const key = sessionStorage.key(i);
+                    if (key && key.includes('msal')) {
+                        msalKeys.push(key);
+                    }
+                }
+                msalKeys.forEach(key => sessionStorage.removeItem(key));
+                
+                console.log('Auth cache cleared');
+            } catch (e) {
+                console.log('Cache clear failed:', e);
+            }
+        }
+
         // Initialize application
         async function initialize() {
             console.log('Initializing MegaMind SAX...');
+            
+            // Clear any problematic cached auth state
+            clearAuthCache();
             
             // Initialize carousel visibility
             initializeCarousel();
@@ -1912,31 +1941,48 @@
             try {
                 let tokenResponse;
                 try {
-                // Try silent token acquisition first with extended scopes
-                tokenResponse = await msalInstance.acquireTokenSilent({
-                    scopes: ["User.Read"],
-                    account: currentAccount
-                });
+                    // First try with popup for silent token (faster, no iframe issues)
+                    tokenResponse = await msalInstance.acquireTokenSilent({
+                        scopes: ["User.Read"],
+                        account: currentAccount,
+                        forceRefresh: false
+                    });
                 } catch (silentError) {
                     console.log('Silent token acquisition failed:', silentError);
                     
-                    // Check if it's a consent error and handle it
-                    if (silentError.errorCode === 'invalid_grant' || 
+                    // Handle different error types
+                    if (silentError.errorCode === 'monitor_window_timeout' || 
+                        silentError.errorCode === 'user_login_error' ||
+                        silentError.message?.includes('timeout')) {
+                        console.log('Timeout error, trying popup method...');
+                        
+                        try {
+                            // Try popup as fallback for timeout errors
+                            tokenResponse = await msalInstance.acquireTokenPopup({
+                                scopes: ["User.Read"],
+                                account: currentAccount
+                            });
+                        } catch (popupError) {
+                            console.log('Popup also failed:', popupError);
+                            throw silentError; // Use original error
+                        }
+                    } else if (silentError.errorCode === 'invalid_grant' || 
                         silentError.errorCode === 'consent_required' ||
                         silentError.errorCode === 'interaction_required' ||
                         (silentError.message && silentError.message.includes('AADSTS65001'))) {
                         
-                    console.log('Consent or interaction required, initiating interactive consent...');
+                        console.log('Consent or interaction required, initiating interactive consent...');
 
-                    // Avoid redirect loop: only attempt once per load
-                    const triedConsent = sessionStorage.getItem('megamind_sax_consent_attempted');
-                    if (!triedConsent) {
-                        sessionStorage.setItem('megamind_sax_consent_attempted', '1');
-                        await msalInstance.loginRedirect({ ...loginRequest, prompt: "consent" });
+                        // Avoid redirect loop: only attempt once per load
+                        const triedConsent = sessionStorage.getItem('megamind_sax_consent_attempted');
+                        if (!triedConsent) {
+                            sessionStorage.setItem('megamind_sax_consent_attempted', '1');
+                            await msalInstance.loginRedirect({ ...loginRequest, prompt: "consent" });
+                        }
+                        throw silentError;
+                    } else {
+                        throw silentError; // Propagate other errors
                     }
-                    }
-                    
-                    throw silentError; // Propagate the error up
                 }
                 
                 // Get full user profile from Microsoft Graph
@@ -2020,7 +2066,7 @@
             }
         }
 
-        // Sign in (redirect flow to avoid popup/COOP warnings)
+        // Sign in with fallback strategy
         let authInProgress = false;
         signInBtn.addEventListener('click', async () => {
             if (authInProgress) {
@@ -2030,13 +2076,83 @@
             try {
                 authInProgress = true;
                 if (signInBtn) signInBtn.disabled = true;
-                await msalInstance.loginRedirect(loginRequest);
-                // After redirect back, initialize() will detect the account and proceed
+                signInBtn.textContent = 'Signing in...';
+                
+                let loginResult;
+                
+                // First try popup (usually faster and avoids iframe issues)
+                try {
+                    console.log('Attempting popup login...');
+                    loginResult = await msalInstance.loginPopup(loginRequest);
+                } catch (popupError) {
+                    console.log('Popup login failed, trying redirect:', popupError);
+                    
+                    // If popup fails (blocked, etc), fall back to redirect
+                    try {
+                        await msalInstance.loginRedirect(loginRequest);
+                        return; // Redirect will handle the rest
+                    } catch (redirectError) {
+                        throw redirectError;
+                    }
+                }
+                
+                // If popup succeeded, handle the result
+                if (loginResult && loginResult.account) {
+                    currentAccount = loginResult.account;
+                    console.log('Login successful:', currentAccount.username);
+                    await loadUserProfile();
+                    showMainApp();
+                }
+                
             } catch (error) {
                 console.error('Login error:', error);
-                alert('Login failed: ' + error.message);
+                
+                // Show user-friendly error message
+                const errorMsg = document.getElementById('authMessage');
+                if (errorMsg) {
+                    if (error.errorCode === 'popup_window_error') {
+                        errorMsg.textContent = 'Please allow popups for this site and try again, or refresh the page.';
+                    } else if (error.errorCode === 'user_cancelled') {
+                        errorMsg.textContent = 'Sign-in was cancelled. Please try again.';
+                    } else {
+                        errorMsg.textContent = 'Sign-in failed. Please try again or contact IT support.';
+                    }
+                }
+                
                 authInProgress = false;
-                if (signInBtn) signInBtn.disabled = false;
+                if (signInBtn) {
+                    signInBtn.disabled = false;
+                    signInBtn.textContent = 'Sign in with Microsoft';
+                }
+            }
+        });
+        
+        // Sign out handler
+        signOutBtn.addEventListener('click', async () => {
+            try {
+                // Clear local state
+                currentAccount = null;
+                userProfile = null;
+                sessionId = null;
+                
+                // Clear session storage
+                sessionStorage.clear();
+                
+                // Sign out from MSAL
+                await msalInstance.logoutPopup({
+                    postLogoutRedirectUri: "https://megamind.saxtechnology.com",
+                    mainWindowRedirectUri: "https://megamind.saxtechnology.com"
+                });
+                
+                // Show auth overlay
+                showAuthOverlay();
+                
+            } catch (error) {
+                console.error('Logout error:', error);
+                // Force logout by clearing everything and redirecting
+                sessionStorage.clear();
+                localStorage.clear();
+                window.location.reload();
             }
         });
 
