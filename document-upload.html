@@ -213,7 +213,7 @@
         </div>
     </div>
     <script>
-        const API_BASE_URL = 'https://saxtech-megamind.azurewebsites.net/api';
+        const API_BASE_URL = 'https://saxtech-enhanced-sop.azurewebsites.net/api';
         const FUNCTION_KEY = (localStorage.getItem('DOC_UPLOAD_FUNCTION_KEY') || '').trim();
         function withFunctionCode(u){ if (!FUNCTION_KEY) return u; return u.includes('?') ? `${u}&code=${encodeURIComponent(FUNCTION_KEY)}` : `${u}?code=${encodeURIComponent(FUNCTION_KEY)}`; }
         const fileInput = document.getElementById('fileInput');
@@ -528,20 +528,20 @@
                 Department: meta.department || meta.Dept || '',
                 DocumentType: docType,
                 SopType: docType,
-                Author: meta.author || 'System',
+                Author: meta.author || 'WebUpload',
                 Keywords: keywordsArr.join(', '),
                 Description: meta.description || '',
                 Summary: meta.description || '',
-                SummaryHtml: meta.description || '',
                 Version: meta.version || '1.0',
-                FullTextExtraction: false,
-                MaxTextLength: 30000
+                ComplianceLevel: 'Standard',
+                ConfidentialityLevel: 'Internal',
+                ApprovalStatus: 'Draft'
             };
 
             netLog(`Preparing upload: file="${uploadData.file?.name}" size=${uploadData.file?.size||0}B dept="${jsonBody.Department}" type="${jsonBody.DocumentType}" keywords=${keywordsArr.length}`);
 
             const endpoints = [
-                `${API_BASE_URL}/documents/upload-json-enhanced`
+                `${API_BASE_URL}/processsopdocumentenhanced`
             ];
             let lastStatus = 0, lastText = '';
             for (const url of endpoints){
@@ -620,16 +620,62 @@
             return Array.from(map.values());
         }
 
+        async function searchEnhancedIndex(){
+            try {
+                // Search directly against the enhanced sop-documents index
+                const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
+                const searchBody = {
+                    search: '*',
+                    top: 1000,
+                    select: 'id,title,fileName,department,author,chunkContent,createdDate,fileSize,description,keywords'
+                };
+                
+                const response = await fetch(searchUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
+                    },
+                    body: JSON.stringify(searchBody)
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.value && Array.isArray(data.value)) {
+                        // Transform search results to document format
+                        const documents = data.value.map(item => ({
+                            id: item.id || '',
+                            title: item.title || item.fileName || 'Untitled',
+                            description: item.description || item.chunkContent || '',
+                            department: item.department || 'Unknown',
+                            fileName: item.fileName || '',
+                            fileSize: item.fileSize || 0,
+                            uploadedAt: item.createdDate || new Date().toISOString(),
+                            author: item.author || 'Unknown',
+                            keywords: Array.isArray(item.keywords) ? item.keywords : []
+                        }));
+                        return documents;
+                    }
+                }
+            } catch (e) {
+                console.warn('Enhanced search failed:', e);
+            }
+            return [];
+        }
+        
         async function robustFetchDocuments(){
+            // Try enhanced search first
+            const enhancedResults = await searchEnhancedIndex();
+            if (enhancedResults.length > 0) {
+                return enhancedResults;
+            }
+            
+            // Fallback to function app endpoints
             const attempts = [
                 { m:'POST', u:`${API_BASE_URL}/documents/search`,          b:{ query:'*', top:1000 } },
-                { m:'POST', u:`${API_BASE_URL}/search/documents`,          b:{ query:'*', top:1000 } },
-                { m:'GET',  u:`${API_BASE_URL}/documents` },
+                { m:'POST', u:`${API_BASE_URL}/documents-search-enhanced`,  b:{ query:'*', top:1000 } },
                 { m:'GET',  u:`${API_BASE_URL}/documents/list` },
-                { m:'GET',  u:`${API_BASE_URL}/documents-search?all=true` },
-                { m:'POST', u:`${API_BASE_URL}/documents-search`,          b:{ query:'*', top:1000 } },
-                { m:'GET',  u:`${API_BASE_URL}/documents/search?all=true` },
-                { m:'GET',  u:`${API_BASE_URL}/search/documents?all=true` }
+                { m:'POST', u:`${API_BASE_URL}/documents-search`,          b:{ query:'*', top:1000 } }
             ];
             for (const a of attempts){
                 try {
@@ -650,7 +696,7 @@
         }
 
         async function fetchConfigDepartments(){
-            // Blob-only: use SAS from saxtech-megamind function, then GET Blob
+            // Use original saxtech-megamind server for department config
             try {
                 const qs = 'containerName=' + encodeURIComponent('megamind-config') + '&blobPath=' + encodeURIComponent('departments.json');
                 const sasRes = await fetch('https://saxtech-megamind.azurewebsites.net/api/generatesastoken?' + qs, { cache: 'no-store' });
@@ -671,7 +717,8 @@
                     }
                 }
             } catch {}
-            return [];
+            // Fallback: return common departments if config fails
+            return ['IT', 'HR', 'Finance', 'Operations', 'Sales', 'Marketing'];
         }
 
         function normalizeDepartments(arr){
