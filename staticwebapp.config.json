@@ -1,16 +1,6 @@
 {
   "routes": [
     {
-      "route": "/api/documents-search",
-      "rewrite": "https://saxtechmegamindfunctions.azurewebsites.net/api/documents-search",
-      "allowedRoles": ["anonymous"]
-    },
-    {
-      "route": "/api/index/maintenance",
-      "rewrite": "https://saxtechmegamindfunctions.azurewebsites.net/api/index/maintenance",
-      "allowedRoles": ["anonymous"]
-    },
-    {
       "route": "/api/conversations",
       "rewrite": "https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog",
       "allowedRoles": ["anonymous"]
