@@ -658,9 +658,28 @@
         }
 
         async function fetchConfigDepartments(){
-            console.log('Loading department configuration...');
+            console.log('Loading department configuration from API...');
             
-            // Try multiple endpoints for the SAS token function
+            // First try the departments API endpoint
+            try {
+                const deptRes = await fetch('https://saxtech-config.azurewebsites.net/api/departments/load', {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' }
+                });
+                
+                if (deptRes.ok) {
+                    const deptData = await deptRes.json().catch(() => ({}));
+                    const departments = deptData.departments || (Array.isArray(deptData) ? deptData : []);
+                    if (departments.length > 0) {
+                        console.log(`✓ Loaded ${departments.length} departments from API`);
+                        return departments;
+                    }
+                }
+            } catch (e) {
+                console.log('⚠ Department API endpoint failed:', e.message);
+            }
+            
+            // Fallback to SAS token approach for blob storage
             const endpoints = [
                 'https://saxtech-megamind.azurewebsites.net/api/generatesastoken',
                 'https://saxtech-megamind.azurewebsites.net/api/GenerateSASToken',
@@ -724,23 +743,11 @@
                 }
             }
             
-            console.log('⚠ Using fallback department list - SAS token endpoints unavailable');
+            console.log('⚠ No department configuration available from any endpoint');
             
-            // Enhanced fallback departments based on SAX Technology structure
-            return [
-                'Administrative',
-                'Business Development',
-                'Client Services', 
-                'Compliance',
-                'Executive',
-                'Finance',
-                'HR',
-                'IT',
-                'Legal',
-                'Marketing',
-                'Operations',
-                'Sales'
-            ];
+            // Return empty array - departments must come from the admin system
+            // No hardcoded fallbacks allowed per operational rules
+            return [];
         }
 
         function normalizeDepartments(arr){
