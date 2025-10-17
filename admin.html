@@ -7504,7 +7504,7 @@ Provide insights about conversation quality and satisfaction in JSON format:
         }
         
         function fetchConversationData() {
-            return fetch('https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=get&email=*&range=month&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==')
+            return fetch('/api/conversations?action=get&email=*&range=month&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==')
                 .then(r => r.json())
                 .then(d => d.sessions || []);
         }

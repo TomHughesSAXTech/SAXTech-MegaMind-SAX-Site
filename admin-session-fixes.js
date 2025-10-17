@@ -57,7 +57,7 @@ async function deleteSelectedSessions() {
     try {
         let deletedCount = 0;
         for (const sessionId of selectedSessions) {
-            const response = await fetch('https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==', {
+            const response = await fetch('/api/conversations?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -103,7 +103,7 @@ async function deleteAllUserSessions() {
     }
     
     try {
-        const response = await fetch('https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==', {
+        const response = await fetch('/api/conversations?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -136,7 +136,7 @@ async function confirmDeleteAllSessions() {
     }
     
     try {
-        const response = await fetch('https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==', {
+        const response = await fetch('/api/conversations?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
