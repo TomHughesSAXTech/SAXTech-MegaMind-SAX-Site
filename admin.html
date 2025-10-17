@@ -4107,130 +4107,60 @@ function removeVoice(index) {
             ];
         }
 
-        // Fetch live index list by testing known indexes via Function App search endpoint
+        // Fetch live index list from Azure Search API and cache in localStorage
+        let isRefreshingIndexes = false;
         async function refreshIndexListFromAzure() {
-            console.log('🔄 Discovering live indexes by testing search endpoints...');
-            
-            // Known potential indexes to test
-            const potentialIndexes = [
-                'sop-documents',
-                'ld-documents', 
-                'ustaxpublic',
-                'megamind-it',
-                'megamind-sax',
-                'askforeman-docs',
-                'fcs-documents',
-                'saxtech-policies',
-                'training-materials',
-                'project-docs',
-                'client-documents'
-            ];
-            
-            const validIndexes = [];
-            
-            try {
-                console.log('🔍 Testing', potentialIndexes.length, 'potential indexes...');
-                
-                // Test each potential index by making a search request
-                const testPromises = potentialIndexes.map(async (indexName) => {
-                    try {
-                        const response = await fetch(`${INDEX_CONFIG.functionUrl}/documents/search`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'x-functions-key': INDEX_CONFIG.functionKey
-                            },
-                            body: JSON.stringify({
-                                search: '*',
-                                top: 0,
-                                count: true,
-                                indexName: indexName
-                            })
-                        });
-                        
-                        if (response.ok) {
-                            const data = await response.json();
-                            const docCount = data['@odata.count'] || 0;
-                            
-                            if (docCount >= 0) {
-                                console.log('✅ Found valid index:', indexName, 'with', docCount, 'documents');
-                                return {
-                                    name: indexName,
-                                    label: indexName,
-                                    documentCount: docCount
-                                };
-                            }
-                        } else {
-                            console.log('❌ Index', indexName, 'not found or inaccessible:', response.status);
-                        }
-                    } catch (error) {
-                        console.log('❌ Error testing index', indexName, ':', error.message);
-                    }
-                    return null;
-                });
-                
-                const results = await Promise.all(testPromises);
-                const validResults = results.filter(result => result !== null);
-                
-                if (validResults.length > 0) {
-                    // Sort by document count (descending) to show most active indexes first
-                    validResults.sort((a, b) => b.documentCount - a.documentCount);
-                    
-                    // Cache the discovered indexes
-                    localStorage.setItem('megamind_indexes', JSON.stringify(validResults));
-                    console.log('✅ Discovered', validResults.length, 'valid indexes:', validResults.map(i => `${i.name} (${i.documentCount})`).join(', '));
-                    
-                    // Refresh the dropdown
-                    initIndexSelector();
-                    return;
-                } else {
-                    console.warn('⚠️ No valid indexes found during discovery');
-                }
-                
-            } catch (error) {
-                console.error('❌ Error during index discovery:', error);
+            // Prevent multiple simultaneous executions
+            if (isRefreshingIndexes) {
+                console.log('🗑️ Index refresh already in progress, skipping...');
+                return;
             }
             
-            // Fallback: try direct Azure Search API for official index list
+            isRefreshingIndexes = true;
+            
             try {
-                console.log('🔄 Falling back to direct Azure Search API...');
+                console.log('🔄 Fetching live index list from Azure Search API...');
                 
-                const directResponse = await fetch(`${INDEX_CONFIG.searchEndpoint}/indexes?api-version=2023-11-01`, {
+                // Try direct Azure Search API call for official index list
+                const response = await fetch(`${INDEX_CONFIG.searchEndpoint}/indexes?api-version=2023-11-01`, {
                     headers: {
                         'api-key': INDEX_CONFIG.searchApiKey,
                         'Content-Type': 'application/json'
                     }
                 });
                 
-                if (directResponse.ok) {
-                    const directData = await directResponse.json();
-                    const indexes = directData.value || [];
+                if (response.ok) {
+                    const data = await response.json();
+                    const indexes = data.value || [];
                     
                     if (Array.isArray(indexes) && indexes.length > 0) {
                         const indexList = indexes.map(idx => ({
                             name: idx.name,
-                            label: idx.name,
-                            documentCount: idx.documentCount || 0
+                            label: idx.name
                         }));
                         
+                        // Cache the live index list
                         localStorage.setItem('megamind_indexes', JSON.stringify(indexList));
-                        console.log('✅ Updated index list from direct Azure API:', indexList.map(i => i.name).join(', '));
+                        console.log('✅ Updated index list from Azure Search API:', indexList.map(i => i.name).join(', '));
                         
-                        initIndexSelector();
-                        return;
+                        return; // Don't call initIndexSelector here to prevent loops
                     }
                 }
                 
-            } catch (directError) {
-                console.error('❌ Direct Azure Search API also failed:', directError);
-            }
-            
-            // Absolute last resort: use cached data or static list
-            const cached = localStorage.getItem('megamind_indexes');
-            if (cached) {
-                console.log('📋 Using last cached index list - all discovery methods failed');
-            } else {
-                console.log('📋 Using static fallback index list - no other options available');
+                console.error('❌ Azure Search API failed or returned no indexes');
+                
+            } catch (error) {
+                console.error('❌ Failed to fetch live index list:', error);
+                
+                // Only use cached data as fallback
+                const cached = localStorage.getItem('megamind_indexes');
+                if (cached) {
+                    console.log('📋 Using last cached index list');
+                } else {
+                    console.log('📋 No cached data available, using static fallback');
+                }
+            } finally {
+                isRefreshingIndexes = false;
             }
         }
 
@@ -4266,8 +4196,8 @@ function removeVoice(index) {
                 refreshStats();
             });
 
-            // Attempt live refresh in background so only existing indexes show
-            refreshIndexListFromAzure();
+            // Note: refreshIndexListFromAzure() should be called manually when needed
+            // to avoid infinite loops
         }
 
         function showIndexAlert(type, message) {
