@@ -621,45 +621,7 @@
         }
 
         async function searchEnhancedIndex(){
-            try {
-                // Search directly against the enhanced sop-documents index
-                const searchUrl = 'https://saxmegamind-search.search.windows.net/indexes/sop-documents/docs/search?api-version=2023-11-01';
-                const searchBody = {
-                    search: '*',
-                    top: 1000,
-                    select: 'id,title,fileName,department,author,chunkContent,createdDate,fileSize,description,keywords'
-                };
-                
-                const response = await fetch(searchUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'api-key': 'sZf5MvolOU8wqcM0sb1jI8XhICcOrTCfSIRl44vLmMAzSeA34CDO'
-                    },
-                    body: JSON.stringify(searchBody)
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.value && Array.isArray(data.value)) {
-                        // Transform search results to document format
-                        const documents = data.value.map(item => ({
-                            id: item.id || '',
-                            title: item.title || item.fileName || 'Untitled',
-                            description: item.description || item.chunkContent || '',
-                            department: item.department || 'Unknown',
-                            fileName: item.fileName || '',
-                            fileSize: item.fileSize || 0,
-                            uploadedAt: item.createdDate || new Date().toISOString(),
-                            author: item.author || 'Unknown',
-                            keywords: Array.isArray(item.keywords) ? item.keywords : []
-                        }));
-                        return documents;
-                    }
-                }
-            } catch (e) {
-                console.warn('Enhanced search failed:', e);
-            }
+            // Direct Azure Search calls blocked by CORS - use Function App proxy instead
             return [];
         }
         
