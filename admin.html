@@ -3562,7 +3562,7 @@ const response = await safeFetch('https://saxtech-entra-sync.azurewebsites.net/a
                 // Try to load from new blob-based voices endpoint first
                 let response;
                 try {
-                    response = await fetch('https://saxtech-config.azurewebsites.net/api/ManageVoicesConfig');
+                    response = await fetch('/api/ManageVoicesConfig');
                 } catch (e) {
                     // Fallback to existing endpoint
                     response = await fetch('https://saxtech-enhanced-sop.azurewebsites.net/api/managevoiceconfig');
@@ -3744,7 +3744,7 @@ function removeVoice(index) {
                 // Try new blob-based endpoint first, fallback to existing if needed
                 let response;
                 try {
-                    response = await fetch('https://saxtech-config.azurewebsites.net/api/ManageVoicesConfig', {
+                    response = await fetch('/api/ManageVoicesConfig', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -5100,7 +5100,7 @@ const response = await fetch(`${INDEX_CONFIG.functionUrl}/documents/search?index
         async function loadSessionStats() {
             try {
                 // Use wildcard fetch to compute stats client-side (avoids server aggregate limitations)
-                const response = await fetch(`/api/conversations/?action=get&email=*&range=month&limit=500`);
+                const response = await fetch(`/api/conversations?action=get&email=*&range=month&limit=500`);
                 if (!response.ok) throw new Error('stats fetch failed');
                 const data = await response.json();
                 const sessions = data.sessions || [];
