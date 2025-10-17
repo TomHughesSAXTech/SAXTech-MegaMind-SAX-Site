@@ -165,11 +165,11 @@
                     <p>or</p>
                     <div class="file-input-wrapper">
                         <label class="file-input-label" for="fileInput"><i class="fas fa-folder-open"></i> Browse Files</label>
-                        <input type="file" id="fileInput" class="file-input" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.csv">
+                        <input type="file" id="fileInput" class="file-input" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx">
                     </div>
                     <!-- Invisible full-area label ensures any click triggers the file chooser (Safari/iOS safe) -->
                     <label for="fileInput" class="file-area-label" aria-label="Choose a file"></label>
-                    <p style="margin-top: 15px; font-size: 12px; color: #888;">Supported formats: PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, TXT<br>Maximum file size: 50MB</p>
+                    <p style="margin-top: 15px; font-size: 12px; color: #888;">Supported formats: PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX<br>Maximum file size: 50MB</p>
                 </div>
                 <div id="selectedFileContainer"></div>
 <button type="submit" class="upload-btn" id="uploadBtn" disabled><i class="fas fa-upload"></i> Upload Document</button>
@@ -415,9 +415,9 @@
         function handleFileDrop(event){ event.preventDefault(); fileUploadArea.classList.remove('dragover'); const file = event.dataTransfer.files[0]; if (file) validateAndSetFile(file);}
 
         function validateAndSetFile(file){
-            const allowedTypes = ['.pdf','.doc','.docx','.ppt','.pptx','.xls','.xlsx','.txt','.csv'];
+            const allowedTypes = ['.pdf','.doc','.docx','.ppt','.pptx','.xls','.xlsx'];
             const ext='.'+file.name.split('.').pop().toLowerCase();
-            if (!allowedTypes.includes(ext)){ showAlert('error','Invalid file type. Supported: PDF, DOC/DOCX, PPT/PPTX, XLS/XLSX, TXT, CSV.'); return; }
+            if (!allowedTypes.includes(ext)){ showAlert('error','Invalid file type. Supported: PDF, DOC/DOCX, PPT/PPTX, XLS/XLSX only.'); return; }
             const maxSize = 50*1024*1024; if (file.size>maxSize){ showAlert('error','File size exceeds 50MB limit. Please select a smaller file.'); return; }
             selectedFile = file; displaySelectedFile(file); uploadBtn.disabled = false;
         }
@@ -677,10 +677,27 @@
                             }
                         }
                     }
+                } else {
+                    console.warn(`SAS token endpoint returned ${sasRes.status}: Function App may be missing the generatesastoken function`);
                 }
-            } catch {}
-            // Fallback: return common departments if config fails
-            return ['IT', 'HR', 'Finance', 'Operations', 'Sales', 'Marketing'];
+            } catch (e) {
+                console.warn('Department config fetch failed:', e.message);
+            }
+            // Enhanced fallback departments based on SAX Technology structure
+            return [
+                'IT', 
+                'HR', 
+                'Finance', 
+                'Operations', 
+                'Sales', 
+                'Marketing', 
+                'Legal', 
+                'Executive', 
+                'Business Development',
+                'Client Services',
+                'Compliance',
+                'Administrative'
+            ];
         }
 
         function normalizeDepartments(arr){
@@ -709,7 +726,8 @@
         }
 
         function displayDocuments(documents){
-            const allowed = new Set(['pdf','doc','docx','xls','xlsx','ppt','pptx','txt','csv','mp4','mov','avi','mkv','webm']);
+            // Filter to only show Office and PDF files
+            const allowed = new Set(['pdf','doc','docx','xls','xlsx','ppt','pptx']);
             const filtered = (documents||[]).filter(doc => {
                 const fn = (doc.fileName||'').toLowerCase();
                 const ext = fn.split('.').pop();
@@ -717,7 +735,7 @@
                 return (fn && allowed.has(ext)) || isEmployeeProfile;
             });
             if(!filtered.length){
-                documentsGrid.innerHTML=`<div class=\"empty-state\"><i class=\"fas fa-folder-open\"></i><h3>No Documents Found</h3><p>No supported documents found. Upload PDF, Office, TXT, CSV, or video files.</p></div>`;
+                documentsGrid.innerHTML=`<div class=\"empty-state\"><i class=\"fas fa-folder-open\"></i><h3>No Documents Found</h3><p>No supported documents found. Upload PDF or Microsoft Office files only.</p></div>`;
                 return;
             }
             const html = filtered.map(doc => createDocumentCard(doc)).join('');
