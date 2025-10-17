@@ -670,16 +670,30 @@
             for (const endpoint of endpoints) {
                 try {
                     const qs = 'containerName=' + encodeURIComponent('megamind-config') + '&blobPath=' + encodeURIComponent('departments.json');
+                    
+                    // Add timeout to prevent hanging
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 5000);
+                    
                     const sasRes = await fetch(endpoint + '?' + qs, { 
                         cache: 'no-store',
-                        headers: { 'Accept': 'application/json' }
+                        headers: { 'Accept': 'application/json' },
+                        signal: controller.signal
                     });
+                    
+                    clearTimeout(timeoutId);
                     
                     if (sasRes.ok) {
                         const jsas = await sasRes.json().catch(()=>({}));
                         const url = jsas.blobUrl || jsas.url || jsas.sasUrl;
                         if (url) {
-                            const rb = await fetch(url, { cache: 'no-store' });
+                            const blobController = new AbortController();
+                            const blobTimeoutId = setTimeout(() => blobController.abort(), 3000);
+                            const rb = await fetch(url, { 
+                                cache: 'no-store',
+                                signal: blobController.signal
+                            });
+                            clearTimeout(blobTimeoutId);
                             if (rb.ok) {
                                 try {
                                     const j = await rb.json();
@@ -703,7 +717,10 @@
                         }
                     }
                 } catch (e) {
-                    // Continue to next endpoint
+                    // Continue to next endpoint (timeout, network error, etc)
+                    if (e.name === 'AbortError') {
+                        console.log(`⏱ Timeout on ${endpoint}`);
+                    }
                 }
             }
             
