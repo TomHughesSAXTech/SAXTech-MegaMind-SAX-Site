@@ -658,45 +658,71 @@
         }
 
         async function fetchConfigDepartments(){
-            // Use original saxtech-megamind server for department config
-            try {
-                const qs = 'containerName=' + encodeURIComponent('megamind-config') + '&blobPath=' + encodeURIComponent('departments.json');
-                const sasRes = await fetch('https://saxtech-megamind.azurewebsites.net/api/generatesastoken?' + qs, { cache: 'no-store' });
-                if (sasRes.ok) {
-                    const jsas = await sasRes.json().catch(()=>({}));
-                    const url = jsas.blobUrl || jsas.url || jsas.sasUrl;
-                    if (url) {
-                        const rb = await fetch(url, { cache: 'no-store' });
-                        if (rb.ok) {
-                            try {
-                                const j = await rb.json();
-                                return Array.isArray(j) ? j : (j.departments || []);
-                            } catch {
-                                const txt = await rb.text();
-                                try { const j2 = JSON.parse(txt); return Array.isArray(j2) ? j2 : (j2.departments || []); } catch { return []; }
+            console.log('Loading department configuration...');
+            
+            // Try multiple endpoints for the SAS token function
+            const endpoints = [
+                'https://saxtech-megamind.azurewebsites.net/api/generatesastoken',
+                'https://saxtech-megamind.azurewebsites.net/api/GenerateSASToken',
+                'https://saxtech-megamind.azurewebsites.net/api/temp-generatesastoken'
+            ];
+            
+            for (const endpoint of endpoints) {
+                try {
+                    const qs = 'containerName=' + encodeURIComponent('megamind-config') + '&blobPath=' + encodeURIComponent('departments.json');
+                    const sasRes = await fetch(endpoint + '?' + qs, { 
+                        cache: 'no-store',
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    
+                    if (sasRes.ok) {
+                        const jsas = await sasRes.json().catch(()=>({}));
+                        const url = jsas.blobUrl || jsas.url || jsas.sasUrl;
+                        if (url) {
+                            const rb = await fetch(url, { cache: 'no-store' });
+                            if (rb.ok) {
+                                try {
+                                    const j = await rb.json();
+                                    const depts = Array.isArray(j) ? j : (j.departments || []);
+                                    if (depts.length > 0) {
+                                        console.log(`✓ Departments loaded from config: ${depts.length} departments`);
+                                        return depts;
+                                    }
+                                } catch {
+                                    const txt = await rb.text();
+                                    try { 
+                                        const j2 = JSON.parse(txt); 
+                                        const depts2 = Array.isArray(j2) ? j2 : (j2.departments || []);
+                                        if (depts2.length > 0) {
+                                            console.log(`✓ Departments loaded from config (text parse): ${depts2.length} departments`);
+                                            return depts2;
+                                        }
+                                    } catch { /* continue to next */ }
+                                }
                             }
                         }
                     }
-                } else {
-                    console.warn(`SAS token endpoint returned ${sasRes.status}: Function App may be missing the generatesastoken function`);
+                } catch (e) {
+                    // Continue to next endpoint
                 }
-            } catch (e) {
-                console.warn('Department config fetch failed:', e.message);
             }
+            
+            console.log('⚠ Using fallback department list - SAS token endpoints unavailable');
+            
             // Enhanced fallback departments based on SAX Technology structure
             return [
-                'IT', 
-                'HR', 
-                'Finance', 
-                'Operations', 
-                'Sales', 
-                'Marketing', 
-                'Legal', 
-                'Executive', 
+                'Administrative',
                 'Business Development',
-                'Client Services',
+                'Client Services', 
                 'Compliance',
-                'Administrative'
+                'Executive',
+                'Finance',
+                'HR',
+                'IT',
+                'Legal',
+                'Marketing',
+                'Operations',
+                'Sales'
             ];
         }
 
