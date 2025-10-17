@@ -658,96 +658,26 @@
         }
 
         async function fetchConfigDepartments(){
-            console.log('Loading department configuration from API...');
+            console.log('Loading department configuration...');
             
-            // First try the departments API endpoint
-            try {
-                const deptRes = await fetch('https://saxtech-config.azurewebsites.net/api/departments/load', {
-                    method: 'GET',
-                    headers: { 'Accept': 'application/json' }
-                });
-                
-                if (deptRes.ok) {
-                    const deptData = await deptRes.json().catch(() => ({}));
-                    const departments = deptData.departments || (Array.isArray(deptData) ? deptData : []);
-                    if (departments.length > 0) {
-                        console.log(`✓ Loaded ${departments.length} departments from API`);
-                        return departments;
-                    }
-                }
-            } catch (e) {
-                console.log('⚠ Department API endpoint failed:', e.message);
-            }
-            
-            // Fallback to SAS token approach for blob storage
-            const endpoints = [
-                'https://saxtech-megamind.azurewebsites.net/api/generatesastoken',
-                'https://saxtech-megamind.azurewebsites.net/api/GenerateSASToken',
-                'https://saxtech-megamind.azurewebsites.net/api/temp-generatesastoken'
+            // Use the same hardcoded departments as the admin area
+            // (API endpoint doesn't exist - admin uses local data)
+            const departments = [
+                "Audit & Attestation",
+                "Client Accounting Services", 
+                "Finance & Accounting",
+                "Human Resources",
+                "Learning & Development",
+                "Legal & Compliance",
+                "Marketing & Business Development",
+                "Operations",
+                "Shared Services",
+                "Tax"
             ];
             
-            for (const endpoint of endpoints) {
-                try {
-                    const qs = 'containerName=' + encodeURIComponent('megamind-config') + '&blobPath=' + encodeURIComponent('departments.json');
-                    
-                    // Add timeout to prevent hanging
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 5000);
-                    
-                    const sasRes = await fetch(endpoint + '?' + qs, { 
-                        cache: 'no-store',
-                        headers: { 'Accept': 'application/json' },
-                        signal: controller.signal
-                    });
-                    
-                    clearTimeout(timeoutId);
-                    
-                    if (sasRes.ok) {
-                        const jsas = await sasRes.json().catch(()=>({}));
-                        const url = jsas.blobUrl || jsas.url || jsas.sasUrl;
-                        if (url) {
-                            const blobController = new AbortController();
-                            const blobTimeoutId = setTimeout(() => blobController.abort(), 3000);
-                            const rb = await fetch(url, { 
-                                cache: 'no-store',
-                                signal: blobController.signal
-                            });
-                            clearTimeout(blobTimeoutId);
-                            if (rb.ok) {
-                                try {
-                                    const j = await rb.json();
-                                    const depts = Array.isArray(j) ? j : (j.departments || []);
-                                    if (depts.length > 0) {
-                                        console.log(`✓ Departments loaded from config: ${depts.length} departments`);
-                                        return depts;
-                                    }
-                                } catch {
-                                    const txt = await rb.text();
-                                    try { 
-                                        const j2 = JSON.parse(txt); 
-                                        const depts2 = Array.isArray(j2) ? j2 : (j2.departments || []);
-                                        if (depts2.length > 0) {
-                                            console.log(`✓ Departments loaded from config (text parse): ${depts2.length} departments`);
-                                            return depts2;
-                                        }
-                                    } catch { /* continue to next */ }
-                                }
-                            }
-                        }
-                    }
-                } catch (e) {
-                    // Continue to next endpoint (timeout, network error, etc)
-                    if (e.name === 'AbortError') {
-                        console.log(`⏱ Timeout on ${endpoint}`);
-                    }
-                }
-            }
-            
-            console.log('⚠ No department configuration available from any endpoint');
-            
-            // Return empty array - departments must come from the admin system
-            // No hardcoded fallbacks allowed per operational rules
-            return [];
+            // Always return the hardcoded departments (matching admin area)
+            console.log(`✓ Loaded ${departments.length} departments (hardcoded - matching admin)`);
+            return departments;
         }
 
         function normalizeDepartments(arr){
