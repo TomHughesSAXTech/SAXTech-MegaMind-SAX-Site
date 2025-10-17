@@ -1524,12 +1524,12 @@
                 <div class="form-controls" style="margin-bottom: var(--space-xl); display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: var(--space-md); align-items: end;">
                     <div>
                         <label class="form-label" for="startDate">Start Date</label>
-                        <input type="date" id="startDate" class="form-input" value="" onchange="validateAndRefreshTokenUsage()">
+                        <input type="date" id="startDate" class="form-input" onchange="validateAndRefreshTokenUsage()">
                         <div style="font-size: 11px; color: var(--gray-500); margin-top: 4px;">Select any date range</div>
                     </div>
                     <div>
                         <label class="form-label" for="endDate">End Date</label>
-                        <input type="date" id="endDate" class="form-input" value="" onchange="validateAndRefreshTokenUsage()">
+                        <input type="date" id="endDate" class="form-input" onchange="validateAndRefreshTokenUsage()">
                         <div style="font-size: 11px; color: var(--gray-500); margin-top: 4px;">Select any date range</div>
                     </div>
                     <div>
@@ -5550,7 +5550,7 @@ const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/
                 generateSatisfactionAnalysis(sessions);
                 
 // Load token usage analytics
-                await loadTokenUsageAnalytics(sessions);
+                await loadTokenUsageAnalytics();
                 // Update timeline
                 try { updateActivityTimeline(); } catch(_){}
                 
@@ -8928,54 +8928,59 @@ window.addEventListener('load', () => {
                     srcSel.innerHTML = '<option value="conversation-logs" selected>Conversation Logs</option>';
                 }
             } catch(_){}
-            // Set default dates
+            
+            // Set default dates to current date and 7 days ago for meaningful data
             const startDateEl = document.getElementById('startDate');
             const endDateEl = document.getElementById('endDate');
             
-            if (startDateEl) startDateEl.value = '2025-09-25';
-            if (endDateEl) endDateEl.value = '2025-10-02';
+            if (startDateEl && endDateEl) {
+                const today = new Date();
+                const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+                const formatDate = (date) => date.toISOString().split('T')[0];
+                
+                startDateEl.value = formatDate(sevenDaysAgo);
+                endDateEl.value = formatDate(today);
+            }
             
             // Load initial data when overview tab is first accessed
             if (document.getElementById('overview-tab').classList.contains('active')) {
-                loadOverviewData();
-                updateSystemHealthWithAvailability();
-                
-                // Initialize token usage chart
-                setTimeout(() => {
-                    initializeTokenUsageChart();
-                    updateTokenUsageChart('2025-09-25', '2025-10-02');
-                }, 100);
+                loadOverviewData().then(() => {
+                    updateSystemHealthWithAvailability();
+                    
+                    // Initialize token usage chart after Chart.js loads and data is available
+                    setTimeout(() => {
+                        if (typeof Chart !== 'undefined') {
+                            initializeTokenUsageChart();
+                            validateAndRefreshTokenUsage();
+                        } else {
+                            console.warn('Chart.js not loaded yet, retrying...');
+                            setTimeout(() => {
+                                if (typeof Chart !== 'undefined') {
+                                    initializeTokenUsageChart();
+                                    validateAndRefreshTokenUsage();
+                                }
+                            }, 500);
+                        }
+                    }, 200);
+                }).catch(error => {
+                    console.error('Failed to load overview data:', error);
+                    // Still initialize chart with fallback
+                    setTimeout(() => {
+                        if (typeof Chart !== 'undefined') {
+                            initializeTokenUsageChart();
+                            showTokenUsageFallback();
+                        }
+                    }, 200);
+                });
             }
         });
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     </div><!-- container -->
+    
+    <!-- Load Chart.js before other scripts that depend on it -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="admin-session-management.js"></script>
     <!-- Load the searchproxy bypass patch -->
     <script src="js/admin-searchproxy-patch.js"></script>
-<script>
-// Ensure date inputs are set and metrics load if empty when DOM is ready
-(function() {
-  const init = () => {
-    const startEl = document.getElementById('startDate');
-    const endEl = document.getElementById('endDate');
-    if (startEl && endEl && (!startEl.value || !endEl.value)) {
-      const end = new Date();
-      const start = new Date(end.getTime() - 7*24*60*60*1000);
-      const fmt = d => d.toISOString().slice(0,10);
-      startEl.value = fmt(start);
-      endEl.value = fmt(end);
-      if (typeof validateAndRefreshTokenUsage === 'function') {
-        validateAndRefreshTokenUsage();
-      }
-    }
-  };
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
-})();
-</script>
 </body>
 </html>
