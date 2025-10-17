@@ -2947,16 +2947,32 @@ function exportSystemHealth() {
             } catch(_){}
         }
         
-        // Default voice models
+        // Default voice models (matching current system configuration)
         const defaultVoices = [
-            { name: 'Rachel', id: 'EXAVITQu4vr4xnSDxMaL' },
-            { name: 'Clyde', id: 'onwK4e9ZLuTAKqWW03F9' },
-            { name: 'Charlotte', id: 'XB0fDUnXU5powFXDhCwa' },
-            { name: 'Bill', id: 'pqHfZKP75CvOlQylNhV4' },
+            { name: 'Clyde', id: '2EiwWnXFnvU5JabPnv8n' },
+            { name: 'Roger', id: 'CwhRBWXzGAHq8TQ4Fs17' },
+            { name: 'Sarah', id: 'EXAVITQu4vr4xnSDxMaL' },
+            { name: 'Laura', id: 'FGY2WhTYpPnrIDTdsKH5' },
+            { name: 'Charlie', id: 'IKne3meq5aSn9XLyUdCD' },
             { name: 'George', id: 'JBFqnCBsd6RMkjVDRZzb' },
-            { name: 'Domi', id: 'AZnzlk1XvdvUeBnXmlld' },
-            { name: 'Nicole', id: 'piTKgcLEGmPE4e6mEKli' },
-            { name: 'Jessie', id: 'Zlb1dXrM653N07WRdFW3' }
+            { name: 'Callum', id: 'N2lVS1w4EtoT3dr4eOWO' },
+            { name: 'River', id: 'SAz9YHcvj6GT2YYXdXww' },
+            { name: 'Harry', id: 'SOYHLrjzK2X1ezoPC6cr' },
+            { name: 'Liam', id: 'TX3LPaxmHKxFdv7VOQHJ' },
+            { name: 'Alice', id: 'Xb7hH8MSUJpSbSDYk0k2' },
+            { name: 'Matilda', id: 'XrExE9yKIg1WjnnlVkGX' },
+            { name: 'Will', id: 'bIHbv24MWmeRgasZH58o' },
+            { name: 'Jessica', id: 'cgSgspJ2msm6clMCkdW9' },
+            { name: 'Eric', id: 'cjVigY5qzO86Huf0OWal' },
+            { name: 'Chris', id: 'iP95p4xoKVk53GoZ742B' },
+            { name: 'Brian', id: 'nPczCjzI2devNBz1zQrb' },
+            { name: 'Daniel', id: 'onwK4e9ZLuTAKqWW03F9' },
+            { name: 'Lily', id: 'pFZP5JQG7iQjIQuC4Bku' },
+            { name: 'Bill', id: 'pqHfZKP75CvOlQylNhV4' },
+            { name: 'Mark - ConvoAI', id: '1SM7GgM6IMuvQlz2BwM3' },
+            { name: 'RoboTom AI', id: 'F53iDingKDeZwPTLpLOU' },
+            { name: 'Eryn - Hyper Real, Conversation, Natural', id: 'kdnRe2koJdOK4Ovxn2DI' },
+            { name: 'Hope - Your conversational bestie', id: 'uYXf8XasLslADfZ2MB4u' }
         ];
 
         let voices = [];
@@ -3548,7 +3564,7 @@ const response = await safeFetch('https://saxtech-entra-sync.azurewebsites.net/a
                 // Try to load from new blob-based voices endpoint first
                 let response;
                 try {
-                    response = await fetch('https://saxtech-enhanced-sop.azurewebsites.net/api/managevoicesconfig');
+                    response = await fetch('https://saxtech-config.azurewebsites.net/api/ManageVoicesConfig');
                 } catch (e) {
                     // Fallback to existing endpoint
                     response = await fetch('https://saxtech-enhanced-sop.azurewebsites.net/api/managevoiceconfig');
@@ -3730,7 +3746,7 @@ function removeVoice(index) {
                 // Try new blob-based endpoint first, fallback to existing if needed
                 let response;
                 try {
-                    response = await fetch('https://saxtech-enhanced-sop.azurewebsites.net/api/managevoicesconfig', {
+                    response = await fetch('https://saxtech-config.azurewebsites.net/api/ManageVoicesConfig', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -3854,17 +3870,20 @@ function removeVoice(index) {
                 }));
                 elevenVoices = apiList;
 
-                // Merge names into local voices by id for consistency
-                const byId = new Map((voices || []).map(v => [v.id || v.voiceId, v]));
-                apiList.forEach(v => {
-                    const key = v.voice_id;
-                    if (byId.has(key)) {
-                        byId.get(key).name = v.name || byId.get(key).name;
-                    } else {
-                        byId.set(key, { name: v.name, id: key, voiceId: key });
+                // Only update names for existing voices, don't add new ones automatically
+                // This ensures that deleted voices stay deleted
+                const configVoiceIds = new Set((voices || []).map(v => v.id || v.voiceId));
+                apiList.forEach(apiVoice => {
+                    const voiceId = apiVoice.voice_id;
+                    if (configVoiceIds.has(voiceId)) {
+                        // Update the name from API for existing configured voices
+                        const existingVoice = voices.find(v => (v.id || v.voiceId) === voiceId);
+                        if (existingVoice) {
+                            existingVoice.name = apiVoice.name;
+                        }
                     }
                 });
-                voices = Array.from(byId.values());
+                
                 renderVoiceList();
                 updateVoiceStats();
                 showStatus('Loaded ElevenLabs voices', 'success');
