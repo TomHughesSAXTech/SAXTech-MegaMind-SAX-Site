@@ -2218,7 +2218,7 @@ function loadConversationFromSnapshot(conv){
                     if (loading) loading.style.display = 'none';
                     return false;
                 }
-                const url = `/proxy/conversations?action=get&email=${encodeURIComponent(email)}&range=month&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
+                const url = `/api/conversations?action=get&email=${encodeURIComponent(email)}&range=month&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
                 const resp = await fetch(url);
                 if (!resp.ok) {
                     console.warn('Cloud history HTTP', resp.status);
@@ -2760,7 +2760,7 @@ function loadConversationFromSnapshot(conv){
                     }
                 };
                 
-                const response = await fetch('/proxy/conversations?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==', {
+                const response = await fetch('/api/conversations?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

@@ -1,17 +1,8 @@
 {
-  "routes": [
-    {
-      "route": "/proxy/conversations",
-      "rewrite": "https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog",
-      "allowedRoles": ["anonymous"],
-      "methods": ["GET", "POST", "OPTIONS"]
-    }
-  ],
+  "routes": [],
   "navigationFallback": {
     "rewrite": "/index.html",
     "exclude": [
-      "/proxy/conversations*",
-      "/proxy/*",
       "/api/*",
       "*.css",
       "*.scss",

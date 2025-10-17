@@ -2505,10 +2505,10 @@
             let url;
             if (userEmail) {
                 // Export specific user data
-                url = `/proxy/conversations?action=exportUser&format=${format}&adminKey=sax-admin-2024&userEmail=${encodeURIComponent(userEmail)}&range=${encodeURIComponent(range)}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
+                url = `/api/conversations?action=exportUser&format=${format}&adminKey=sax-admin-2024&userEmail=${encodeURIComponent(userEmail)}&range=${encodeURIComponent(range)}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
             } else {
                 // Export all data
-                url = `/proxy/conversations?action=exportAll&format=${format}&adminKey=sax-admin-2024&range=${encodeURIComponent(range)}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
+                url = `/api/conversations?action=exportAll&format=${format}&adminKey=sax-admin-2024&range=${encodeURIComponent(range)}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
             }
             
             window.open(url, '_blank');
@@ -2518,25 +2518,25 @@
         function exportToExcel() {
             const { userEmail, range } = getSessionFilters();
             if (!userEmail) { alert('Select or enter a user email first'); return; }
-            const url = `/proxy/conversations?action=exportUser&format=xlsx&adminKey=sax-admin-2024&userEmail=${encodeURIComponent(userEmail)}&range=${encodeURIComponent(range)}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
+            const url = `/api/conversations?action=exportUser&format=xlsx&adminKey=sax-admin-2024&userEmail=${encodeURIComponent(userEmail)}&range=${encodeURIComponent(range)}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
             window.open(url, '_blank');
         }
         
         function exportToPDF() {
             const { userEmail, range } = getSessionFilters();
             if (!userEmail) { alert('Select or enter a user email first'); return; }
-            const url = `/proxy/conversations?action=exportUser&format=pdf&adminKey=sax-admin-2024&userEmail=${encodeURIComponent(userEmail)}&range=${encodeURIComponent(range)}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
+            const url = `/api/conversations?action=exportUser&format=pdf&adminKey=sax-admin-2024&userEmail=${encodeURIComponent(userEmail)}&range=${encodeURIComponent(range)}&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
             window.open(url, '_blank');
         }
         
         // Quick Export Functions
         function exportAllConversations() {
-            const url = `/proxy/conversations?action=exportAll&format=xlsx&adminKey=sax-admin-2024&range=all&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
+            const url = `/api/conversations?action=exportAll&format=xlsx&adminKey=sax-admin-2024&range=all&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
             window.open(url, '_blank');
         }
         
         function exportUserSummary() {
-            const url = `/proxy/conversations?action=exportUserSummary&format=xlsx&adminKey=sax-admin-2024&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
+            const url = `/api/conversations?action=exportUserSummary&format=xlsx&adminKey=sax-admin-2024&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==`;
             window.open(url, '_blank');
         }
         
@@ -2852,7 +2852,7 @@
 function exportAPILogs() {
             (async ()=>{
                 try {
-                    const res = await fetch(`/proxy/conversations?action=recent&limit=500`);
+                    const res = await fetch(`/api/conversations?action=recent&limit=500`);
                     const data = await res.json();
                     const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
                     const url = URL.createObjectURL(blob);
@@ -2880,28 +2880,28 @@ function exportBackup() {
         function exportExecutiveSummary() {
             const { userEmail, range, format } = getExportFilters();
 if (format === 'pdf') { exportAnalyticsPDF('executive'); return; }
-            const url = `/proxy/conversations?action=exportExecutiveSummary&format=${format}&adminKey=sax-admin-2024&range=${encodeURIComponent(range)}`;
+            const url = `/api/conversations?action=exportExecutiveSummary&format=${format}&adminKey=sax-admin-2024&range=${encodeURIComponent(range)}`;
             window.open(url, '_blank');
         }
         
         function exportDepartmentAnalysis() {
             const { userEmail, range, format } = getExportFilters();
 if (format === 'pdf') { exportAnalyticsPDF('department'); return; }
-            const url = `/proxy/conversations?action=exportDepartmentAnalysis&format=${format}&adminKey=sax-admin-2024&range=${encodeURIComponent(range)}`;
+            const url = `/api/conversations?action=exportDepartmentAnalysis&format=${format}&adminKey=sax-admin-2024&range=${encodeURIComponent(range)}`;
             window.open(url, '_blank');
         }
         
         function exportUserEngagement() {
             const { userEmail, range, format } = getExportFilters();
 if (format === 'pdf') { exportAnalyticsPDF('engagement'); return; }
-            const url = `/proxy/conversations?action=exportUserEngagement&format=${format}&adminKey=sax-admin-2024&range=${encodeURIComponent(range)}`;
+            const url = `/api/conversations?action=exportUserEngagement&format=${format}&adminKey=sax-admin-2024&range=${encodeURIComponent(range)}`;
             window.open(url, '_blank');
         }
         
 function exportSystemHealth() {
             const { userEmail, range, format } = getExportFilters();
             if (format === 'pdf') { exportAnalyticsPDF('system'); return; }
-            const url = `/proxy/conversations?action=exportSystemHealth&format=${format}&adminKey=sax-admin-2024&range=${encodeURIComponent(range)}`;
+            const url = `/api/conversations?action=exportSystemHealth&format=${format}&adminKey=sax-admin-2024&range=${encodeURIComponent(range)}`;
             window.open(url, '_blank');
         }
 // Fixed userProfile reference and merged all index management features
@@ -5100,7 +5100,7 @@ const response = await fetch(`${INDEX_CONFIG.functionUrl}/documents/search?index
         async function loadSessionStats() {
             try {
                 // Use wildcard fetch to compute stats client-side (avoids server aggregate limitations)
-                const response = await fetch(`/proxy/conversations/?action=get&email=*&range=month&limit=500`);
+                const response = await fetch(`/api/conversations/?action=get&email=*&range=month&limit=500`);
                 if (!response.ok) throw new Error('stats fetch failed');
                 const data = await response.json();
                 const sessions = data.sessions || [];
@@ -5186,7 +5186,7 @@ const response = await fetch(`${INDEX_CONFIG.functionUrl}/documents/search?index
             document.getElementById('sessionResults').style.display = 'none';
 
             try {
-const response = await fetch(`/proxy/conversations?action=get&email=${encodeURIComponent(userEmail)}&range=${dateRange}`, {
+const response = await fetch(`/api/conversations?action=get&email=${encodeURIComponent(userEmail)}&range=${dateRange}`, {
                     headers: {
                     }
                 });
@@ -5219,7 +5219,7 @@ const response = await fetch(`/proxy/conversations?action=get&email=${encodeURIC
             
             try {
                 for (const sessionId of selected) {
-                    await fetch('/proxy/conversations?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==', {
+                    await fetch('/api/conversations?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -5249,7 +5249,7 @@ const response = await fetch(`/proxy/conversations?action=get&email=${encodeURIC
             }
             
             try {
-                const response = await fetch('/proxy/conversations?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==', {
+                const response = await fetch('/api/conversations?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -5627,7 +5627,7 @@ const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/
         // Load overview statistics
         async function loadOverviewData() {
             try {
-                const response = await fetch('/proxy/conversations/?action=get&email=*&range=month&limit=1000');
+                const response = await fetch('/api/conversations/?action=get&email=*&range=month&limit=1000');
                 const data = await response.json();
                 const sessionsRaw = data.sessions || [];
                 // Normalize all sessions immediately for consistent downstream usage
@@ -6623,7 +6623,7 @@ Provide actionable recommendations in JSON format:
             const end = new Date(endDate);
             const days = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1);
             // Fetch up to 1000 sessions from the conversation logs API and filter by date
-            const base = '/proxy/conversations/';
+            const base = '/api/conversations/';
             const primaryUrl = `${base}?action=recent&limit=1000&cb=${Date.now()}`;
             const fallbackUrl = `${base}?action=get&email=*&range=year&limit=2000&cb=${Date.now()}`;
             let sessions = [];
@@ -7580,7 +7580,7 @@ Provide insights about conversation quality and satisfaction in JSON format:
         }
         
         function fetchConversationData() {
-            return fetch('/proxy/conversations?action=get&email=*&range=month&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==')
+            return fetch('/api/conversations?action=get&email=*&range=month&code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==')
                 .then(r => r.json())
                 .then(d => d.sessions || []);
         }
