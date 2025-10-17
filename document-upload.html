@@ -253,11 +253,12 @@
                 const content = document.getElementById('modalContent');
                 modal.style.display = 'block';
                 content.innerHTML = `
-                    <div style="max-width:560px;margin:0 auto;text-align:left;">
-                        <h3 style="margin:0 0 8px 0;color:#1e293b;">Uploading Document</h3>
+                    <div style="max-width:700px;margin:0 auto;text-align:left;">
+                        <h3 style="margin:0 0 8px 0;color:#1e293b;display:flex;align-items:center;"><i class="fas fa-cloud-upload-alt" style="margin-right:8px;"></i>Document Upload Status</h3>
                         <div id="uploadStatusContainer"></div>
-                        <div id="networkLog" style="margin-top:10px;padding:10px;background:#0b1220;color:#e2e8f0;border-radius:6px;font:12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;max-height:220px;overflow:auto;white-space:pre-wrap;"></div>
-                        <div id="modalButtons" style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;">
+                        <div id="networkLog" style="margin-top:10px;padding:12px;background:#0f172a;color:#e2e8f0;border-radius:6px;font:12px/1.5 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;max-height:300px;overflow:auto;white-space:pre-wrap;border:1px solid #334155;"></div>
+                        <div id="modalButtons" style="margin-top:12px;display:flex;gap:8px;justify-content:space-between;">
+                            <button id="refreshListBtn" style="padding:8px 14px;background:#16a34a;color:#fff;border:none;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:4px;"><i class="fas fa-sync-alt"></i> Refresh List</button>
                             <button id="closeUploadBtn" style="padding:8px 14px;background:#6b7280;color:#fff;border:none;border-radius:6px;cursor:pointer;">Close</button>
                         </div>
                     </div>`;
@@ -268,8 +269,10 @@
                 const container = content.querySelector('#uploadStatusContainer');
                 if (up && up.parentNode !== container) container.appendChild(up);
                 if (steps && steps.parentNode !== container) container.appendChild(steps);
-                const btn = content.querySelector('#closeUploadBtn');
-                if (btn) btn.onclick = closeModal;
+                const closeBtn = content.querySelector('#closeUploadBtn');
+                const refreshBtn = content.querySelector('#refreshListBtn');
+                if (closeBtn) closeBtn.onclick = closeModal;
+                if (refreshBtn) refreshBtn.onclick = () => { loadAll(); netLog('Document list refreshed'); };
             } catch(_) {}
         }
 
@@ -454,13 +457,20 @@
             if (formData.get('actionType')==='update' && existingDoc.value){ uploadData.metadata.documentId = existingDoc.value; }
             const uploadResult = await uploadToCloud(uploadData);
             updateStepStatus('upload','completed');
-            // Mark server-side tasks as started; final status comes from server logs
-            updateStepStatus('index','active');
-            updateStepStatus('embeddings','active');
-            updateProgress(100,'Upload completed successfully!');
-            showAlert('success','Document uploaded successfully!');
+            // Mark server-side tasks as completed based on server response
+            if (uploadResult && uploadResult.success) {
+                updateStepStatus('index','completed');
+                updateStepStatus('embeddings','completed');
+                updateProgress(100,'Document uploaded and indexed successfully!');
+                showAlert('success', uploadResult.message || 'Document uploaded and indexed successfully!');
+            } else {
+                updateStepStatus('index','error');
+                updateStepStatus('embeddings','error');
+                updateProgress(100,'Upload completed but indexing may have failed');
+                showAlert('warning', uploadResult?.message || 'Upload completed but indexing may have failed');
+            }
             // Keep modal open and do not auto-reset; refresh list only
-            loadAll();
+            setTimeout(() => loadAll(), 2000); // Delay to allow indexing to complete
         }
 
         async function calculateFileHash(file){ return new Promise((resolve)=>{ const reader=new FileReader(); reader.onload=async (e)=>{ const ab=e.target.result; const hb=await crypto.subtle.digest('SHA-256',ab); const ha=Array.from(new Uint8Array(hb)); const hx=ha.map(b=>b.toString(16).padStart(2,'0')).join(''); resolve(hx); }; reader.readAsArrayBuffer(file); }); }
@@ -513,14 +523,19 @@
             if (/standard operating procedure/i.test(docType)) docType = 'SOP';
             const jsonBody = {
                 Title: meta.title || meta.documentTitle || meta.fileTitle || uploadData.file?.name,
-                Content: base64,
+                FileContent: base64,
                 FileName: meta.fileName || uploadData.file?.name,
                 Department: meta.department || meta.Dept || '',
                 DocumentType: docType,
-                Author: meta.author || '',
-                Keywords: keywordsArr,
+                SopType: docType,
+                Author: meta.author || 'System',
+                Keywords: keywordsArr.join(', '),
+                Description: meta.description || '',
                 Summary: meta.description || '',
-                SummaryHtml: meta.description || ''
+                SummaryHtml: meta.description || '',
+                Version: meta.version || '1.0',
+                FullTextExtraction: false,
+                MaxTextLength: 30000
             };
 
             netLog(`Preparing upload: file="${uploadData.file?.name}" size=${uploadData.file?.size||0}B dept="${jsonBody.Department}" type="${jsonBody.DocumentType}" keywords=${keywordsArr.length}`);
@@ -538,12 +553,26 @@
                     if (res.ok){
                         const out = await res.json().catch(()=>({ success:true }));
                         showUploadStatusModal();
-                        showAlert('success', `Uploaded: ${out.documentId || out.id || jsonBody.FileName}`);
-                        netLog('Upload completed successfully.');
+                        netLog(`Upload response: ${JSON.stringify(out, null, 2)}`);
+                        if (out.success) {
+                            showAlert('success', `Document uploaded successfully! ID: ${out.documentId || out.id || jsonBody.FileName}`);
+                            netLog('Upload and indexing completed successfully.');
+                            if (out.message) netLog(`Server message: ${out.message}`);
+                            if (out.chunksCreated) netLog(`Document chunked into ${out.chunksCreated} parts for better search`);
+                            if (out.extractedTextLength) netLog(`Extracted ${out.extractedTextLength} characters of text`);
+                            if (out.department) netLog(`Filed under department: ${out.department}`);
+                        } else {
+                            showAlert('warning', out.message || 'Upload completed with warnings');
+                            netLog('Upload completed but may need manual review.');
+                        }
                         return out;
                     }
                     lastStatus = res.status; lastText = await res.text().catch(()=>`HTTP ${res.status}`);
-                }catch(e){ lastText = e?.message || String(e); }
+                    netLog(`HTTP ${res.status}: ${lastText.substring(0, 500)}`);
+                }catch(e){ 
+                    lastText = e?.message || String(e); 
+                    netLog(`Request failed: ${lastText}`);
+                }
             }
             netLog(`Upload failed: ${lastStatus} - ${String(lastText).slice(0,300)}`);
             throw new Error(`Upload failed: ${lastStatus} - ${lastText}`);
@@ -889,12 +918,7 @@
         function closeModal(){
             const modal = document.getElementById('uploadModal');
             modal.style.display='none';
-            // If closing the upload status modal, reset the form afterwards
-            try {
-                if (document.getElementById('uploadStatusContainer')) {
-                    resetForm();
-                }
-            } catch(_){}
+            // Don't auto-reset form to keep status visible longer
         }
 
 document.getElementById('selfTestBtn')?.addEventListener('click', runUploadSelfTest);
