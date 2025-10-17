@@ -7,7 +7,7 @@ let selectedSessions = new Set();
 let currentUserFilter = '';
 
 // Centralized Conversation Logs API endpoint (via proxy to avoid CORS)
-const CONVO_API = '/api/conversations';
+const CONVO_API = '/proxy/conversations';
 
 // Helper function to escape HTML and fix invalid images
 function escapeHtmlAndFixImages(text) {
