@@ -1,6 +1,11 @@
 {
   "routes": [
     {
+      "route": "/api/conversations/*",
+      "rewrite": "https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog",
+      "allowedRoles": ["anonymous"]
+    },
+    {
       "route": "/api/documents-search",
       "rewrite": "https://saxtechmegamindfunctions.azurewebsites.net/api/documents-search",
       "allowedRoles": ["anonymous"]

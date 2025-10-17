@@ -5110,7 +5110,7 @@ const response = await fetch(`${INDEX_CONFIG.functionUrl}/documents/search?index
             document.getElementById('sessionResults').style.display = 'none';
 
             try {
-const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?action=get&email=${encodeURIComponent(userEmail)}&range=${dateRange}`, {
+const response = await fetch(`/api/conversations?action=get&email=${encodeURIComponent(userEmail)}&range=${dateRange}`, {
                     headers: {
                     }
                 });
@@ -5143,7 +5143,7 @@ const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/
             
             try {
                 for (const sessionId of selected) {
-                    await fetch('https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==', {
+                    await fetch('/api/conversations?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -5173,7 +5173,7 @@ const response = await fetch(`https://saxtechconversationlogs.azurewebsites.net/
             }
             
             try {
-                const response = await fetch('https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==', {
+                const response = await fetch('/api/conversations?code=w_j-EeXYy7G1yfUBkSVvlT5Hhafzg-eCNkaUOkOzzIveAzFu9NTlQw==', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
