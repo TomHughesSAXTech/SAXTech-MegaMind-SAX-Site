@@ -1825,6 +1825,31 @@
                         </div>
                     </div>
                     
+                    <!-- Manual Index Management -->
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                        <h4 style="margin: 0 0 12px 0; color: #1e293b; font-size: 16px; font-weight: 600;">📝 Manual Index Management</h4>
+                        <p style="color: #64748b; font-size: 14px; margin: 0 0 12px 0;">Add or remove indexes manually. No automatic lookups to prevent loops.</p>
+                        
+                        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                            <button class="btn btn-success" onclick="addNewIndex()" style="padding: 8px 16px; font-size: 14px; font-weight: 500;">
+                                <i class="fas fa-plus"></i> Add Index
+                            </button>
+                            <button class="btn btn-warning" onclick="removeIndex()" style="padding: 8px 16px; font-size: 14px; font-weight: 500;">
+                                <i class="fas fa-minus"></i> Remove Current
+                            </button>
+                            <button class="btn btn-secondary" onclick="resetIndexList()" style="padding: 8px 16px; font-size: 14px; font-weight: 500;">
+                                <i class="fas fa-undo"></i> Reset to Defaults
+                            </button>
+                        </div>
+                        
+                        <div style="margin-top: 12px; font-size: 12px; color: #64748b;">
+                            <i class="fas fa-info-circle"></i> 
+                            <strong>Add Index:</strong> Enter exact index name (e.g., "megamind-sax") • 
+                            <strong>Remove:</strong> Removes currently selected index • 
+                            <strong>Reset:</strong> Returns to default 4 indexes
+                        </div>
+                    </div>
+                    
                     <!-- Index Stats -->
                     <div id="indexStats" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 16px; background: #f9fafb; border-radius: 8px;">
                         <div style="text-align: center;">
@@ -4107,12 +4132,93 @@ function removeVoice(index) {
             ];
         }
 
-        // Fetch live index list from Azure Search API and cache in localStorage
-        let isRefreshingIndexes = false;
+        // Manual index management functions
+        function addNewIndex() {
+            const indexName = prompt('Enter the exact index name to add:');
+            if (!indexName || !indexName.trim()) {
+                alert('Please enter a valid index name');
+                return;
+            }
+            
+            const cleanName = indexName.trim();
+            
+            // Get current list and check for duplicates
+            const currentList = getIndexList();
+            if (currentList.find(idx => idx.name === cleanName)) {
+                alert('Index "' + cleanName + '" already exists in the list');
+                return;
+            }
+            
+            // Add to list
+            const newIndex = { name: cleanName, label: cleanName };
+            const updatedList = [...currentList, newIndex];
+            
+            // Save to localStorage
+            localStorage.setItem('megamind_indexes', JSON.stringify(updatedList));
+            
+            // Refresh the dropdown
+            initIndexSelector();
+            
+            console.log('✅ Added new index:', cleanName);
+            showIndexAlert('success', 'Index "' + cleanName + '" added successfully');
+        }
+        
+        function removeIndex(indexName) {
+            if (!indexName) {
+                const currentIndex = INDEX_CONFIG.indexName;
+                const confirmed = confirm('Remove "' + currentIndex + '" from the index list?');
+                if (!confirmed) return;
+                indexName = currentIndex;
+            }
+            
+            const currentList = getIndexList();
+            const updatedList = currentList.filter(idx => idx.name !== indexName);
+            
+            if (updatedList.length === currentList.length) {
+                alert('Index "' + indexName + '" not found in list');
+                return;
+            }
+            
+            // Save to localStorage
+            localStorage.setItem('megamind_indexes', JSON.stringify(updatedList));
+            
+            // If we removed the current index, switch to first available
+            if (INDEX_CONFIG.indexName === indexName && updatedList.length > 0) {
+                INDEX_CONFIG.indexName = updatedList[0].name;
+                localStorage.setItem('megamind_selected_index', updatedList[0].name);
+            }
+            
+            // Refresh the dropdown
+            initIndexSelector();
+            refreshStats();
+            
+            console.log('❌ Removed index:', indexName);
+            showIndexAlert('success', 'Index "' + indexName + '" removed successfully');
+        }
+        
+        function resetIndexList() {
+            const confirmed = confirm('Reset to default index list? This will remove all custom indexes.');
+            if (!confirmed) return;
+            
+            // Clear localStorage to force default list
+            localStorage.removeItem('megamind_indexes');
+            
+            // Reset to default index
+            INDEX_CONFIG.indexName = 'sop-documents';
+            localStorage.setItem('megamind_selected_index', 'sop-documents');
+            
+            // Refresh
+            initIndexSelector();
+            refreshStats();
+            
+            console.log('🔄 Reset to default index list');
+            showIndexAlert('success', 'Index list reset to defaults');
+        }
+        
+        // Disabled automatic refresh function
         async function refreshIndexListFromAzure() {
-            console.log('🚫 DISABLED: Index refresh disabled to prevent loops');
-            // Completely disabled to stop infinite loops
-            // Use static list from getIndexList() function
+            console.log('🚫 DISABLED: Automatic index refresh disabled to prevent loops');
+            console.log('ℹ️ Use the "Add Index" button to manually add new indexes');
             return;
         }
 
