@@ -2,11 +2,7 @@
   "routes": [
     {
       "route": "/api/conversations",
-      "rewrite": "https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog",
-      "allowedRoles": ["anonymous"]
-    },
-    {
-      "route": "/api/conversations/*",
+      "methods": ["GET", "POST"],
       "rewrite": "https://saxtechconversationlogs.azurewebsites.net/api/SaveConversationLog",
       "allowedRoles": ["anonymous"]
     },
