@@ -4308,26 +4308,30 @@ function removeVoice(index) {
                 console.log('📊 refreshStats - INDEX_CONFIG.indexName:', INDEX_CONFIG.indexName);
                 console.log('📊 refreshStats - currentIndex being used:', currentIndex);
                 
-                // Use Function App endpoint to avoid CORS issues
+                // Use searchproxy endpoint that we fixed
                 let totalDocs = 0;
+                let indexSizeKB = 0;
                 
                 try {
-                    const searchBody = {
-                        search: '*',
-                        top: 0,  // We only need the count, not actual documents
-                        count: true,
-                        indexName: currentIndex
+                    // First get the document count
+                    const countBody = {
+                        operation: 'search',
+                        indexName: currentIndex,
+                        searchRequest: {
+                            search: '*',
+                            count: true,
+                            top: 0
+                        }
                     };
                     
-                    console.log('🔍 refreshStats - API call body:', JSON.stringify(searchBody, null, 2));
+                    console.log('🔍 refreshStats - API call body:', JSON.stringify(countBody, null, 2));
                     
-                    const response = await fetch(`${INDEX_CONFIG.functionUrl}/documents/search`, {
+                    const response = await fetch('https://saxtech-entra-sync.azurewebsites.net/api/searchproxy', {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json',
-                            'x-functions-key': INDEX_CONFIG.functionKey
+                            'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify(searchBody)
+                        body: JSON.stringify(countBody)
                     });
                     
                     console.log('🔍 refreshStats - API response status:', response.status);
@@ -4338,11 +4342,37 @@ function removeVoice(index) {
                         console.log('✅ refreshStats - Got document count:', totalDocs, 'for index:', currentIndex);
                     } else {
                         const errorText = await response.text();
-                        console.error('Function App search failed:', response.status, errorText);
+                        console.error('Search proxy failed:', response.status, errorText);
                         throw new Error(`HTTP ${response.status}: ${errorText}`);
                     }
+                    
+                    // Now get index statistics for size
+                    try {
+                        const statsBody = {
+                            operation: 'indexStats',
+                            indexName: currentIndex
+                        };
+                        
+                        const statsResponse = await fetch('https://saxtech-entra-sync.azurewebsites.net/api/searchproxy', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(statsBody)
+                        });
+                        
+                        if (statsResponse.ok) {
+                            const statsData = await statsResponse.json();
+                            indexSizeKB = statsData.storageSize || 0;
+                            console.log('✅ refreshStats - Got index size:', indexSizeKB, 'KB for index:', currentIndex);
+                        }
+                    } catch (statsError) {
+                        console.warn('Could not get index size stats:', statsError);
+                        // Calculate approximate size based on document count
+                        indexSizeKB = totalDocs * 50; // rough estimate
+                    }
                 } catch (e) {
-                    console.error('Function App search error:', e);
+                    console.error('Search proxy error:', e);
                     throw e;
                 }
                 
@@ -4354,7 +4384,7 @@ function removeVoice(index) {
                     console.log('📊 Updated totalDocs display to:', totalDocs.toLocaleString());
                 }
                 
-                const sizeInMB = (totalDocs * 50 / 1024).toFixed(1);
+                const sizeInMB = (indexSizeKB / 1024).toFixed(1);
                 if (indexSizeElement) {
                     indexSizeElement.textContent = `${sizeInMB} MB`;
                     console.log('📊 Updated indexSize display to:', `${sizeInMB} MB`);
