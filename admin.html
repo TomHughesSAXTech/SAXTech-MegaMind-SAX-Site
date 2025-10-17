@@ -3153,11 +3153,16 @@ const response = await safeFetch('https://saxtech-megamind-entra.azurewebsites.n
                     const queued = (response.status === 202) || (result && result.status && String(result.status).toLowerCase() === 'queued');
                     document.getElementById('syncStatus').textContent = queued ? 'Sync queued (running in background)...' : 'Sync completed!';
                     
-                    // Display results/info
+                    // Display results/info (handle queued vs completed)
                     displaySyncResults(result);
-                    
-                    // Refresh stats after short delay
-                    setTimeout(loadIndexStats, 3000);
+
+                    // If queued, poll index counts to detect completion
+                    if (queued) {
+                        startEntraSyncPolling();
+                    } else {
+                        // Refresh stats after short delay
+                        setTimeout(loadIndexStats, 3000);
+                    }
                 } else {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
@@ -3186,27 +3191,38 @@ const response = await safeFetch('https://saxtech-megamind-entra.azurewebsites.n
         function displaySyncResults(result) {
             document.getElementById('syncResults').style.display = 'block';
             
+            const isQueued = result && result.status && String(result.status).toLowerCase() === 'queued';
+            const usersVal = isQueued ? '—' : (result.total_users ?? 0);
+            const groupsVal = isQueued ? '—' : (result.total_groups ?? 0);
+            const docsVal = isQueued ? '—' : (result.documents_uploaded ?? 0);
+            const photosVal = isQueued ? '—' : (result.photos_fetched ?? 0);
+
             let html = `
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px;">
                     <div style="text-align: center; padding: 10px; background: #f0f4f8; border-radius: 8px;">
-                        <div style="font-size: 24px; font-weight: bold; color: #3b82f6;">${result.total_users || 0}</div>
+                        <div style="font-size: 24px; font-weight: bold; color: #3b82f6;">${usersVal}</div>
                         <div style="font-size: 12px; color: #666;">Users Synced</div>
                     </div>
                     <div style="text-align: center; padding: 10px; background: #f0f4f8; border-radius: 8px;">
-                        <div style="font-size: 24px; font-weight: bold; color: #3b82f6;">${result.total_groups || 0}</div>
+                        <div style="font-size: 24px; font-weight: bold; color: #3b82f6;">${groupsVal}</div>
                         <div style="font-size: 12px; color: #666;">Groups Synced</div>
                     </div>
                     <div style="text-align: center; padding: 10px; background: #f0f4f8; border-radius: 8px;">
-                        <div style="font-size: 24px; font-weight: bold; color: #22c55e;">${result.documents_uploaded || 0}</div>
+                        <div style="font-size: 24px; font-weight: bold; color: #22c55e;">${docsVal}</div>
                         <div style="font-size: 12px; color: #666;">Documents Uploaded</div>
                     </div>
                     <div style="text-align: center; padding: 10px; background: #f0f4f8; border-radius: 8px;">
-                        <div style="font-size: 24px; font-weight: bold; color: #f59e0b;">${result.photos_fetched || 0}</div>
+                        <div style="font-size: 24px; font-weight: bold; color: #f59e0b;">${photosVal}</div>
                         <div style="font-size: 12px; color: #666;">Photos Fetched</div>
                     </div>
                 </div>
             `;
             
+            // Show queued notice
+            if (isQueued) {
+                html += '<div style="padding: 10px; background: #fff7ed; border: 1px solid #fdba74; color: #9a3412; border-radius: 8px; margin-bottom: 12px;">Sync is queued and running in the background. This section will update automatically when counts change.</div>';
+            }
+
             // Show tenant breakdown
             if (result.tenants_processed && result.tenants_processed.length > 0) {
                 html += '<h4 style="margin-bottom: 10px;">Tenant Breakdown:</h4>';
@@ -3232,6 +3248,47 @@ const response = await safeFetch('https://saxtech-megamind-entra.azurewebsites.n
             }
             
             document.getElementById('syncResultsContent').innerHTML = html;
+        }
+
+        async function startEntraSyncPolling() {
+            // Poll index counts every 10s up to 2 minutes to detect background sync completion
+            const base = 'https://saxtech-megamind-entra.azurewebsites.net/api/searchproxy';
+            const headers = { 'Content-Type': 'application/json' };
+            let attempts = 0;
+            const maxAttempts = 12; // ~2 minutes
+            const poll = async () => {
+                attempts++;
+                try {
+                    const [employeeRes, totalRes] = await Promise.all([
+                        fetch(base, { method:'POST', headers, body: JSON.stringify({ indexName:'sop-documents', search:'*', filter:"employeeType eq 'employee'", count:true, top:0 }) }),
+                        fetch(base, { method:'POST', headers, body: JSON.stringify({ indexName:'sop-documents', search:'*', count:true, top:0 }) })
+                    ]);
+                    if (employeeRes.ok && totalRes.ok) {
+                        const emp = await employeeRes.json();
+                        const tot = await totalRes.json();
+                        const employeeCount = emp?.data?.['@odata.count'] ?? null;
+                        const totalCount = tot?.data?.['@odata.count'] ?? null;
+                        if (employeeCount != null) {
+                            const el = document.getElementById('totalEmployees'); if (el) el.textContent = employeeCount;
+                        }
+                        if (totalCount != null) {
+                            const tl = document.getElementById('totalDocs'); if (tl) tl.textContent = totalCount;
+                        }
+                        document.getElementById('syncStatus').textContent = 'Background sync in progress...';
+                        // Heuristic: if counts increased from zero, consider done and stop polling
+                        if (employeeCount > 0 || totalCount > 0) {
+                            document.getElementById('syncStatus').textContent = 'Sync completed!';
+                            return; // stop polling
+                        }
+                    }
+                } catch (_) {}
+                if (attempts < maxAttempts) {
+                    setTimeout(poll, 10000);
+                } else {
+                    document.getElementById('syncStatus').textContent = 'Sync status unknown (timed out).';
+                }
+            };
+            poll();
         }
         
         function getTimeAgo(date) {
