@@ -713,7 +713,8 @@
             const filtered = (documents||[]).filter(doc => {
                 const fn = (doc.fileName||'').toLowerCase();
                 const ext = fn.split('.').pop();
-                return fn && allowed.has(ext);
+                const isEmployeeProfile = doc.id && doc.id.includes('employee_');
+                return (fn && allowed.has(ext)) || isEmployeeProfile;
             });
             if(!filtered.length){
                 documentsGrid.innerHTML=`<div class=\"empty-state\"><i class=\"fas fa-folder-open\"></i><h3>No Documents Found</h3><p>No supported documents found. Upload PDF, Office, TXT, CSV, or video files.</p></div>`;
