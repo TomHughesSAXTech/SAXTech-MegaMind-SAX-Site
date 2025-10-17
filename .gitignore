@@ -16,3 +16,13 @@ node_modules/
 # Test files with secrets
 test-embeddings.js
 
+
+# Azure Functions build artifacts
+enhanced-functions/bin/
+enhanced-functions/obj/
+
+# Azure Function logs and deployments
+azure/entra-functions/LogFiles/
+azure/entra-functions/deployments/
+azure/entra-functions/*.zip
+azure/entra-functions/*.bak
