@@ -1,3 +1,4 @@
+// API function for managing voice configuration
 module.exports = async function (context, req) {
     // Handle CORS preflight
     if (req.method === 'OPTIONS') {
