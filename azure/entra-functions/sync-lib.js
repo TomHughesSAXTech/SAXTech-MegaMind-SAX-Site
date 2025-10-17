@@ -184,49 +184,76 @@ async function mapLimit(items, limit, mapper) {
 }
 
 async function runFullSync(log = console) {
+  log('Starting runFullSync - asserting environment');
   assertEnv();
+  log(`Environment OK: TENANTS=${TENANTS.length} tenants configured`);
+  
+  log('Ensuring index is configured for sync');
   await ensureIndexConfigured(log);
+  log('Index configuration complete');
 
   let totalUsers = 0, totalGroups = 0, totalPhotos = 0, errors = [];
   const tenantsSummary = [];
 
   for (const tenant of TENANTS) {
+    log(`Processing tenant: ${tenant}`);
     try {
+      log(`Getting Graph token for ${tenant}`);
       const token = await getGraphToken(tenant);
+      log(`Got token for ${tenant}, fetching users/groups`);
+      
       const base = 'https://graph.microsoft.com/v1.0';
-      const users = await fetchAll(`${base}/users?$select=id,displayName,givenName,surname,jobTitle,department,mail,userPrincipalName,mobilePhone,businessPhones,officeLocation&$filter=userType eq 'Member'`, token);
-      const groups = await fetchAll(`${base}/groups?$select=id,displayName,mail,mailEnabled,securityEnabled,groupTypes`, token);
+      const usersUrl = `${base}/users?$select=id,displayName,givenName,surname,jobTitle,department,mail,userPrincipalName,mobilePhone,businessPhones,officeLocation&$filter=userType eq 'Member'`;
+      const groupsUrl = `${base}/groups?$select=id,displayName,mail,mailEnabled,securityEnabled,groupTypes`;
+      
+      log(`Fetching users from: ${usersUrl}`);
+      const users = await fetchAll(usersUrl, token);
+      log(`Got ${users.length} users from ${tenant}`);
+      
+      log(`Fetching groups from: ${groupsUrl}`);
+      const groups = await fetchAll(groupsUrl, token);
+      log(`Got ${groups.length} groups from ${tenant}`);
 
       const tDisplay = tenant;
       const userDocs = users.map(u => normalizeUser(u, tDisplay));
+      log(`Normalized ${userDocs.length} user documents`);
 
       // Fetch photos with modest concurrency to avoid throttling
+      log(`Fetching photos for ${users.length} users`);
       const photos = await mapLimit(users, 6, async (u, idx) => {
         const b64 = await getUserPhotoBase64(token, u.id);
         if (b64) userDocs[idx].employeePhotoBase64 = b64;
         return !!b64;
       });
       const photosThisTenant = photos.filter(Boolean).length;
+      log(`Fetched ${photosThisTenant} photos from ${tenant}`);
 
       const groupDocs = groups.map(g => normalizeGroup(g, tDisplay));
+      log(`Normalized ${groupDocs.length} group documents`);
 
+      log(`Upserting ${userDocs.length} user docs to index`);
       const up1 = await upsertDocuments(userDocs);
+      log(`User upsert result: ${up1.upserted} docs`);
+      
+      log(`Upserting ${groupDocs.length} group docs to index`);
       const up2 = await upsertDocuments(groupDocs);
+      log(`Group upsert result: ${up2.upserted} docs`);
 
       totalUsers += userDocs.length;
       totalGroups += groupDocs.length;
       totalPhotos += photosThisTenant;
 
       tenantsSummary.push({ name: tenant, users: userDocs.length, groups: groupDocs.length, photos: photosThisTenant });
-      log(`Synced tenant ${tenant}: users=${userDocs.length}, groups=${groupDocs.length}, photos=${photosThisTenant}, upserts=${up1.upserted + up2.upserted}`);
+      log(`Completed tenant ${tenant}: users=${userDocs.length}, groups=${groupDocs.length}, photos=${photosThisTenant}, upserts=${up1.upserted + up2.upserted}`);
     } catch (e) {
-      log.error(`Tenant ${tenant} sync error`, e);
+      log(`ERROR processing tenant ${tenant}:`, e.message || e);
+      log('Full error details:', e);
       tenantsSummary.push({ name: tenant, error: String(e && e.message || e) });
       errors.push(`Tenant ${tenant}: ${String(e && e.message || e)}`);
     }
   }
 
-  return {
+  const result = {
     total_users: totalUsers,
     total_groups: totalGroups,
     documents_uploaded: totalUsers + totalGroups,
@@ -234,6 +261,9 @@ async function runFullSync(log = console) {
     tenants_processed: tenantsSummary,
     errors
   };
+  
+  log('runFullSync completed:', JSON.stringify(result, null, 2));
+  return result;
 }
 
 module.exports = { runFullSync };
